@@ -7,7 +7,7 @@
 int main(int argc, char *argv[]){
     if(argc == 2){
         std::string pfile = argv[1];
-        if (pfile.size() >= 4 && pfile.substr(pfile.size() - 4) == ".ntr"){
+        if (pfile.size() > 5 && pfile.substr(pfile.size() - 5) == ".slfr"){
             std::ifstream file(pfile);
             if (!file.is_open()){
                 error err;
@@ -34,7 +34,7 @@ int main(int argc, char *argv[]){
             error err;
             err.code = 2;
             err.msg = "Wrong archive type";
-            err.hint = "File must be a .ntr file";
+            err.hint = "File must be a .slfr file";
             printErr(err);
             return 2;
         }
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]){
         error err;
         err.code = 1;
         err.msg = "Bad Arguments";
-        err.hint = "Usage: ./ntr file.ntr";
+        err.hint = "Usage: ./slfr file.slfr";
         printErr(err);
         return 1;
     }
