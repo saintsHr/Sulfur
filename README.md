@@ -23,4 +23,19 @@ This project is in early development and aims to grow into a fully independent c
 ```bash
 git clone https://github.com/SaintsHr/Sulfur.git
 make
-./slfr file.slfr
+```
+---
+
+## Install
+
+```bash
+./install.sh
+```
+
+---
+
+## Usage
+
+```bash
+slfr file.slfr
+```
