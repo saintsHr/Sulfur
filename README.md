@@ -1,3 +1,5 @@
+![Placeholder](assets/sulfur.png)
+
 # Sulfur
 
 **Sulfur** is a programming language written in C++, designed to be **C-like but simpler to write and read**, compiled, and extensible.  
