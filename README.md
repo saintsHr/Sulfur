@@ -1,4 +1,4 @@
-![Placeholder](assets/sulfur.png)
+![Placeholder](assets/sulfurb.png)
 
 # Sulfur
 
