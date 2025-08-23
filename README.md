@@ -1,6 +1,6 @@
-# SLFR
+# Sulfur
 
-SLFR is a programming language written in C++, designed to be **C-like but simpler to write and read**, compiled, and extensible.  
+**Sulfur** is a programming language written in C++, designed to be **C-like but simpler to write and read**, compiled, and extensible.  
 This project is in early development and aims to grow into a fully independent compiler with its own assembly backend.
 
 ---
