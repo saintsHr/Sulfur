@@ -120,11 +120,11 @@ Token Lexer::readSymbol() {
     return {TokenType::Symbol, value, line, startCol};
 }
 
-
 Token Lexer::readString() {
     std::string value;
     int startCol = col;
 
+    // consome a aspa inicial
     char quote = file.get();
     col++;
 
@@ -137,16 +137,20 @@ Token Lexer::readString() {
         char ch = file.get();
         col++;
 
-        if (ch == quote) break;
+        if (ch == quote){
+            break;
+        }
 
         if (ch == '\\') {
             int nextChar = file.get();
             col++;
-            if (nextChar == 'n') value.push_back('\n');
-            else if (nextChar == 't') value.push_back('\t');
-            else if (nextChar == '"') value.push_back('"');
-            else if (nextChar == '\\') value.push_back('\\');
-            else value.push_back(static_cast<char>(nextChar));
+            switch (nextChar) {
+                case 'n': value.push_back('\n'); break;
+                case 't': value.push_back('\t'); break;
+                case '"': value.push_back('"'); break;
+                case '\\': value.push_back('\\'); break;
+                default: value.push_back(static_cast<char>(nextChar)); break;
+            }
         } else {
             value.push_back(ch);
         }
@@ -206,9 +210,9 @@ Token Lexer::nextToken() {
 
     if (std::isalpha(c) || c == '_') return readIdentifier();
     if (std::isdigit(c)) return readNumber();
-    if (std::ispunct(c)) return readSymbol();
     if (c == '\'') return readChar();
     if (c == '"') return readString();
+    if (std::ispunct(c)) return readSymbol();
 
     char ch = file.get();
     return {TokenType::Unknown, std::string(1, ch), line, col++};
