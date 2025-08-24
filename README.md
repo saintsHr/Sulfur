@@ -31,7 +31,7 @@ make
 ```
 ---
 
-## Install
+## Install (optional)
 
 ```bash
 ./install.sh
@@ -43,4 +43,10 @@ make
 
 ```bash
 slfr file.slfr
+```
+
+or if not installed:
+
+```bash
+./slfr file.slfr
 ```
