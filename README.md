@@ -34,7 +34,8 @@ make
 ## Install (optional)
 
 ```bash
-./install.sh
+./install.sh (Linux)
+install.bat (Windows)
 ```
 
 ---
@@ -48,5 +49,6 @@ slfr file.slfr
 or if not installed:
 
 ```bash
-./slfr file.slfr
+./slfr file.slfr (Linux)
+slfr.exe file.slfr (Windows)
 ```
