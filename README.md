@@ -7,6 +7,11 @@ This project is in early development and aims to grow into a fully independent c
 
 ---
 
+## Documentation
+The **official** documentation can be found [here](https://sulfurdoc.netlify.app)
+
+---
+
 ## Roadmap
 
 - [x] Project setup
