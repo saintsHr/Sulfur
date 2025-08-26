@@ -4,6 +4,7 @@
 
 #include "error.hpp"
 #include "lexer.hpp"
+#include "parser.hpp"
 
 int main(int argc, char *argv[]){
     if(argc == 2){
@@ -31,28 +32,7 @@ int main(int argc, char *argv[]){
                 return 4;
             }
 
-            //Compiling Here
-            Lexer lexer(file);
-            Token tok;
-
-            while ((tok = lexer.nextToken()).type != TokenType::EndOfFile){
-                if (tok.type == TokenType::Unknown){
-                    error err;
-                    err.code = 5;
-                    err.source = "Lexer";
-                    err.msg = "Unknown token type";
-                    err.hint = "Probably caused by a weird character";
-                    err.file = pfile;
-                    err.line = tok.line;
-                    err.col = tok.col;
-                    printErr(err);
-                    return 5;
-                }
-                std::cout << "Token: " << tok.value
-                    << " (tipo " << (int)tok.type
-                    << ", linha " << tok.line
-                    << ", col " << tok.col << ")\n";
-             }
+            //Compile Here
 
         }else{
             error err;

@@ -4,17 +4,6 @@
 
 Lexer::Lexer(std::ifstream& input) : file(input), line(1), col(1) {}
 
-const std::vector<std::string> keywords = {
-    "int",
-    "if",
-    "while",
-    "bool",
-    "for",
-    "string"
-    "and"
-    "or"
-};
-
 void Lexer::skipIgnored() {
     while (true) {
         int c = file.peek();
@@ -124,7 +113,6 @@ Token Lexer::readString() {
     std::string value;
     int startCol = col;
 
-    // consome a aspa inicial
     char quote = file.get();
     col++;
 

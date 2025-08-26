@@ -1,4 +1,9 @@
-SRC = src/*.cpp
+CXX = g++
+SRC = src/*.cpp	
+TARGET = slfr
 
 all:
-	g++ $(SRC) -Iinclude -o slfr
+	$(CXX) $(SRC) -Iinclude -o $(TARGET)
+
+clear:
+	rm -f ./$(TARGET)

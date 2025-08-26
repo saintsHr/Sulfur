@@ -4,6 +4,17 @@
 #include <fstream>
 #include <vector>
 
+const std::vector<std::string> keywords = {
+    "int",
+    "if",
+    "while",
+    "bool",
+    "for",
+    "string"
+    "and"
+    "or"
+};
+
 enum class TokenType {
     Identifier,
     Keyword,
