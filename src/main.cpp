@@ -5,6 +5,7 @@
 #include "error.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
+#include "main.hpp"
 
 int main(int argc, char *argv[]){
     if(argc == 2){
@@ -21,6 +22,9 @@ int main(int argc, char *argv[]){
                 printErr(err);
                 return 3;
             }
+
+            source = pfile;
+
             if (file.peek() == std::ifstream::traits_type::eof()){
                 error err;
                 err.code = 4;
