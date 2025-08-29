@@ -16,7 +16,7 @@ The **official** documentation can be found [here](https://sulfurdoc.netlify.app
 
 - [x] Project setup
 - [x] Lexer
-- [ ] Parser
+- [x] Parser
 - [ ] Semantic analysis
 - [ ] Code generation
 - [ ] Assembler & Linker
@@ -26,7 +26,7 @@ The **official** documentation can be found [here](https://sulfurdoc.netlify.app
 ## Build
 
 ```bash
-git clone https://github.com/SaintsHr/Sulfur.git
+git clone https://github.com/saintsHr/Sulfur.git
 make
 ```
 ---
