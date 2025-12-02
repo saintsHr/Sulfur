@@ -27,3 +27,11 @@ static inline void printErr(err er) {
             break;
     }
 }
+
+static inline int errorExit(char *msg) {
+    err er;
+    er.sev = ERROR;
+    er.msg = msg;
+    printErr(er);
+    exit(1);
+}
