@@ -1,5 +1,5 @@
-#include "spine/preprocessor.h"
-#include "spine/util/log.h"
+#include "sulfur/preprocessor.h"
+#include "sulfur/util/log.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -12,15 +12,15 @@
 #define DEFINE_KEYWORD "define"
 
 typedef struct {
-    spDefine defines[SP_MAX_DEFINES];
+    sfDefine defines[SF_MAX_DEFINES];
     int defineCount;
-} spPreprocessorContext;
+} sfPreprocessorContext;
 
 static inline int isIdentifierChar(char c) {
     return isalnum((unsigned char)c) || c == '_';
 }
 
-static inline char* skipWhitespace(char* p) {
+static inline char* skipWhitesface(char* p) {
     while (isspace((unsigned char)*p)) p++;
     return p;
 }
@@ -39,12 +39,12 @@ static void ensureCapacity(
 
         char* tmp = realloc(*buffer, *bufSize);
         if (!tmp) {
-            spEmitLogHelper(
-                SP_SEV_FATAL,
+            sfEmitLogHelper(
+                SF_SEV_FATAL,
                 filename,
                 0,
                 0,
-                SP_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
+                SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
                 "Memory allocation failed",
                 "Cannot realloc memory for defines buffer.",
                 "Make sure you have enough memory and try again."
@@ -58,14 +58,14 @@ static void ensureCapacity(
     }
 }
 
-static void parseDefine(spPreprocessorContext* ctx, char* line, const char* filename) {
-    if (ctx->defineCount >= SP_MAX_DEFINES) {
-        spEmitLogHelper(
-            SP_SEV_FATAL,
+static void parseDefine(sfPreprocessorContext* ctx, char* line, const char* filename) {
+    if (ctx->defineCount >= SF_MAX_DEFINES) {
+        sfEmitLogHelper(
+            SF_SEV_FATAL,
             filename,
             0,
             0,
-            SP_PREP_TOO_MANY_DEFINES,
+            SF_PREP_TOO_MANY_DEFINES,
             "Too many defines",
             "file provided (%s) has too many defines",
             "Remove useless defines.",
@@ -74,27 +74,27 @@ static void parseDefine(spPreprocessorContext* ctx, char* line, const char* file
         return;
     }
 
-    char name [SP_MAX_DEFINE_NAME_LENGTH]  = {0};
-    char value[SP_MAX_DEFINE_VALUE_LENGTH] = {0};
+    char name [SF_MAX_DEFINE_NAME_LENGTH]  = {0};
+    char value[SF_MAX_DEFINE_VALUE_LENGTH] = {0};
 
     char* p = line + strlen(DEFINE_KEYWORD);
-    p = skipWhitespace(p);
+    p = skipWhitesface(p);
 
     char* n = name;
     while (*p && !isspace((unsigned char)*p)) {
-        if ((size_t)(n - name) < SP_MAX_DEFINE_NAME_LENGTH - 1) *n++ = *p;
+        if ((size_t)(n - name) < SF_MAX_DEFINE_NAME_LENGTH - 1) *n++ = *p;
         p++;
     }
     *n = '\0';
 
-    p = skipWhitespace(p);
+    p = skipWhitesface(p);
 
     snprintf(value, sizeof(value), "%s", p);
 
-    spDefine* def = &ctx->defines[ctx->defineCount];
+    sfDefine* def = &ctx->defines[ctx->defineCount];
 
-    snprintf(def->name, SP_MAX_DEFINE_NAME_LENGTH, "%s", name);
-    snprintf(def->value, SP_MAX_DEFINE_VALUE_LENGTH, "%s", value);
+    snprintf(def->name, SF_MAX_DEFINE_NAME_LENGTH, "%s", name);
+    snprintf(def->value, SF_MAX_DEFINE_VALUE_LENGTH, "%s", value);
 
     def->nameLen  = strlen(def->name);
     def->valueLen = strlen(def->value);
@@ -102,17 +102,17 @@ static void parseDefine(spPreprocessorContext* ctx, char* line, const char* file
     ctx->defineCount++;
 }
 
-static char* extractDefines(spPreprocessorContext* ctx, char* str, const char* filename) {
+static char* extractDefines(sfPreprocessorContext* ctx, char* str, const char* filename) {
     size_t size   = strlen(str);
     char*  buffer = malloc(size + 1);
 
     if (!buffer) {
-        spEmitLogHelper(
-            SP_SEV_FATAL,
+        sfEmitLogHelper(
+            SF_SEV_FATAL,
             filename,
             0,
             0,
-            SP_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
+            SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
             "Memory allocation failed",
             "Cannot allocate memory for defines buffer.",
             "Make sure you have enough memory and try again."
@@ -133,7 +133,7 @@ static char* extractDefines(spPreprocessorContext* ctx, char* str, const char* f
 
         if (*read == '\n') read++;
 
-        char* trim = skipWhitespace(line);
+        char* trim = skipWhitesface(line);
 
         if (strncmp(trim, DEFINE_KEYWORD, keywordLen) == 0 &&
             isspace((unsigned char)trim[keywordLen])) {
@@ -150,19 +150,19 @@ static char* extractDefines(spPreprocessorContext* ctx, char* str, const char* f
     return buffer;
 }
 
-static char* applyDefines(spPreprocessorContext* ctx, char* str, const char* filename) {
+static char* applyDefines(sfPreprocessorContext* ctx, char* str, const char* filename) {
     if (!str) return NULL;
 
     size_t bufSize = strlen(str) + 128;
     char* buffer = malloc(bufSize);
 
     if (!buffer) {
-        spEmitLogHelper(
-            SP_SEV_FATAL,
+        sfEmitLogHelper(
+            SF_SEV_FATAL,
             filename,
             0,
             0,
-            SP_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
+            SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
             "Memory allocation failed",
             "Cannot allocate memory for defines buffer.",
             "Make sure you have enough memory and try again."
@@ -177,7 +177,7 @@ static char* applyDefines(spPreprocessorContext* ctx, char* str, const char* fil
         int replaced = 0;
 
         for (int i = 0; i < ctx->defineCount; i++) {
-            spDefine* def = &ctx->defines[i];
+            sfDefine* def = &ctx->defines[i];
 
             if (strncmp(read, def->name, def->nameLen) != 0) continue;
 
@@ -261,17 +261,17 @@ static inline void removeEmptyLines(char* str) {
 }
 
 char* preprocess(const char* src, long srcSize, const char* filename) {
-    spPreprocessorContext ctx = {0};
+    sfPreprocessorContext ctx = {0};
 
     // --- allocates memory for preprocessor ---
     char* out = malloc(srcSize + 1);
     if (!out) {
-        spEmitLogHelper(
-            SP_SEV_FATAL,
+        sfEmitLogHelper(
+            SF_SEV_FATAL,
             "N/A",
             0,
             0,
-            SP_PREP_CANNOT_MALLOC_OUTPUT,
+            SF_PREP_CANNOT_MALLOC_OUTPUT,
             "Memory allocation failed",
             "Preprocessor output memory allocation failed.",
             "Make sure you have enough memory and try again."

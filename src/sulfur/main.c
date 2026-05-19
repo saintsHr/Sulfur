@@ -1,11 +1,11 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "spine/util/log.h"
-#include "spine/preprocessor.h"
-#include "spine/lexer.h"
-#include "spine/ast.h"
-#include "spine/parser.h"
+#include "sulfur/util/log.h"
+#include "sulfur/preprocessor.h"
+#include "sulfur/lexer.h"
+#include "sulfur/ast.h"
+#include "sulfur/parser.h"
 
 typedef struct {
     char* output_file;
@@ -14,7 +14,7 @@ typedef struct {
     bool  warnings;
 } CompilerOptions;
 
-void  printTokens (spTokenList* list);
+void  printTokens (sfTokenList* list);
 void  parseFlags  (int argc, char* argv[], CompilerOptions* options);
 char* readFile    (const char* filename, long* outSize);
 void  writeFile   (const char* filename, const char* content);
@@ -37,17 +37,17 @@ int main(int argc, char* argv[]) {
 
     // --- compilation ---
     char*       output = NULL;
-    spTokenList tokens = {0};
-    spASTNode*  ast    = NULL;
+    sfTokenList tokens = {0};
+    sfASTNode*  ast    = NULL;
     
     output = preprocess(input, inputSize, options.input_file);
     tokens = tokenize(output, options.output_file);
-    ast    = (spASTNode*)parse(tokens, options.input_file);
+    ast    = (sfASTNode*)parse(tokens, options.input_file);
 
     // --- debug ---
     printTokens(&tokens);
     printf("\n\n");
-    spPrintAST(ast);
+    sfPrintAST(ast);
 
     // --- opens & writes to output file ---
     writeFile(options.output_file, output);
@@ -62,15 +62,15 @@ void writeFile(const char* filename, const char* content) {
     // --- opens output file ---
     FILE* file = fopen(filename, "wb");
     if (file == NULL) {
-        spEmitLogHelper(
-            SP_SEV_FATAL,
+        sfEmitLogHelper(
+            SF_SEV_FATAL,
             filename,
             0,
             0,
-            SP_MAIN_CANNOT_OPEN_FILE,
+            SF_MAIN_CANNOT_OPEN_FILE,
             "Cannot open file",
             "Unable to open file (%s) provided.",
-            "Make sure you have enough disk space & write permission and try again.",
+            "Make sure you have enough disk sface & write permission and try again.",
             filename
         );
     }
@@ -85,12 +85,12 @@ char* readFile(const char* filename, long* outSize) {
     // --- opens file ---
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
-        spEmitLogHelper(
-            SP_SEV_FATAL,
+        sfEmitLogHelper(
+            SF_SEV_FATAL,
             filename,
             0,
             0,
-            SP_MAIN_CANNOT_OPEN_FILE,
+            SF_MAIN_CANNOT_OPEN_FILE,
             "Cannot open file",
             "Unable to open file (%s) provided.",
             "Make sure you are providing the correct filename",
@@ -108,12 +108,12 @@ char* readFile(const char* filename, long* outSize) {
     char* content = malloc(size + 1);
     if (content == NULL) {
         fclose(file);
-        spEmitLogHelper(
-            SP_SEV_FATAL,
+        sfEmitLogHelper(
+            SF_SEV_FATAL,
             filename,
             0,
             0,
-            SP_MAIN_CANNOT_MALLOC_FILE_BUFFER,
+            SF_MAIN_CANNOT_MALLOC_FILE_BUFFER,
             "Memory allocation failed",
             "File read memory allocation failed.",
             "Make sure you have enough memory and try again.",
@@ -129,7 +129,7 @@ char* readFile(const char* filename, long* outSize) {
     return content;
 }
 
-void printTokens(spTokenList* list) {
+void printTokens(sfTokenList* list) {
     for (size_t i = 0; i < list->count; i++) {
         printf("Token %zu: type=%d value=%s (%d:%d)\n",
             i,
@@ -148,12 +148,12 @@ void parseFlags(int argc, char* argv[], CompilerOptions* options) {
         // --- input file ---
         if (strcmp(argv[i], "-i") == 0) {
             if (!hasNext || argv[i + 1][0] == '-') {
-                spEmitLogHelper(
-                    SP_SEV_FATAL,
+                sfEmitLogHelper(
+                    SF_SEV_FATAL,
                     "N/A",
                     0,
                     0,
-                    SP_MAIN_NO_INPUT_FILE,
+                    SF_MAIN_NO_INPUT_FILE,
                     "No input file",
                     "Input file not provided",
                     "Choose a input file or remove the '-i' flag"
@@ -167,12 +167,12 @@ void parseFlags(int argc, char* argv[], CompilerOptions* options) {
         // --- output file ---
         if (strcmp(argv[i], "-o") == 0) {
             if (!hasNext || argv[i + 1][0] == '-') {
-                spEmitLogHelper(
-                    SP_SEV_FATAL,
+                sfEmitLogHelper(
+                    SF_SEV_FATAL,
                     "N/A",
                     0,
                     0,
-                    SP_MAIN_NO_OUTPUT_FILE,
+                    SF_MAIN_NO_OUTPUT_FILE,
                     "No output file",
                     "Output file not provided",
                     "Choose a output file or remove the '-o' flag"
@@ -199,12 +199,12 @@ void parseFlags(int argc, char* argv[], CompilerOptions* options) {
         }
 
         // --- unknown flag ---
-        spEmitLogHelper(
-            SP_SEV_FATAL,
+        sfEmitLogHelper(
+            SF_SEV_FATAL,
             "N/A",
             0,
             0,
-            SP_MAIN_UNKNOWN_FLAG,
+            SF_MAIN_UNKNOWN_FLAG,
             "Unknown flag",
             "An unknown flag (%s) has been provided.",
             "Try using the --help flag or removing this flag.",

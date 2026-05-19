@@ -1,6 +1,2 @@
-build/
-bin/
-test.spine
-test
-specs.md
-S.P.I.N.E.code-workspace
+/build/
+/.cache/
