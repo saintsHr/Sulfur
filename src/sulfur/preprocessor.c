@@ -39,15 +39,15 @@ static void ensureCapacity(
 
         char* tmp = realloc(*buffer, *bufSize);
         if (!tmp) {
-            sfEmitLogHelper(
-                SF_SEV_FATAL,
-                filename,
-                0,
-                0,
-                SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
+            sfLogHelper(
                 "Memory allocation failed",
                 "Cannot realloc memory for defines buffer.",
-                "Make sure you have enough memory and try again."
+                "Make sure you have enough memory and try again.",
+                filename,
+                SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
+                0,
+                0,
+                SF_SEV_FATAL
             );
             free(*buffer);
             return;
@@ -60,15 +60,15 @@ static void ensureCapacity(
 
 static void parseDefine(sfPreprocessorContext* ctx, char* line, const char* filename) {
     if (ctx->defineCount >= SF_MAX_DEFINES) {
-        sfEmitLogHelper(
-            SF_SEV_FATAL,
-            filename,
-            0,
-            0,
-            SF_PREP_TOO_MANY_DEFINES,
+        sfLogHelper(
             "Too many defines",
             "file provided (%s) has too many defines",
             "Remove useless defines.",
+            filename,
+            SF_PREP_TOO_MANY_DEFINES,
+            0,
+            0,
+            SF_SEV_FATAL,
             filename
         );
         return;
@@ -107,15 +107,15 @@ static char* extractDefines(sfPreprocessorContext* ctx, char* str, const char* f
     char*  buffer = malloc(size + 1);
 
     if (!buffer) {
-        sfEmitLogHelper(
-            SF_SEV_FATAL,
-            filename,
-            0,
-            0,
-            SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
+        sfLogHelper(
             "Memory allocation failed",
             "Cannot allocate memory for defines buffer.",
-            "Make sure you have enough memory and try again."
+            "Make sure you have enough memory and try again.",
+            filename,
+            SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
+            0,
+            0,
+            SF_SEV_FATAL
         );
         return NULL;
     }
@@ -157,15 +157,15 @@ static char* applyDefines(sfPreprocessorContext* ctx, char* str, const char* fil
     char* buffer = malloc(bufSize);
 
     if (!buffer) {
-        sfEmitLogHelper(
-            SF_SEV_FATAL,
-            filename,
-            0,
-            0,
-            SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
+        sfLogHelper(
             "Memory allocation failed",
             "Cannot allocate memory for defines buffer.",
-            "Make sure you have enough memory and try again."
+            "Make sure you have enough memory and try again.",
+            filename,
+            SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
+            0,
+            0,
+            SF_SEV_FATAL
         );
         return NULL;
     }
@@ -266,15 +266,15 @@ char* preprocess(const char* src, long srcSize, const char* filename) {
     // --- allocates memory for preprocessor ---
     char* out = malloc(srcSize + 1);
     if (!out) {
-        sfEmitLogHelper(
-            SF_SEV_FATAL,
-            "N/A",
-            0,
-            0,
-            SF_PREP_CANNOT_MALLOC_OUTPUT,
+        sfLogHelper(
             "Memory allocation failed",
             "Preprocessor output memory allocation failed.",
-            "Make sure you have enough memory and try again."
+            "Make sure you have enough memory and try again.",
+            "N/A",
+            SF_PREP_CANNOT_MALLOC_OUTPUT,
+            0,
+            0,
+            SF_SEV_FATAL
         );
     }
 

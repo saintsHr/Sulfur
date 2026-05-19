@@ -59,7 +59,7 @@ static void expect(sfTokenList list, size_t* current, sfTokenType type, const ch
         l.title = "Unexpected Token";
         l.desc = "Unexpected token '%s'.";
         l.hint = "Follow the language syntax.";
-        sfEmitLog(l, list.tokens[*current].value);
+        sfLog(l, list.tokens[*current].value);
     }
 }
 
@@ -88,7 +88,7 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
             l.title = "Unexpected Token";
             l.desc = "Unexpected token, expected a type keyword.";
             l.hint = "Follow the language syntax.";
-            sfEmitLog(l, typeToken.value);
+            sfLog(l, typeToken.value);
     }
 
     // gets identifier
@@ -214,7 +214,7 @@ static sfASTNode* parse_statement(sfTokenList list, size_t* current, const char*
             l.title = "Undeclared Variable";
             l.desc = "Variable '%s' used before declaration.";
             l.hint = "Declare the variable before using it.";
-            sfEmitLog(l, token.value);
+            sfLog(l, token.value);
         }
         return parse_assign(list, current, filename, type);
     }

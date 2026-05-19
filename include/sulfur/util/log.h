@@ -26,7 +26,7 @@
 
 #define SF_COLOR_RESET "\x1b[0m"
 
-#define SF_INDENT "  "
+#define SF_INDENT "   "
 
 typedef enum {
     SF_SEV_INFO,
@@ -36,14 +36,14 @@ typedef enum {
 } sfSeverity;
 
 typedef struct {
-    sfSeverity sev;
-    const char* file;
-    int line;
-    int col;
-    uint16_t code;
     const char* title;
     const char* desc;
     const char* hint;
+    const char* file;
+    uint16_t code;
+    int line;
+    int col;
+    sfSeverity sev;
 } sfLogInfo;
 
 typedef enum {
@@ -65,101 +65,95 @@ typedef enum {
     SF_PARSER_UNDECLARED_VARIABLE = 0x4001,
 } sfErrorCode;
 
-static void sfPrintIndented(const char *text) {
-    char buffer[1024];
-    strncpy(buffer, text, sizeof(buffer));
-    buffer[sizeof(buffer) - 1] = '\0';
+static void sf_print_indented(const char* text) {
+    const char* start = text;
 
-    char *line = strtok(buffer, "\n");
-    while (line) {
-        printf(SF_INDENT "%s\n", line);
-        line = strtok(NULL, "\n");
+    while (*start) {
+        const char* end = strchr(start, '\n');
+
+        if (!end) {
+            printf(SF_INDENT "%s\n", start);
+            break;
+        }
+
+        printf(SF_INDENT "%.*s\n", (int)(end - start), start);
+        start = end + 1;
     }
 }
 
-static void sfEmitLogV(sfLogInfo info, va_list args) {
-    printf("\n");
-
+static void sf_emit_log_v(sfLogInfo info, va_list args) {
     const char *sevStr = "";
+
     switch (info.sev) {
-        case SF_SEV_INFO:    sevStr = SF_COLOR_BCYAN    "INFO"    SF_COLOR_RESET; break;
+        case SF_SEV_INFO:    sevStr = SF_COLOR_BCYAN "INFO" SF_COLOR_RESET; break;
         case SF_SEV_WARNING: sevStr = SF_COLOR_BMAGENTA "WARNING" SF_COLOR_RESET; break;
-        case SF_SEV_ERROR:   sevStr = SF_COLOR_BRED     "ERROR"   SF_COLOR_RESET; break;
-        case SF_SEV_FATAL:   sevStr = SF_COLOR_RED      "FATAL"   SF_COLOR_RESET; break;
+        case SF_SEV_ERROR:   sevStr = SF_COLOR_BRED "ERROR" SF_COLOR_RESET; break;
+        case SF_SEV_FATAL:   sevStr = SF_COLOR_RED "FATAL" SF_COLOR_RESET; break;
     }
 
-    char titleBuffer[1024] = {0};
-    char descBuffer[1024]  = {0};
-    char hintBuffer[1024]  = {0};
+    char titleBuffer[1024];
+    char descBuffer[1024];
+    char hintBuffer[1024];
 
-    if (info.title) {
-        va_list copy;
-        va_copy(copy, args);
-        vsnprintf(titleBuffer, sizeof(titleBuffer), info.title, copy);
-        va_end(copy);
-    }
+    if (info.title) vsnprintf(titleBuffer, sizeof(titleBuffer), info.title, args);
+    else titleBuffer[0] = '\0';
+
+    if (info.desc) vsnprintf(descBuffer, sizeof(descBuffer), info.desc, args);
+    else descBuffer[0] = '\0';
+
+    if (info.hint) vsnprintf(hintBuffer, sizeof(hintBuffer), info.hint, args);
+    else hintBuffer[0] = '\0';
+
+    printf(
+        "[%s][%s][%d:%d][0x%04x]: %s\n",
+        sevStr, info.file, info.line, info.col, info.code, titleBuffer
+    );
 
     if (info.desc) {
-        va_list copy;
-        va_copy(copy, args);
-        vsnprintf(descBuffer, sizeof(descBuffer), info.desc, copy);
-        va_end(copy);
+        printf(SF_COLOR_BBLUE " Description:\n" SF_COLOR_RESET);
+        sf_print_indented(descBuffer);
     }
 
     if (info.hint) {
-        va_list copy;
-        va_copy(copy, args);
-        vsnprintf(hintBuffer, sizeof(hintBuffer), info.hint, copy);
-        va_end(copy);
-    }
-
-    printf("[%s][%s][%d:%d][0x%04x]: %s\n\n",
-        sevStr, info.file, info.line, info.col, info.code, titleBuffer);
-
-    printf(SF_COLOR_BBLUE " Desc:\n" SF_COLOR_RESET);
-    sfPrintIndented(descBuffer);
-    printf("\n");
-
-    if (info.hint) {
-        printf(SF_COLOR_BGREEN " Hint:\n" SF_COLOR_RESET);
-        sfPrintIndented(hintBuffer);
-        printf("\n");
+        printf("\n" SF_COLOR_BGREEN " Hint:\n" SF_COLOR_RESET);
+        sf_print_indented(hintBuffer);
     }
 
     if (info.sev == SF_SEV_FATAL) exit(EXIT_FAILURE);
 }
 
-static void sfEmitLog(sfLogInfo info, ...) {
+static void sfLog(sfLogInfo info, ...) {
     va_list args;
+
     va_start(args, info);
-    sfEmitLogV(info, args);
+    sf_emit_log_v(info, args);
     va_end(args);
 }
 
-static void sfEmitLogHelper(
-    sfSeverity sev,
-    const char* file,
-    int line,
-    int col,
-    uint16_t code,
+static void sfLogHelper(
     const char* title,
     const char* desc,
     const char* hint,
+    const char* file,
+    uint16_t code,
+    int line,
+    int col,
+    sfSeverity sev,
     ...
 ) {
     sfLogInfo l = {
-        .code  = code,
-        .col   = col,
-        .line  = line,
-        .file  = file,
         .title = title,
         .desc  = desc,
         .hint  = hint,
+        .file  = file,
+        .code  = code,
+        .line  = line,
+        .col   = col,
         .sev   = sev
     };
 
     va_list args;
-    va_start(args, hint);
-    sfEmitLogV(l, args);
+    va_start(args, sev);
+    sf_emit_log_v(l, args);
     va_end(args);
 }

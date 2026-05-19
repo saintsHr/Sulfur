@@ -202,7 +202,7 @@ sfTokenList tokenize(const char* input, const char* filename) {
             l.title = "Undefined Token";
             l.desc = "Undefined token in source file (%s).";
             l.hint = "follow the language grammar.";
-            sfEmitLog(l, tk.value);
+            sfLog(l, tk.value);
         }
     }
 

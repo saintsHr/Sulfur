@@ -158,7 +158,7 @@ void sfProgramAddStatement(sfProgramNode* program, sfASTNode* stmt) {
             l.title = "Allocation Failed";
             l.desc = "AST program memory reallocation failed.";
             l.hint = "Make sure you have enough memory and try again.";
-            sfEmitLog(l);
+            sfLog(l);
         }
 
         program->statements = newStatements;

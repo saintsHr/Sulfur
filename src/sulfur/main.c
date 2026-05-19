@@ -62,15 +62,15 @@ void writeFile(const char* filename, const char* content) {
     // --- opens output file ---
     FILE* file = fopen(filename, "wb");
     if (file == NULL) {
-        sfEmitLogHelper(
-            SF_SEV_FATAL,
-            filename,
-            0,
-            0,
-            SF_MAIN_CANNOT_OPEN_FILE,
-            "Cannot open file",
+        sfLogHelper(
+            "Cannot open file.",
             "Unable to open file (%s) provided.",
             "Make sure you have enough disk sface & write permission and try again.",
+            filename,
+            SF_MAIN_CANNOT_OPEN_FILE,
+            0,
+            0,
+            SF_SEV_FATAL,
             filename
         );
     }
@@ -85,15 +85,15 @@ char* readFile(const char* filename, long* outSize) {
     // --- opens file ---
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
-        sfEmitLogHelper(
-            SF_SEV_FATAL,
-            filename,
-            0,
-            0,
-            SF_MAIN_CANNOT_OPEN_FILE,
+        sfLogHelper(
             "Cannot open file",
             "Unable to open file (%s) provided.",
             "Make sure you are providing the correct filename",
+            filename,
+            SF_MAIN_CANNOT_OPEN_FILE,
+            0,
+            0,
+            SF_SEV_FATAL,
             filename
         );
     }
@@ -108,15 +108,15 @@ char* readFile(const char* filename, long* outSize) {
     char* content = malloc(size + 1);
     if (content == NULL) {
         fclose(file);
-        sfEmitLogHelper(
-            SF_SEV_FATAL,
-            filename,
-            0,
-            0,
-            SF_MAIN_CANNOT_MALLOC_FILE_BUFFER,
+        sfLogHelper(
             "Memory allocation failed",
             "File read memory allocation failed.",
             "Make sure you have enough memory and try again.",
+            filename,
+            SF_MAIN_CANNOT_MALLOC_FILE_BUFFER,
+            0,
+            0,
+            SF_SEV_FATAL,
             filename
         );
     }
@@ -148,15 +148,15 @@ void parseFlags(int argc, char* argv[], CompilerOptions* options) {
         // --- input file ---
         if (strcmp(argv[i], "-i") == 0) {
             if (!hasNext || argv[i + 1][0] == '-') {
-                sfEmitLogHelper(
-                    SF_SEV_FATAL,
-                    "N/A",
-                    0,
-                    0,
-                    SF_MAIN_NO_INPUT_FILE,
+                sfLogHelper(
                     "No input file",
                     "Input file not provided",
-                    "Choose a input file or remove the '-i' flag"
+                    "Choose a input file or remove the '-i' flag",
+                    "N/A",
+                    SF_MAIN_NO_INPUT_FILE,
+                    0,
+                    0,
+                    SF_SEV_FATAL
                 );
             }
             options->input_file = argv[i + 1];
@@ -167,15 +167,15 @@ void parseFlags(int argc, char* argv[], CompilerOptions* options) {
         // --- output file ---
         if (strcmp(argv[i], "-o") == 0) {
             if (!hasNext || argv[i + 1][0] == '-') {
-                sfEmitLogHelper(
-                    SF_SEV_FATAL,
-                    "N/A",
-                    0,
-                    0,
-                    SF_MAIN_NO_OUTPUT_FILE,
+                sfLogHelper(
                     "No output file",
                     "Output file not provided",
-                    "Choose a output file or remove the '-o' flag"
+                    "Choose a output file or remove the '-o' flag",
+                    "N/A",
+                    SF_MAIN_NO_OUTPUT_FILE,
+                    0,
+                    0,
+                    SF_SEV_FATAL
                 );
             }
             options->output_file = argv[i + 1];
@@ -199,15 +199,15 @@ void parseFlags(int argc, char* argv[], CompilerOptions* options) {
         }
 
         // --- unknown flag ---
-        sfEmitLogHelper(
-            SF_SEV_FATAL,
-            "N/A",
-            0,
-            0,
-            SF_MAIN_UNKNOWN_FLAG,
+        sfLogHelper(
             "Unknown flag",
             "An unknown flag (%s) has been provided.",
             "Try using the --help flag or removing this flag.",
+            "N/A",
+            SF_MAIN_UNKNOWN_FLAG,
+            0,
+            0,
+            SF_SEV_FATAL,
             argv[i]
         );
     }
