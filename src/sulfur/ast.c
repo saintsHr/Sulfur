@@ -1,6 +1,7 @@
 #include "sulfur/ast.h"
 #include "sulfur/util/log.h"
 
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -100,24 +101,18 @@ static void sfPrintASTNode(sfASTNode* node, int indent) {
             printf("Literal ");
 
             switch (lit->value_type) {
-                case SF_VAL_TYPE_F32:
-                case SF_VAL_TYPE_F64:
-                    printf("%.20f\n", lit->f64);
-                    break;
+                case SF_VAL_TYPE_F32: printf("%.20f\n", lit->f32); break;
+                case SF_VAL_TYPE_F64: printf("%.20f\n", lit->f64); break;
 
-                case SF_VAL_TYPE_I8:
-                case SF_VAL_TYPE_I16:
-                case SF_VAL_TYPE_I32:
-                case SF_VAL_TYPE_I64:
-                    printf("%lld\n", (long long)lit->i64);
-                    break;
+                case SF_VAL_TYPE_I8:  printf("%hhd\n", (int8_t)lit->i8);  break;
+                case SF_VAL_TYPE_I16: printf("%hd\n",  (int16_t)lit->i16); break;
+                case SF_VAL_TYPE_I32: printf("%d\n",   (int32_t)lit->i32); break;
+                case SF_VAL_TYPE_I64: printf("%ld\n",  (int64_t)lit->i64); break;
 
-                case SF_VAL_TYPE_U8:
-                case SF_VAL_TYPE_U16:
-                case SF_VAL_TYPE_U32:
-                case SF_VAL_TYPE_U64:
-                    printf("%llu\n", (unsigned long long)lit->u64);
-                    break;
+                case SF_VAL_TYPE_U8:  printf("%hhu\n", (uint8_t)lit->u8); break;
+                case SF_VAL_TYPE_U16: printf("%hu\n",  (uint16_t)lit->u16); break;
+                case SF_VAL_TYPE_U32: printf("%u\n",   (uint32_t)lit->u32); break;
+                case SF_VAL_TYPE_U64: printf("%lu\n",  (uint64_t)lit->u64); break;
             }
             break;
         }
@@ -186,7 +181,7 @@ sfLiteralNode* sfNewLiteralF32(float value) {
     sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
     node->base.type = SF_NODE_LITERAL;
     node->value_type = SF_VAL_TYPE_F32;
-    node->f64 = (double)value;
+    node->f32 = (float)value;
     return node;
 }
 
@@ -202,7 +197,7 @@ sfLiteralNode* sfNewLiteralI32(int32_t value) {
     sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
     node->base.type = SF_NODE_LITERAL;
     node->value_type = SF_VAL_TYPE_I32;
-    node->i64 = (int64_t)value;
+    node->i32 = (int32_t)value;
     return node;
 }
 
@@ -210,7 +205,7 @@ sfLiteralNode* sfNewLiteralI16(int16_t value) {
     sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
     node->base.type = SF_NODE_LITERAL;
     node->value_type = SF_VAL_TYPE_I16;
-    node->i64 = (int64_t)value;
+    node->i16 = (int16_t)value;
     return node;
 }
 
@@ -218,7 +213,7 @@ sfLiteralNode* sfNewLiteralI8(int8_t value) {
     sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
     node->base.type = SF_NODE_LITERAL;
     node->value_type = SF_VAL_TYPE_I8;
-    node->i64 = (int64_t)value;
+    node->i8 = (int8_t)value;
     return node;
 }
 
@@ -234,7 +229,7 @@ sfLiteralNode* sfNewLiteralU32(uint32_t value) {
     sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
     node->base.type = SF_NODE_LITERAL;
     node->value_type = SF_VAL_TYPE_U32;
-    node->u64 = (uint64_t)value;
+    node->u32 = (uint32_t)value;
     return node;
 }
 
@@ -242,7 +237,7 @@ sfLiteralNode* sfNewLiteralU16(uint16_t value) {
     sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
     node->base.type = SF_NODE_LITERAL;
     node->value_type = SF_VAL_TYPE_U16;
-    node->u64 = (uint64_t)value;
+    node->u16 = (uint16_t)value;
     return node;
 }
 
@@ -250,7 +245,7 @@ sfLiteralNode* sfNewLiteralU8(uint8_t value) {
     sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
     node->base.type = SF_NODE_LITERAL;
     node->value_type = SF_VAL_TYPE_U8;
-    node->u64 = (uint64_t)value;
+    node->u8 = (uint8_t)value;
     return node;
 }
 

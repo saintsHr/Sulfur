@@ -100,6 +100,7 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
 
     if (match(list, current, SF_TOKEN_TYPE_EQUALS)) {
         sfToken valueToken = advance(list, current);
+
         switch(type) {
             case SF_VAL_TYPE_F32: val = (sfASTNode*)sfNewLiteralF32((float) atof(valueToken.value)); break;
             case SF_VAL_TYPE_F64: val = (sfASTNode*)sfNewLiteralF64((double)atof(valueToken.value)); break;
@@ -229,7 +230,26 @@ sfProgramNode* parse(sfTokenList list, const char* filename) {
 
     size_t current = 0;
     while (list.tokens[current].type != SF_TOKEN_TYPE_EOF) {
+        sfToken tok = list.tokens[current];
+
         sfASTNode* stmt = parse_statement(list, &current, filename, &symTable);
+
+        if (stmt == NULL) {
+            sfLogHelper(
+                "Unexpected Token",
+                "Unexpected token '%s' at top level.",
+                "Follow the language syntax.",
+                filename,
+                SF_PARSER_UNEXPECTED_TOKEN,
+                tok.line,
+                tok.column,
+                SF_SEV_FATAL,
+                tok.value
+            );
+            current++;
+            continue;
+        }
+
         sfProgramAddStatement(program, stmt);
     }
 

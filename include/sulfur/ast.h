@@ -35,7 +35,7 @@ typedef enum {
     SF_OP_TYPE_MUL,
 } sfOperationType;
 
-typedef struct sfASTNode {
+typedef struct {
     sfNodeType type;
 } sfASTNode;
 
@@ -44,9 +44,18 @@ typedef struct {
     sfValueType value_type;
 
     union {
-        int64_t  i64;
+        int8_t  i8;
+        int16_t i16;
+        int32_t i32;
+        int64_t i64;
+
+        uint8_t  u8;
+        uint16_t u16;
+        uint32_t u32;
         uint64_t u64;
-        double   f64;
+
+        float  f32;
+        double f64;
     };
 
 } sfLiteralNode;
@@ -100,7 +109,6 @@ sfLiteralNode* sfNewLiteralU64(uint64_t value);
 sfLiteralNode* sfNewLiteralU32(uint32_t value);
 sfLiteralNode* sfNewLiteralU16(uint16_t value);
 sfLiteralNode* sfNewLiteralU8(uint8_t value);
-
 
 sfIdentifierNode* sfNewIdentifier(const char* name);
 sfBinaryExprNode* sfNewBinary(sfASTNode* left, sfASTNode* right, sfOperationType op);

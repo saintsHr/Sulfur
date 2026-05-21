@@ -9,9 +9,9 @@ typedef struct {
 } sfSymbol;
 
 typedef struct {
-    sfSymbol* symbols;
     size_t count;
     size_t capacity;
+    sfSymbol* symbols;
 } sfSymbolTable;
 
 sfProgramNode* parse(sfTokenList list, const char* filename);
