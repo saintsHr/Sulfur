@@ -65,7 +65,6 @@ static void expect(sfTokenList list, size_t* current, sfTokenType type, const ch
 }
 
 static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const char* filename, sfSymbolTable* table) {
-    // gets type
     sfToken typeToken = advance(list, current);
     sfValueType type;
     switch (typeToken.type) {
@@ -93,11 +92,9 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
             );
     }
 
-    // gets identifier
     sfToken nameToken = advance(list, current);
     char* name = nameToken.value;
 
-    // gets value
     sfASTNode* val = NULL;
 
     if (match(list, current, SF_TOKEN_TYPE_EQUALS)) {
@@ -118,7 +115,6 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
             case SF_VAL_TYPE_U64: val = (sfASTNode*)sfNewLiteralU64((uint64_t)strtoull(valueToken.value, NULL, 10)); break;
         }
     } else {
-        // defaults
         switch(type) {
             case SF_VAL_TYPE_F32: val = (sfASTNode*)sfNewLiteralF32(0.0f); break;
             case SF_VAL_TYPE_F64: val = (sfASTNode*)sfNewLiteralF64(0.0);  break;
@@ -135,24 +131,19 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
         }
     }
 
-    // expect ;
     expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
 
     addSymbol(table, name, type);
 
-    // creates & returns node
     return (sfASTNode*)sfNewVarDecl(name, type, val);
 }
 
 static sfASTNode* parse_assign(sfTokenList list, size_t* current, const char* filename, sfValueType type) {
-    // gets identifier
     sfToken nameToken = advance(list, current);
     char* name = nameToken.value;
 
-    // expects =
     expect(list, current, SF_TOKEN_TYPE_EQUALS, filename);
 
-    // gets value
     sfToken valueToken = advance(list, current);
     sfASTNode* val = NULL;
     switch(type) {
@@ -168,10 +159,8 @@ static sfASTNode* parse_assign(sfTokenList list, size_t* current, const char* fi
         case SF_VAL_TYPE_U64: val = (sfASTNode*)sfNewLiteralU64((uint64_t)atoll(valueToken.value)); break;
     }
 
-    // expect ;
     expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
 
-    // creates & returns node
     return (sfASTNode*)sfNewAssign(name, val);
 }
 

@@ -263,7 +263,6 @@ static inline void removeEmptyLines(char* str) {
 char* preprocess(const char* src, long srcSize, const char* filename) {
     sfPreprocessorContext ctx = {0};
 
-    // --- allocates memory for preprocessor ---
     char* out = malloc(srcSize + 1);
     if (!out) {
         sfLogHelper(
@@ -286,12 +285,10 @@ char* preprocess(const char* src, long srcSize, const char* filename) {
 
     char* tmp;
 
-    // --- extracts defines ---
     tmp = extractDefines(&ctx, out, filename);
     free(out);
     out = tmp;
 
-    // --- applyes defines ---
     tmp = applyDefines(&ctx, out, filename);
     free(out);
     out = tmp;

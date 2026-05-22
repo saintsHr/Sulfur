@@ -25,7 +25,6 @@ sfTokenList tokenize(const char* input, const char* filename) {
     while (input[i] != '\0') {
         char c = input[i];
 
-        // new line
         if (c == '\n') {
             line++;
             col = 1;
@@ -33,14 +32,12 @@ sfTokenList tokenize(const char* input, const char* filename) {
             continue;
         }
 
-        // whitesfaces
         if (c == ' ' || c == '\t' || c == '\r') {
             i++;
             col++;
             continue;
         }
 
-        // number
         if (isdigit(c)) {
             int start_i = i;
             sfToken tk = {0};
@@ -71,7 +68,6 @@ sfTokenList tokenize(const char* input, const char* filename) {
             continue;
         }
 
-        // identifier / keyword
         if (isalpha(c) || c == '_') {
             sfToken tk = {0};
             tk.line = line;
@@ -88,7 +84,6 @@ sfTokenList tokenize(const char* input, const char* filename) {
 
             tk.value[j] = '\0';
 
-            // keyword check
             if (strcmp(tk.value, "i8") == 0) tk.type = SF_TOKEN_TYPE_KW_I8;
             else if (strcmp(tk.value, "i16") == 0) tk.type = SF_TOKEN_TYPE_KW_I16;
             else if (strcmp(tk.value, "i32") == 0) tk.type = SF_TOKEN_TYPE_KW_I32;
@@ -105,7 +100,6 @@ sfTokenList tokenize(const char* input, const char* filename) {
             continue;
         }
 
-        // string
         if (c == '"') {
             sfToken tk = {0};
             tk.type = SF_TOKEN_TYPE_STRING;
@@ -135,7 +129,6 @@ sfTokenList tokenize(const char* input, const char* filename) {
             continue;
         }
 
-        // symbols
         {
             sfToken tk = {0};
             tk.line = line;
@@ -173,7 +166,6 @@ sfTokenList tokenize(const char* input, const char* filename) {
             continue;
         }
 
-        // undefined
         undefined_token:
         {
             sfToken tk = {0};

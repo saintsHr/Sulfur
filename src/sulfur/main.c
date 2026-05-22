@@ -20,7 +20,6 @@ char* readFile    (const char* filename, long* outSize);
 void  writeFile   (const char* filename, const char* content);
 
 int main(int argc, char* argv[]) {
-    // --- creates compiler options ---
     sfCompilerOptions options = {
         .warnings           = false,
         .input_file         = "input.in",
@@ -28,14 +27,11 @@ int main(int argc, char* argv[]) {
         .optimization_level = 0
     };
 
-    // --- parses for flags ---
     parseFlags(argc, argv, &options);
 
-    // --- opens input file ---
     long   inputSize = 0;
     char*  input     = readFile(options.input_file, &inputSize);
 
-    // --- compilation ---
     char*       output = NULL;
     sfTokenList tokens = {0};
     sfASTNode*  ast    = NULL;
@@ -44,22 +40,18 @@ int main(int argc, char* argv[]) {
     tokens = tokenize(output, options.output_file);
     ast    = (sfASTNode*)parse(tokens, options.input_file);
 
-    // --- debug ---
     printTokens(&tokens);
     printf("\n\n");
     sfPrintAST(ast);
 
-    // --- opens & writes to output file ---
     writeFile(options.output_file, output);
 
-    // --- free buffers & returns ---
     free(output);
     free(input);
     return 0;
 }
 
 void writeFile(const char* filename, const char* content) {
-    // --- opens output file ---
     FILE* file = fopen(filename, "wb");
     if (file == NULL) {
         sfLogHelper(
@@ -75,14 +67,12 @@ void writeFile(const char* filename, const char* content) {
         );
     }
 
-    // --- writes to output file ---
     fwrite(content, sizeof(char), strlen(content), file);
 
     fclose(file);
 }
 
 char* readFile(const char* filename, long* outSize) {
-    // --- opens file ---
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
         sfLogHelper(
@@ -98,13 +88,11 @@ char* readFile(const char* filename, long* outSize) {
         );
     }
 
-    // --- gets file size ---
     fseek(file, 0, SEEK_END);
     long size = ftell(file);
     rewind(file);
     *outSize = size;
 
-    // --- allocates memory for content ---
     char* content = malloc(size + 1);
     if (content == NULL) {
         fclose(file);
@@ -121,7 +109,6 @@ char* readFile(const char* filename, long* outSize) {
         );
     }
 
-    // --- reads the content of the file ---
     fread(content, sizeof(char), size, file);
     content[size] = '\0';
     
@@ -145,7 +132,6 @@ void parseFlags(int argc, char* argv[], sfCompilerOptions* options) {
     for (int i = 1; i < argc; i++) {
         bool hasNext = i + 1 < argc;
 
-        // --- input file ---
         if (strcmp(argv[i], "-i") == 0) {
             if (!hasNext || argv[i + 1][0] == '-') {
                 sfLogHelper(
@@ -164,7 +150,6 @@ void parseFlags(int argc, char* argv[], sfCompilerOptions* options) {
             continue;
         }
 
-        // --- output file ---
         if (strcmp(argv[i], "-o") == 0) {
             if (!hasNext || argv[i + 1][0] == '-') {
                 sfLogHelper(
@@ -183,13 +168,11 @@ void parseFlags(int argc, char* argv[], sfCompilerOptions* options) {
             continue;
         }
 
-        // --- activates warnings ---
         if (strcmp(argv[i], "-w") == 0) {
             options->warnings = true;
             continue;
         }
 
-        // --- optimization ---
         if (strncmp(argv[i], "-O", 2) == 0) {
             int level = argv[i][2] - '0';
             if (level >= 0 && level <= 3) {
@@ -198,7 +181,6 @@ void parseFlags(int argc, char* argv[], sfCompilerOptions* options) {
             }
         }
 
-        // --- unknown flag ---
         sfLogHelper(
             "Unknown flag",
             "An unknown flag (%s) has been provided.",
