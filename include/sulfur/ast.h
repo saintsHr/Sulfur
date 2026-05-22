@@ -41,23 +41,7 @@ typedef struct {
 
 typedef struct {
     sfASTNode base;
-    sfValueType value_type;
-
-    union {
-        int8_t  i8;
-        int16_t i16;
-        int32_t i32;
-        int64_t i64;
-
-        uint8_t  u8;
-        uint16_t u16;
-        uint32_t u32;
-        uint64_t u64;
-
-        float  f32;
-        double f64;
-    };
-
+    char* value;
 } sfLiteralNode;
 
 typedef struct {
@@ -97,22 +81,11 @@ void sfPrintAST(sfASTNode* root);
 sfProgramNode* sfNewProgram();
 void sfProgramAddStatement(sfProgramNode* program, sfASTNode* stmt);
 
-sfLiteralNode* sfNewLiteralF64(double value);
-sfLiteralNode* sfNewLiteralF32(float value);
-
-sfLiteralNode* sfNewLiteralI64(int64_t value);
-sfLiteralNode* sfNewLiteralI32(int32_t value);
-sfLiteralNode* sfNewLiteralI16(int16_t value);
-sfLiteralNode* sfNewLiteralI8(int8_t value);
-
-sfLiteralNode* sfNewLiteralU64(uint64_t value);
-sfLiteralNode* sfNewLiteralU32(uint32_t value);
-sfLiteralNode* sfNewLiteralU16(uint16_t value);
-sfLiteralNode* sfNewLiteralU8(uint8_t value);
+sfLiteralNode* sfNewLiteral(const char* value);
 
 sfIdentifierNode* sfNewIdentifier(const char* name);
 sfBinaryExprNode* sfNewBinary(sfASTNode* left, sfASTNode* right, sfOperationType op);
-sfVarDeclNode* sfNewVarDecl(const char* name, sfValueType type, sfASTNode* value);
-sfAssignNode* sfNewAssign(const char* name, sfASTNode* value);
+sfVarDeclNode*    sfNewVarDecl(const char* name, sfValueType type, sfASTNode* value);
+sfAssignNode*     sfNewAssign(const char* name, sfASTNode* value);
 
 void sfFreeAST(sfASTNode* node);

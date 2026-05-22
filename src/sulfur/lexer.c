@@ -189,12 +189,12 @@ sfTokenList tokenize(const char* input, const char* filename) {
                 "Undefined Token",
                 "Undefined token in source file (%s).",
                 "follow the language grammar.",
-                tk.value,
+                filename,
                 SF_LEXER_UNDEFINED_TOKEN,
                 tk.line,
                 tk.column,
                 SF_SEV_FATAL,
-                filename
+                tk.value
             );
         }
     }

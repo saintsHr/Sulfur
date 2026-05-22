@@ -1,40 +1,8 @@
 #include "sulfur/parser.h"
+#include "sulfur/lexer.h"
 #include "sulfur/util/log.h"
 
 #include <stdbool.h>
-
-void initSymbolTable(sfSymbolTable* table) {
-    table->symbols = NULL;
-    table->count = 0;
-    table->capacity = 0;
-}
-
-void freeSymbolTable(sfSymbolTable* table) {
-    for (size_t i = 0; i < table->count; i++) free(table->symbols[i].name);
-    free(table->symbols);
-}
-
-void addSymbol(sfSymbolTable* table, const char* name, sfValueType type) {
-    if (table->count == table->capacity) {
-        table->capacity = table->capacity == 0 ? 4 : table->capacity * 2;
-        table->symbols = realloc(table->symbols, table->capacity * sizeof(sfSymbol));
-    }
-
-    table->symbols[table->count].name = strdup(name);
-    table->symbols[table->count].type = type;
-    table->count++;
-}
-
-sfValueType getSymbolType(sfSymbolTable* table, const char* name) {
-    for (size_t i = 0; i < table->count; i++) {
-        if (strcmp(table->symbols[i].name, name) == 0) return table->symbols[i].type;
-    }
-    return -1;
-}
-
-static sfToken peek(sfTokenList list, size_t* current) {
-    return list.tokens[*current];
-}
 
 static sfToken advance(sfTokenList list, size_t* current) {
     return list.tokens[(*current)++];
@@ -52,19 +20,19 @@ static void expect(sfTokenList list, size_t* current, sfTokenType type, const ch
     if (!match(list, current, type)) {
         sfLogHelper(
             "Unexpected Token",
-            "Unexpected token '%s'.",
-            "Follow the language syntax.",
-            list.tokens[*current].value,
+            "Unexpected token '%s'",
+            "Follow the language syntax",
+            filename,
             SF_PARSER_UNEXPECTED_TOKEN,
             list.tokens[*current].line,
             list.tokens[*current].column,
             SF_SEV_FATAL,
-            filename
+            list.tokens[*current].value
         );
     }
 }
 
-static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const char* filename, sfSymbolTable* table) {
+static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const char* filename) {
     sfToken typeToken = advance(list, current);
     sfValueType type;
     switch (typeToken.type) {
@@ -83,13 +51,14 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
                 "Unexpected Token",
                 "Unexpected token, expected a type keyword.",
                 "Follow the language syntax.",
-                typeToken.value,
+                filename,
                 SF_PARSER_UNEXPECTED_TOKEN,
                 typeToken.line,
                 typeToken.column,
                 SF_SEV_FATAL,
-                filename
+                typeToken.value
             );
+            break;
     }
 
     sfToken nameToken = advance(list, current);
@@ -99,69 +68,12 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
 
     if (match(list, current, SF_TOKEN_TYPE_EQUALS)) {
         sfToken valueToken = advance(list, current);
-
-        switch(type) {
-            case SF_VAL_TYPE_F32: val = (sfASTNode*)sfNewLiteralF32((float) atof(valueToken.value)); break;
-            case SF_VAL_TYPE_F64: val = (sfASTNode*)sfNewLiteralF64((double)atof(valueToken.value)); break;
-
-            case SF_VAL_TYPE_I8:  val = (sfASTNode*)sfNewLiteralI8 ((int8_t) strtoll(valueToken.value, NULL, 10)); break;
-            case SF_VAL_TYPE_I16: val = (sfASTNode*)sfNewLiteralI16((int16_t)strtoll(valueToken.value, NULL, 10)); break;
-            case SF_VAL_TYPE_I32: val = (sfASTNode*)sfNewLiteralI32((int32_t)strtoll(valueToken.value, NULL, 10)); break;
-            case SF_VAL_TYPE_I64: val = (sfASTNode*)sfNewLiteralI64((int64_t)strtoll(valueToken.value, NULL, 10)); break;
-
-            case SF_VAL_TYPE_U8:  val = (sfASTNode*)sfNewLiteralU8 ((uint8_t) strtoull(valueToken.value, NULL, 10)); break;
-            case SF_VAL_TYPE_U16: val = (sfASTNode*)sfNewLiteralU16((uint16_t)strtoull(valueToken.value, NULL, 10)); break;
-            case SF_VAL_TYPE_U32: val = (sfASTNode*)sfNewLiteralU32((uint32_t)strtoull(valueToken.value, NULL, 10)); break;
-            case SF_VAL_TYPE_U64: val = (sfASTNode*)sfNewLiteralU64((uint64_t)strtoull(valueToken.value, NULL, 10)); break;
-        }
-    } else {
-        switch(type) {
-            case SF_VAL_TYPE_F32: val = (sfASTNode*)sfNewLiteralF32(0.0f); break;
-            case SF_VAL_TYPE_F64: val = (sfASTNode*)sfNewLiteralF64(0.0);  break;
-
-            case SF_VAL_TYPE_I8:  val = (sfASTNode*)sfNewLiteralI8 (0);    break;
-            case SF_VAL_TYPE_I16: val = (sfASTNode*)sfNewLiteralI16(0);    break;
-            case SF_VAL_TYPE_I32: val = (sfASTNode*)sfNewLiteralI32(0);    break;
-            case SF_VAL_TYPE_I64: val = (sfASTNode*)sfNewLiteralI64(0);    break;
-
-            case SF_VAL_TYPE_U8:  val = (sfASTNode*)sfNewLiteralU8 (0);    break;
-            case SF_VAL_TYPE_U16: val = (sfASTNode*)sfNewLiteralU16(0);    break;
-            case SF_VAL_TYPE_U32: val = (sfASTNode*)sfNewLiteralU32(0);    break;
-            case SF_VAL_TYPE_U64: val = (sfASTNode*)sfNewLiteralU64(0);    break;
-        }
+        val = (sfASTNode*)sfNewLiteral(valueToken.value);
     }
 
     expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
-
-    addSymbol(table, name, type);
 
     return (sfASTNode*)sfNewVarDecl(name, type, val);
-}
-
-static sfASTNode* parse_assign(sfTokenList list, size_t* current, const char* filename, sfValueType type) {
-    sfToken nameToken = advance(list, current);
-    char* name = nameToken.value;
-
-    expect(list, current, SF_TOKEN_TYPE_EQUALS, filename);
-
-    sfToken valueToken = advance(list, current);
-    sfASTNode* val = NULL;
-    switch(type) {
-        case SF_VAL_TYPE_F32: val = (sfASTNode*)sfNewLiteralF32((float)atof(valueToken.value)); break;
-        case SF_VAL_TYPE_F64: val = (sfASTNode*)sfNewLiteralF64((double)atof(valueToken.value)); break;
-        case SF_VAL_TYPE_I8:  val = (sfASTNode*)sfNewLiteralI8((int8_t)atoi(valueToken.value)); break;
-        case SF_VAL_TYPE_I16: val = (sfASTNode*)sfNewLiteralI16((int16_t)atoi(valueToken.value)); break;
-        case SF_VAL_TYPE_I32: val = (sfASTNode*)sfNewLiteralI32((int32_t)atoi(valueToken.value)); break;
-        case SF_VAL_TYPE_I64: val = (sfASTNode*)sfNewLiteralI64((int64_t)atoll(valueToken.value)); break;
-        case SF_VAL_TYPE_U8:  val = (sfASTNode*)sfNewLiteralU8((uint8_t)atoi(valueToken.value)); break;
-        case SF_VAL_TYPE_U16: val = (sfASTNode*)sfNewLiteralU16((uint16_t)atoi(valueToken.value)); break;
-        case SF_VAL_TYPE_U32: val = (sfASTNode*)sfNewLiteralU32((uint32_t)atoi(valueToken.value)); break;
-        case SF_VAL_TYPE_U64: val = (sfASTNode*)sfNewLiteralU64((uint64_t)atoll(valueToken.value)); break;
-    }
-
-    expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
-
-    return (sfASTNode*)sfNewAssign(name, val);
 }
 
 static bool is_type(sfToken token) {
@@ -182,55 +94,46 @@ static bool is_type(sfToken token) {
 }
 
 static bool is_ident(sfToken token) {
-    if (token.type == SF_TOKEN_TYPE_IDENTIFIER)  return true;
-    return false;
+    return (token.type == SF_TOKEN_TYPE_IDENTIFIER);
 }
 
-static sfASTNode* parse_statement(sfTokenList list, size_t* current, const char* filename, sfSymbolTable* table) {
+static sfASTNode* parse_assign(sfTokenList list, size_t* current, const char* filename) {
+    sfToken nameToken = advance(list, current);
+    char* name = nameToken.value;
+
+    expect(list, current, SF_TOKEN_TYPE_EQUALS, filename);
+
+    sfToken valueToken = advance(list, current);
+    sfASTNode* val = (sfASTNode*)sfNewLiteral(valueToken.value);
+
+    expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
+
+    return (sfASTNode*)sfNewAssign(name, val);
+}
+
+static sfASTNode* parse_statement(sfTokenList list, size_t* current, const char* filename) {
     sfToken token = list.tokens[*current];
 
-    if (is_type(token)) {
-        sfASTNode* decl = parse_declaration(list, current, filename, table);
-        return decl;
-    }
-
-    if (is_ident(token)) {
-        sfValueType type = getSymbolType(table, token.value);
-        if (type == -1) {
-            sfLogHelper(
-                "Undeclared Variable",
-                "Variable '%s' used before declaration.",
-                "Declare the variable before using it.",
-                token.value,
-                SF_PARSER_UNDECLARED_VARIABLE,
-                token.line,
-                token.column,
-                SF_SEV_FATAL,
-                filename
-            );
-        }
-        return parse_assign(list, current, filename, type);
-    }
+    if (is_type(token))  return parse_declaration(list, current, filename);
+    if (is_ident(token)) return parse_assign(list, current, filename);
 
     return NULL;
 }
 
 sfProgramNode* parse(sfTokenList list, const char* filename) {
     sfProgramNode* program = sfNewProgram();
-    sfSymbolTable symTable;
-    initSymbolTable(&symTable);
 
     size_t current = 0;
     while (list.tokens[current].type != SF_TOKEN_TYPE_EOF) {
         sfToken tok = list.tokens[current];
 
-        sfASTNode* stmt = parse_statement(list, &current, filename, &symTable);
+        sfASTNode* stmt = parse_statement(list, &current, filename);
 
         if (stmt == NULL) {
             sfLogHelper(
                 "Unexpected Token",
-                "Unexpected token '%s' at top level.",
-                "Follow the language syntax.",
+                "Unexpected token '%s' at top level",
+                "Follow the language syntax",
                 filename,
                 SF_PARSER_UNEXPECTED_TOKEN,
                 tok.line,
@@ -245,6 +148,5 @@ sfProgramNode* parse(sfTokenList list, const char* filename) {
         sfProgramAddStatement(program, stmt);
     }
 
-    freeSymbolTable(&symTable);
     return program;
 }
