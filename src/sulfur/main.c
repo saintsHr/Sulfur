@@ -12,16 +12,16 @@ typedef struct {
     char* input_file;
     int   optimization_level;
     bool  warnings;
-} CompilerOptions;
+} sfCompilerOptions;
 
 void  printTokens (sfTokenList* list);
-void  parseFlags  (int argc, char* argv[], CompilerOptions* options);
+void  parseFlags  (int argc, char* argv[], sfCompilerOptions* options);
 char* readFile    (const char* filename, long* outSize);
 void  writeFile   (const char* filename, const char* content);
 
 int main(int argc, char* argv[]) {
     // --- creates compiler options ---
-    CompilerOptions options = {
+    sfCompilerOptions options = {
         .warnings           = false,
         .input_file         = "input.in",
         .output_file        = "output.out",
@@ -141,7 +141,7 @@ void printTokens(sfTokenList* list) {
     }
 }
 
-void parseFlags(int argc, char* argv[], CompilerOptions* options) {
+void parseFlags(int argc, char* argv[], sfCompilerOptions* options) {
     for (int i = 1; i < argc; i++) {
         bool hasNext = i + 1 < argc;
 

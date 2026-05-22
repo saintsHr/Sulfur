@@ -193,16 +193,17 @@ sfTokenList tokenize(const char* input, const char* filename) {
 
             addToken(&list, tk);
             
-            sfLogInfo l;
-            l.code = SF_LEXER_UNDEFINED_TOKEN;
-            l.col = tk.column;
-            l.line = tk.line;
-            l.file = filename;
-            l.sev = SF_SEV_FATAL;
-            l.title = "Undefined Token";
-            l.desc = "Undefined token in source file (%s).";
-            l.hint = "follow the language grammar.";
-            sfLog(l, tk.value);
+            sfLogHelper(
+                "Undefined Token",
+                "Undefined token in source file (%s).",
+                "follow the language grammar.",
+                tk.value,
+                SF_LEXER_UNDEFINED_TOKEN,
+                tk.line,
+                tk.column,
+                SF_SEV_FATAL,
+                filename
+            );
         }
     }
 

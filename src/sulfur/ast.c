@@ -144,16 +144,17 @@ void sfProgramAddStatement(sfProgramNode* program, sfASTNode* stmt) {
         );
 
         if (!newStatements) {
-            sfLogInfo l;
-            l.code = SF_AST_REALLOC_FAILED;
-            l.col = 0;
-            l.line = 0;
-            l.sev = SF_SEV_FATAL;
-            l.file = "N/A";
-            l.title = "Allocation Failed";
-            l.desc = "AST program memory reallocation failed.";
-            l.hint = "Make sure you have enough memory and try again.";
-            sfLog(l);
+            sfLogHelper(
+                "Allocation Failed",
+                "AST program memory reallocation failed.",
+                "Make sure you have enough memory and try again.",
+                NULL,
+                SF_AST_REALLOC_FAILED,
+                0,
+                0,
+                SF_SEV_FATAL,
+                "N/A"
+            );
         }
 
         program->statements = newStatements;

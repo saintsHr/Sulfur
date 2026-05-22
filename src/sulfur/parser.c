@@ -50,16 +50,17 @@ static bool match(sfTokenList list, size_t* current, sfTokenType type) {
 
 static void expect(sfTokenList list, size_t* current, sfTokenType type, const char* filename) {
     if (!match(list, current, type)) {
-        sfLogInfo l;
-        l.code = SF_PARSER_UNEXPECTED_TOKEN;
-        l.line = list.tokens[*current].line;
-        l.col = list.tokens[*current].column;
-        l.file = filename;
-        l.sev = SF_SEV_FATAL;
-        l.title = "Unexpected Token";
-        l.desc = "Unexpected token '%s'.";
-        l.hint = "Follow the language syntax.";
-        sfLog(l, list.tokens[*current].value);
+        sfLogHelper(
+            "Unexpected Token",
+            "Unexpected token '%s'.",
+            "Follow the language syntax.",
+            list.tokens[*current].value,
+            SF_PARSER_UNEXPECTED_TOKEN,
+            list.tokens[*current].line,
+            list.tokens[*current].column,
+            SF_SEV_FATAL,
+            filename
+        );
     }
 }
 
@@ -79,16 +80,17 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
         case SF_TOKEN_TYPE_KW_U32: type = SF_VAL_TYPE_U32; break;
         case SF_TOKEN_TYPE_KW_U64: type = SF_VAL_TYPE_U64; break;
         default: 
-            sfLogInfo l = {0}; 
-            l.code = SF_PARSER_UNEXPECTED_TOKEN;
-            l.line = typeToken.line;
-            l.col = typeToken.column;
-            l.file = filename;
-            l.sev = SF_SEV_FATAL;
-            l.title = "Unexpected Token";
-            l.desc = "Unexpected token, expected a type keyword.";
-            l.hint = "Follow the language syntax.";
-            sfLog(l, typeToken.value);
+            sfLogHelper(
+                "Unexpected Token",
+                "Unexpected token, expected a type keyword.",
+                "Follow the language syntax.",
+                typeToken.value,
+                SF_PARSER_UNEXPECTED_TOKEN,
+                typeToken.line,
+                typeToken.column,
+                SF_SEV_FATAL,
+                filename
+            );
     }
 
     // gets identifier
@@ -206,16 +208,17 @@ static sfASTNode* parse_statement(sfTokenList list, size_t* current, const char*
     if (is_ident(token)) {
         sfValueType type = getSymbolType(table, token.value);
         if (type == -1) {
-            sfLogInfo l = {0};
-            l.code = SF_PARSER_UNDECLARED_VARIABLE;
-            l.line = token.line;
-            l.col = token.column;
-            l.file = filename;
-            l.sev = SF_SEV_FATAL;
-            l.title = "Undeclared Variable";
-            l.desc = "Variable '%s' used before declaration.";
-            l.hint = "Declare the variable before using it.";
-            sfLog(l, token.value);
+            sfLogHelper(
+                "Undeclared Variable",
+                "Variable '%s' used before declaration.",
+                "Declare the variable before using it.",
+                token.value,
+                SF_PARSER_UNDECLARED_VARIABLE,
+                token.line,
+                token.column,
+                SF_SEV_FATAL,
+                filename
+            );
         }
         return parse_assign(list, current, filename, type);
     }
