@@ -114,16 +114,17 @@ sfTokenList tokenize(const char* input, const char* filename) {
 
             tk.value[j] = '\0';
 
-            if (strcmp(tk.value, "i8") == 0) tk.type = SF_TOKEN_TYPE_KW_I8;
-            else if (strcmp(tk.value, "i16") == 0) tk.type = SF_TOKEN_TYPE_KW_I16;
-            else if (strcmp(tk.value, "i32") == 0) tk.type = SF_TOKEN_TYPE_KW_I32;
-            else if (strcmp(tk.value, "i64") == 0) tk.type = SF_TOKEN_TYPE_KW_I64;
-            else if (strcmp(tk.value, "u8") == 0) tk.type = SF_TOKEN_TYPE_KW_U8;
-            else if (strcmp(tk.value, "u16") == 0) tk.type = SF_TOKEN_TYPE_KW_U16;
-            else if (strcmp(tk.value, "u32") == 0) tk.type = SF_TOKEN_TYPE_KW_U32;
-            else if (strcmp(tk.value, "u64") == 0) tk.type = SF_TOKEN_TYPE_KW_U64;
-            else if (strcmp(tk.value, "f32") == 0) tk.type = SF_TOKEN_TYPE_KW_F32;
-            else if (strcmp(tk.value, "f64") == 0) tk.type = SF_TOKEN_TYPE_KW_F64;
+            if      (strcmp(tk.value, "i8")  == 0)    tk.type = SF_TOKEN_TYPE_KW_I8;
+            else if (strcmp(tk.value, "i16") == 0)    tk.type = SF_TOKEN_TYPE_KW_I16;
+            else if (strcmp(tk.value, "i32") == 0)    tk.type = SF_TOKEN_TYPE_KW_I32;
+            else if (strcmp(tk.value, "i64") == 0)    tk.type = SF_TOKEN_TYPE_KW_I64;
+            else if (strcmp(tk.value, "u8")  == 0)    tk.type = SF_TOKEN_TYPE_KW_U8;
+            else if (strcmp(tk.value, "u16") == 0)    tk.type = SF_TOKEN_TYPE_KW_U16;
+            else if (strcmp(tk.value, "u32") == 0)    tk.type = SF_TOKEN_TYPE_KW_U32;
+            else if (strcmp(tk.value, "u64") == 0)    tk.type = SF_TOKEN_TYPE_KW_U64;
+            else if (strcmp(tk.value, "f32") == 0)    tk.type = SF_TOKEN_TYPE_KW_F32;
+            else if (strcmp(tk.value, "f64") == 0)    tk.type = SF_TOKEN_TYPE_KW_F64;
+            else if (strcmp(tk.value, "string") == 0) tk.type = SF_TOKEN_TYPE_KW_STRING;
             else tk.type = SF_TOKEN_TYPE_IDENTIFIER;
 
             addToken(&list, tk);

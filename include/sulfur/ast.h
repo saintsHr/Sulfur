@@ -27,6 +27,8 @@ typedef enum {
 
     SF_VAL_TYPE_F32,
     SF_VAL_TYPE_F64,
+
+    SF_VAL_TYPE_STRING,
 } sfValueType;
 
 typedef enum {

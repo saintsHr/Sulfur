@@ -46,6 +46,8 @@ static bool is_type(sfToken token) {
     if (token.type == SF_TOKEN_TYPE_KW_F32) return true;
     if (token.type == SF_TOKEN_TYPE_KW_F64) return true;
 
+    if (token.type == SF_TOKEN_TYPE_KW_STRING) return true;
+
     return false;
 }
 
@@ -123,16 +125,17 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
     sfToken typeToken = advance(list, current);
     sfValueType type;
     switch (typeToken.type) {
-        case SF_TOKEN_TYPE_KW_F32: type = SF_VAL_TYPE_F32; break;
-        case SF_TOKEN_TYPE_KW_F64: type = SF_VAL_TYPE_F64; break;
-        case SF_TOKEN_TYPE_KW_I8:  type = SF_VAL_TYPE_I8;  break;
-        case SF_TOKEN_TYPE_KW_I16: type = SF_VAL_TYPE_I16; break;
-        case SF_TOKEN_TYPE_KW_I32: type = SF_VAL_TYPE_I32; break;
-        case SF_TOKEN_TYPE_KW_I64: type = SF_VAL_TYPE_I64; break;
-        case SF_TOKEN_TYPE_KW_U8:  type = SF_VAL_TYPE_U8;  break;
-        case SF_TOKEN_TYPE_KW_U16: type = SF_VAL_TYPE_U16; break;
-        case SF_TOKEN_TYPE_KW_U32: type = SF_VAL_TYPE_U32; break;
-        case SF_TOKEN_TYPE_KW_U64: type = SF_VAL_TYPE_U64; break;
+        case SF_TOKEN_TYPE_KW_F32:    type = SF_VAL_TYPE_F32;    break;
+        case SF_TOKEN_TYPE_KW_F64:    type = SF_VAL_TYPE_F64;    break;
+        case SF_TOKEN_TYPE_KW_I8:     type = SF_VAL_TYPE_I8;     break;
+        case SF_TOKEN_TYPE_KW_I16:    type = SF_VAL_TYPE_I16;    break;
+        case SF_TOKEN_TYPE_KW_I32:    type = SF_VAL_TYPE_I32;    break;
+        case SF_TOKEN_TYPE_KW_I64:    type = SF_VAL_TYPE_I64;    break;
+        case SF_TOKEN_TYPE_KW_U8:     type = SF_VAL_TYPE_U8;     break;
+        case SF_TOKEN_TYPE_KW_U16:    type = SF_VAL_TYPE_U16;    break;
+        case SF_TOKEN_TYPE_KW_U32:    type = SF_VAL_TYPE_U32;    break;
+        case SF_TOKEN_TYPE_KW_U64:    type = SF_VAL_TYPE_U64;    break;
+        case SF_TOKEN_TYPE_KW_STRING: type = SF_VAL_TYPE_STRING; break;
         default: 
             sfLogHelper(
                 "Unexpected Token",
