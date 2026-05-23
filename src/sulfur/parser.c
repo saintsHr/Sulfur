@@ -32,6 +32,93 @@ static void expect(sfTokenList list, size_t* current, sfTokenType type, const ch
     }
 }
 
+static bool is_type(sfToken token) {
+    if (token.type == SF_TOKEN_TYPE_KW_I8)  return true;
+    if (token.type == SF_TOKEN_TYPE_KW_I16) return true;
+    if (token.type == SF_TOKEN_TYPE_KW_I32) return true;
+    if (token.type == SF_TOKEN_TYPE_KW_I64) return true;
+
+    if (token.type == SF_TOKEN_TYPE_KW_U8)  return true;
+    if (token.type == SF_TOKEN_TYPE_KW_U16) return true;
+    if (token.type == SF_TOKEN_TYPE_KW_U32) return true;
+    if (token.type == SF_TOKEN_TYPE_KW_U64) return true;
+
+    if (token.type == SF_TOKEN_TYPE_KW_F32) return true;
+    if (token.type == SF_TOKEN_TYPE_KW_F64) return true;
+
+    return false;
+}
+
+static bool is_ident(sfToken token) {
+    return (token.type == SF_TOKEN_TYPE_IDENTIFIER);
+}
+
+static sfASTNode* parse_primary(sfTokenList list, size_t* current, const char* filename) {
+    sfToken token = advance(list, current);
+
+    if (token.type == SF_TOKEN_TYPE_NUMBER || token.type == SF_TOKEN_TYPE_STRING) {
+        return (sfASTNode*)sfNewLiteral(token.value, token.type);
+    }
+
+    if (token.type == SF_TOKEN_TYPE_IDENTIFIER) {
+        return (sfASTNode*)sfNewIdentifier(token.value);
+    }
+
+    sfLogHelper(
+        "Unexpected Token",
+        "Expected a value, got '%s'",
+        "Follow the language syntax",
+        filename,
+        SF_PARSER_UNEXPECTED_TOKEN,
+        token.line,
+        token.column,
+        SF_SEV_FATAL,
+        token.value
+    );
+
+    return NULL;
+}
+
+static sfASTNode* parse_multiplicative(sfTokenList list, size_t* current, const char* filename) {
+    sfASTNode* left = parse_primary(list, current, filename);
+
+    while (
+        list.tokens[*current].type == SF_TOKEN_TYPE_MULT ||
+        list.tokens[*current].type == SF_TOKEN_TYPE_DIV
+    ) {
+        sfToken op = advance(list, current);
+        sfASTNode* right = parse_primary(list, current, filename);
+
+        sfOperationType op_type = (op.type == SF_TOKEN_TYPE_MULT)
+            ? SF_OP_TYPE_MUL
+            : SF_OP_TYPE_DIV;
+
+        left = (sfASTNode*)sfNewBinary(left, right, op_type);
+    }
+
+    return left;
+}
+
+static sfASTNode* parse_expression(sfTokenList list, size_t* current, const char* filename) {
+    sfASTNode* left = parse_multiplicative(list, current, filename);
+
+    while (
+        list.tokens[*current].type == SF_TOKEN_TYPE_PLUS ||
+        list.tokens[*current].type == SF_TOKEN_TYPE_MINUS
+    ) {
+        sfToken op = advance(list, current);
+        sfASTNode* right = parse_multiplicative(list, current, filename);
+
+        sfOperationType op_type = (op.type == SF_TOKEN_TYPE_PLUS)
+            ? SF_OP_TYPE_ADD
+            : SF_OP_TYPE_SUB;
+
+        left = (sfASTNode*)sfNewBinary(left, right, op_type);
+    }
+
+    return left;
+}
+
 static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const char* filename) {
     sfToken typeToken = advance(list, current);
     sfValueType type;
@@ -58,6 +145,7 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
                 SF_SEV_FATAL,
                 typeToken.value
             );
+            return NULL;
             break;
     }
 
@@ -67,8 +155,7 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
     sfASTNode* val = NULL;
 
     if (match(list, current, SF_TOKEN_TYPE_EQUALS)) {
-        sfToken valueToken = advance(list, current);
-        val = (sfASTNode*)sfNewLiteral(valueToken.value);
+        val = parse_expression(list, current, filename);
     }
 
     expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
@@ -76,35 +163,28 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
     return (sfASTNode*)sfNewVarDecl(name, type, val);
 }
 
-static bool is_type(sfToken token) {
-    if (token.type == SF_TOKEN_TYPE_KW_I8)  return true;
-    if (token.type == SF_TOKEN_TYPE_KW_I16) return true;
-    if (token.type == SF_TOKEN_TYPE_KW_I32) return true;
-    if (token.type == SF_TOKEN_TYPE_KW_I64) return true;
-
-    if (token.type == SF_TOKEN_TYPE_KW_U8)  return true;
-    if (token.type == SF_TOKEN_TYPE_KW_U16) return true;
-    if (token.type == SF_TOKEN_TYPE_KW_U32) return true;
-    if (token.type == SF_TOKEN_TYPE_KW_U64) return true;
-
-    if (token.type == SF_TOKEN_TYPE_KW_F32) return true;
-    if (token.type == SF_TOKEN_TYPE_KW_F64) return true;
-
-    return false;
-}
-
-static bool is_ident(sfToken token) {
-    return (token.type == SF_TOKEN_TYPE_IDENTIFIER);
-}
-
 static sfASTNode* parse_assign(sfTokenList list, size_t* current, const char* filename) {
     sfToken nameToken = advance(list, current);
+
+    if (nameToken.type != SF_TOKEN_TYPE_IDENTIFIER) {
+        sfLogHelper(
+            "Unexpected Token",
+            "Expected an identifier, got '%s'",
+            "Follow the language syntax",
+            filename,
+            SF_PARSER_UNEXPECTED_TOKEN,
+            nameToken.line,
+            nameToken.column,
+            SF_SEV_FATAL,
+            nameToken.value
+        );
+    }
+
     char* name = nameToken.value;
 
     expect(list, current, SF_TOKEN_TYPE_EQUALS, filename);
 
-    sfToken valueToken = advance(list, current);
-    sfASTNode* val = (sfASTNode*)sfNewLiteral(valueToken.value);
+    sfASTNode* val = parse_expression(list, current, filename);
 
     expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
 
@@ -117,6 +197,18 @@ static sfASTNode* parse_statement(sfTokenList list, size_t* current, const char*
     if (is_type(token))  return parse_declaration(list, current, filename);
     if (is_ident(token)) return parse_assign(list, current, filename);
 
+    sfLogHelper(
+        "Unexpected Token",
+        "Unexpected token '%s' at statement level",
+        "Follow the language syntax",
+        filename,
+        SF_PARSER_UNEXPECTED_TOKEN,
+        token.line,
+        token.column,
+        SF_SEV_FATAL,
+        token.value
+    );
+
     return NULL;
 }
 
@@ -125,26 +217,7 @@ sfProgramNode* parse(sfTokenList list, const char* filename) {
 
     size_t current = 0;
     while (list.tokens[current].type != SF_TOKEN_TYPE_EOF) {
-        sfToken tok = list.tokens[current];
-
         sfASTNode* stmt = parse_statement(list, &current, filename);
-
-        if (stmt == NULL) {
-            sfLogHelper(
-                "Unexpected Token",
-                "Unexpected token '%s' at top level",
-                "Follow the language syntax",
-                filename,
-                SF_PARSER_UNEXPECTED_TOKEN,
-                tok.line,
-                tok.column,
-                SF_SEV_FATAL,
-                tok.value
-            );
-            current++;
-            continue;
-        }
-
         sfProgramAddStatement(program, stmt);
     }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sulfur/lexer.h"
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -41,6 +42,7 @@ typedef struct {
 
 typedef struct {
     sfASTNode base;
+    sfTokenType token_type;
     char* value;
 } sfLiteralNode;
 
@@ -81,7 +83,7 @@ void sfPrintAST(sfASTNode* root);
 sfProgramNode* sfNewProgram();
 void sfProgramAddStatement(sfProgramNode* program, sfASTNode* stmt);
 
-sfLiteralNode* sfNewLiteral(const char* value);
+sfLiteralNode* sfNewLiteral(const char* value, sfTokenType tokenType);
 
 sfIdentifierNode* sfNewIdentifier(const char* name);
 sfBinaryExprNode* sfNewBinary(sfASTNode* left, sfASTNode* right, sfOperationType op);

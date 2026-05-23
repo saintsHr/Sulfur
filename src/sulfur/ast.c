@@ -154,9 +154,10 @@ sfIdentifierNode* sfNewIdentifier(const char* name) {
     return node;
 }
 
-sfLiteralNode* sfNewLiteral(const char* value) {
+sfLiteralNode* sfNewLiteral(const char* value, sfTokenType tokenType) {
     sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
     node->base.type = SF_NODE_LITERAL;
+    node->token_type = tokenType;
     node->value = strdup(value);
     return node;
 }

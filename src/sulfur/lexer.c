@@ -6,6 +6,35 @@
 #include <string.h>
 #include <stdbool.h>
 
+static void undefined(sfTokenList* list, const char* input, int* i, int* col, int line, const char* filename) {
+    sfToken tk = {0};
+    tk.type = SF_TOKEN_TYPE_UNDEFINED;
+    tk.line = line;
+    tk.column = *col;
+
+    int j = 0;
+    while (input[*i] != '\0' && !isspace(input[*i])) {
+        if (j < SF_MAX_TOKEN_VALUE_SIZE - 1) tk.value[j++] = input[*i];
+        (*i)++;
+        (*col)++;
+    }
+
+    tk.value[j] = '\0';
+    addToken(list, tk);
+
+    sfLogHelper(
+        "Undefined Token",
+        "Undefined token in source file (%s).",
+        "follow the language grammar.",
+        filename,
+        SF_LEXER_UNDEFINED_TOKEN,
+        tk.line,
+        tk.column,
+        SF_SEV_FATAL,
+        tk.value
+    );
+}
+
 void addToken(sfTokenList* list, sfToken token) {
     if (list->count >= list->capacity) {
         list->capacity = list->capacity == 0 ? 16 : list->capacity * 2;
@@ -61,7 +90,8 @@ sfTokenList tokenize(const char* input, const char* filename) {
             if (isalpha(input[i])) {
                 i = start_i;
                 col = tk.column;
-                goto undefined_token;
+                undefined(&list, input, &i, &col, line, filename);
+                continue;
             }
 
             addToken(&list, tk);
@@ -123,6 +153,17 @@ sfTokenList tokenize(const char* input, const char* filename) {
             if (input[i] == '"') {
                 i++;
                 col++;
+            } else {
+                sfLogHelper(
+                    "Unterminated String",
+                    "String literal was never closed.",
+                    "Add a closing '\"' to the string.",
+                    filename,
+                    SF_LEXER_UNDEFINED_TOKEN,
+                    tk.line,
+                    tk.column,
+                    SF_SEV_FATAL
+                );
             }
 
             addToken(&list, tk);
@@ -154,8 +195,8 @@ sfTokenList tokenize(const char* input, const char* filename) {
                     tk.type = SF_TOKEN_TYPE_SEMICOLON;
                     break;
                 default:
-                    goto undefined_token;
-                    break;
+                    undefined(&list, input, &i, &col, line, filename);
+                    continue;
             }
 
             tk.value[0] = c;
@@ -164,38 +205,6 @@ sfTokenList tokenize(const char* input, const char* filename) {
             col++;
             i++;
             continue;
-        }
-
-        undefined_token:
-        {
-            sfToken tk = {0};
-            tk.type = SF_TOKEN_TYPE_UNDEFINED;
-            tk.line = line;
-            tk.column = col;
-
-            int j = 0;
-
-            while (input[i] != '\0' && !isspace(input[i])) {
-                if (j < SF_MAX_TOKEN_VALUE_SIZE - 1) tk.value[j++] = input[i];
-                i++;
-                col++;
-            }
-            
-            tk.value[j] = '\0';
-
-            addToken(&list, tk);
-            
-            sfLogHelper(
-                "Undefined Token",
-                "Undefined token in source file (%s).",
-                "follow the language grammar.",
-                filename,
-                SF_LEXER_UNDEFINED_TOKEN,
-                tk.line,
-                tk.column,
-                SF_SEV_FATAL,
-                tk.value
-            );
         }
     }
 
