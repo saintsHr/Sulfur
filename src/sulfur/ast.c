@@ -152,6 +152,7 @@ void sfProgramAddStatement(sfProgramNode* program, sfASTNode* stmt) {
 sfIdentifierNode* sfNewIdentifier(const char* name) {
     sfIdentifierNode* node = malloc(sizeof(sfIdentifierNode));
     node->base.type = SF_NODE_IDENTIFIER;
+    node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->name = strdup(name);
     return node;
 }
@@ -159,6 +160,7 @@ sfIdentifierNode* sfNewIdentifier(const char* name) {
 sfLiteralNode* sfNewLiteral(const char* value, sfTokenType tokenType) {
     sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
     node->base.type = SF_NODE_LITERAL;
+    node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->token_type = tokenType;
     node->value = strdup(value);
     return node;
@@ -167,6 +169,7 @@ sfLiteralNode* sfNewLiteral(const char* value, sfTokenType tokenType) {
 sfBinaryExprNode* sfNewBinary(sfASTNode* left, sfASTNode* right, sfOperationType op) {
     sfBinaryExprNode* node = malloc(sizeof(sfBinaryExprNode));
     node->base.type = SF_NODE_BINARY_EXPR;
+    node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->left = left;
     node->right = right;
     node->op = op;
@@ -176,6 +179,7 @@ sfBinaryExprNode* sfNewBinary(sfASTNode* left, sfASTNode* right, sfOperationType
 sfVarDeclNode* sfNewVarDecl(const char* name, sfValueType type, sfASTNode* value) {
     sfVarDeclNode* node = malloc(sizeof(sfVarDeclNode));
     node->base.type = SF_NODE_VAR_DECL;
+    node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->name = strdup(name);
     node->var_type = type;
     node->value = value;
@@ -185,6 +189,7 @@ sfVarDeclNode* sfNewVarDecl(const char* name, sfValueType type, sfASTNode* value
 sfAssignNode* sfNewAssign(const char* name, sfASTNode* value) {
     sfAssignNode* node = malloc(sizeof(sfAssignNode));
     node->base.type = SF_NODE_ASSIGN;
+    node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->name = strdup(name);
     node->value = value;
     return node;

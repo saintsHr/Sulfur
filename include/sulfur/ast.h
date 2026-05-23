@@ -29,6 +29,8 @@ typedef enum {
     SF_VAL_TYPE_F64,
 
     SF_VAL_TYPE_STRING,
+
+    SF_VAL_TYPE_UNRESOLVED,
 } sfValueType;
 
 typedef enum {
@@ -40,6 +42,7 @@ typedef enum {
 
 typedef struct {
     sfNodeType type;
+    sfValueType resolved;
 } sfASTNode;
 
 typedef struct {
