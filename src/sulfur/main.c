@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "sulfur/semantic.h"
 #include "sulfur/util/log.h"
 #include "sulfur/preprocessor.h"
 #include "sulfur/lexer.h"
@@ -29,20 +30,21 @@ int main(int argc, char* argv[]) {
 
     parseFlags(argc, argv, &options);
 
-    long   inputSize = 0;
-    char*  input     = readFile(options.input_file, &inputSize);
+    long  inputSize = 0;
+    char* input     = readFile(options.input_file, &inputSize);
 
-    char*       output = NULL;
-    sfTokenList tokens = {0};
-    sfASTNode*  ast    = NULL;
+    char*          output = NULL;
+    sfProgramNode* ast    = NULL;
+    sfTokenList    tokens = {0};
     
     output = preprocess(input, inputSize, options.input_file);
-    tokens = tokenize(output, options.output_file);
-    ast    = (sfASTNode*)parse(tokens, options.input_file);
+    tokens = tokenize(output, options.input_file);
+    ast    = parse(tokens, options.input_file);
+    sfAnalyze(ast, options.input_file);
 
     printTokens(&tokens);
     printf("\n\n");
-    sfPrintAST(ast);
+    sfPrintAST((sfASTNode*)ast);
 
     writeFile(options.output_file, output);
 

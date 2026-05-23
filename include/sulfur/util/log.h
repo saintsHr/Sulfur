@@ -63,6 +63,9 @@ typedef enum {
 
     SF_PARSER_UNEXPECTED_TOKEN    = 0x4000,
     SF_PARSER_UNDECLARED_VARIABLE = 0x4001,
+
+    SF_SEMANTIC_REDECLARATION = 0x5000,
+    SF_SEMANTIC_UNDECLARED    = 0x5001,
 } sfErrorCode;
 
 static void sf_print_indented(const char* text) {
