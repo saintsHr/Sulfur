@@ -66,6 +66,8 @@ typedef enum {
 
     SF_SEMANTIC_REDECLARATION = 0x5000,
     SF_SEMANTIC_UNDECLARED    = 0x5001,
+    SF_SEMANTIC_UNINITIALIZED = 0x5002,
+    SF_SEMANTIC_TYPE_MISMATCH = 0x5003,
 } sfErrorCode;
 
 static void sf_print_indented(const char* text) {

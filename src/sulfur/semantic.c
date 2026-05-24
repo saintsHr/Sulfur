@@ -1,9 +1,41 @@
 #include "sulfur/ast.h"
+#include "sulfur/lexer.h"
 #include "sulfur/util/log.h"
 #include "sulfur/semantic.h"
 
 #include <stdint.h>
 #include <string.h>
+
+static const char* sfValueTypeName(sfValueType type) {
+    switch (type) {
+        case SF_VAL_TYPE_I8:  return "i8";
+        case SF_VAL_TYPE_I16: return "i16";
+        case SF_VAL_TYPE_I32: return "i32";
+        case SF_VAL_TYPE_I64: return "i64";
+        case SF_VAL_TYPE_U8:  return "u8";
+        case SF_VAL_TYPE_U16: return "u16";
+        case SF_VAL_TYPE_U32: return "u32";
+        case SF_VAL_TYPE_U64: return "u64";
+        case SF_VAL_TYPE_F32: return "f32";
+        case SF_VAL_TYPE_F64: return "f64";
+        default:              return "unknown";
+    }
+}
+
+static bool sfTypeIsFloat(sfValueType type) {
+    return type == SF_VAL_TYPE_F32 || type == SF_VAL_TYPE_F64;
+}
+
+static bool sfTypeIsInt(sfValueType type) {
+    switch (type) {
+        case SF_VAL_TYPE_I8:  case SF_VAL_TYPE_I16:
+        case SF_VAL_TYPE_I32: case SF_VAL_TYPE_I64:
+        case SF_VAL_TYPE_U8:  case SF_VAL_TYPE_U16:
+        case SF_VAL_TYPE_U32: case SF_VAL_TYPE_U64:
+            return true;
+        default: return false;
+    }
+}
 
 static void analyze_expr(sfASTNode* node, sfValueType expected, sfSymbolTable* table, const char* filename) {
 	switch (node->type) {
@@ -16,8 +48,30 @@ static void analyze_expr(sfASTNode* node, sfValueType expected, sfSymbolTable* t
 		}
 
         case SF_NODE_LITERAL: {
-        	node->resolved = expected;
-        	break;
+        	sfLiteralNode* lit = (sfLiteralNode*)node;
+
+		    bool mismatch = false;
+
+		    if (lit->token_type == SF_TOKEN_TYPE_FLOAT && sfTypeIsInt(expected)) mismatch = true;
+		    if (lit->token_type == SF_TOKEN_TYPE_INTEGER && sfTypeIsFloat(expected)) mismatch = true;
+
+		    if (mismatch) {
+		        sfLogHelper(
+		            "Type Mismatch",
+		            "Cannot assign '%s' literal to variable of type '%s'",
+		            "make sure the literal matches the variable type",
+		            filename,
+		            SF_SEMANTIC_TYPE_MISMATCH,
+		            0, 0,
+		            SF_SEV_FATAL,
+		            lit->token_type == SF_TOKEN_TYPE_FLOAT ? "float" : "integer",
+		            sfValueTypeName(expected)
+		        );
+		        break;
+		    }
+
+		    node->resolved = expected;
+		    break;
         }
 
         case SF_NODE_IDENTIFIER: {
@@ -36,7 +90,23 @@ static void analyze_expr(sfASTNode* node, sfValueType expected, sfSymbolTable* t
 			        SF_SEV_FATAL,
 			        id->name
 			    );
+
+			    break;
 			}
+
+			if (!sym->initialized) {
+		        sfLogHelper(
+		            "Uninitialized Variable",
+		            "Variable '%s' is used before being initialized",
+		            "make sure the variable is assigned a value before using it",
+		            filename,
+		            SF_SEMANTIC_UNINITIALIZED,
+		            0, 0,
+		            SF_SEV_FATAL,
+		            id->name
+		        );
+		        break;
+		    }
 
 			node->resolved = sym->type;
 
@@ -83,6 +153,8 @@ static void analyze_statement(sfASTNode* node, sfSymbolTable* table, const char*
 			        SF_SEV_FATAL,
 			        asg->name
 			    );
+
+			    break;
         	}
 
         	analyze_expr(asg->value, sym->type, table, filename);
