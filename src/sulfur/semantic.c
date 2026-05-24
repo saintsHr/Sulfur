@@ -23,42 +23,129 @@ static const char* sfValueTypeName(sfValueType type) {
 }
 
 static bool sfTypeIsFloat(sfValueType type) {
-    return type == SF_VAL_TYPE_F32 || type == SF_VAL_TYPE_F64;
+    switch (type) {
+        case SF_VAL_TYPE_F32:
+        case SF_VAL_TYPE_F64:
+            return true;
+
+        default:
+        	return false;
+    }
 }
 
 static bool sfTypeIsInt(sfValueType type) {
     switch (type) {
-        case SF_VAL_TYPE_I8:  case SF_VAL_TYPE_I16:
-        case SF_VAL_TYPE_I32: case SF_VAL_TYPE_I64:
-        case SF_VAL_TYPE_U8:  case SF_VAL_TYPE_U16:
-        case SF_VAL_TYPE_U32: case SF_VAL_TYPE_U64:
+        case SF_VAL_TYPE_I8:
+        case SF_VAL_TYPE_I16:
+        case SF_VAL_TYPE_I32:
+        case SF_VAL_TYPE_I64:
             return true;
-        default: return false;
+
+        default:
+        	return false;
     }
 }
 
-static void analyze_expr(sfASTNode* node, sfValueType expected, sfSymbolTable* table, const char* filename) {
+static bool sfTypeIsUnsigned(sfValueType type) {
+    switch (type) {
+        case SF_VAL_TYPE_U8:
+        case SF_VAL_TYPE_U16:
+        case SF_VAL_TYPE_U32:
+        case SF_VAL_TYPE_U64:
+            return true;
+
+        default:
+        	return false;
+    }
+}
+
+static bool sfTypeSameGroup(sfValueType a, sfValueType b) {
+    if (sfTypeIsInt(a)      && sfTypeIsInt(b))      return true;
+    if (sfTypeIsFloat(a)    && sfTypeIsFloat(b))    return true;
+    if (sfTypeIsUnsigned(a) && sfTypeIsUnsigned(b)) return true;
+    return false;
+}
+
+static int sfTypeWidth(sfValueType type) {
+    switch (type) {
+        case SF_VAL_TYPE_I8:  case SF_VAL_TYPE_U8:  return 8;
+        case SF_VAL_TYPE_I16: case SF_VAL_TYPE_U16: return 16;
+        case SF_VAL_TYPE_I32: case SF_VAL_TYPE_U32: return 32;
+        case SF_VAL_TYPE_I64: case SF_VAL_TYPE_U64: return 64;
+        case SF_VAL_TYPE_F32: return 32;
+        case SF_VAL_TYPE_F64: return 64;
+        default: return 0;
+    }
+}
+
+static sfValueType sfTypePromote(sfValueType a, sfValueType b) {
+    return sfTypeWidth(a) >= sfTypeWidth(b) ? a : b;
+}
+
+static bool analyze_expr(sfASTNode* node, sfValueType expected, sfSymbolTable* table, const char* filename) {
 	switch (node->type) {
         case SF_NODE_BINARY_EXPR: {
 		    sfBinaryExprNode* bin = (sfBinaryExprNode*)node;
-		    analyze_expr(bin->left,  expected, table, filename);
-		    analyze_expr(bin->right, expected, table, filename);
-		    node->resolved = expected;
-		    break;
+
+		    bool ok = true;
+		    ok &= analyze_expr(bin->left,  SF_VAL_TYPE_UNRESOLVED, table, filename);
+		    ok &= analyze_expr(bin->right, SF_VAL_TYPE_UNRESOLVED, table, filename);
+
+		    if (!ok) return false;
+
+		    sfValueType ltype = bin->left->resolved;
+		    sfValueType rtype = bin->right->resolved;
+
+		    if (ltype == SF_VAL_TYPE_UNRESOLVED || rtype == SF_VAL_TYPE_UNRESOLVED) return false;
+
+		    if (!sfTypeSameGroup(ltype, rtype)) {
+		        sfLogHelper(
+		            "Type Mismatch",
+		            "Cannot mix '%s' and '%s' in binary expression",
+		            "cast both operands to the same type explicitly",
+		            filename,
+		            SF_SEMANTIC_TYPE_MISMATCH,
+		            0, 0,
+		            SF_SEV_FATAL,
+		            sfValueTypeName(ltype),
+		            sfValueTypeName(rtype)
+		        );
+		        return false;
+		    }
+
+		    node->resolved = sfTypePromote(ltype, rtype);
+		    return true;
 		}
 
         case SF_NODE_LITERAL: {
         	sfLiteralNode* lit = (sfLiteralNode*)node;
 
+		    if (expected == SF_VAL_TYPE_UNRESOLVED) {
+		        if (lit->token_type == SF_TOKEN_TYPE_INTEGER) node->resolved = SF_VAL_TYPE_I64;
+		        if (lit->token_type == SF_TOKEN_TYPE_FLOAT)   node->resolved = SF_VAL_TYPE_F64;
+		        return true;
+		    }
+
 		    bool mismatch = false;
 
-		    if (lit->token_type == SF_TOKEN_TYPE_FLOAT && sfTypeIsInt(expected)) mismatch = true;
-		    if (lit->token_type == SF_TOKEN_TYPE_INTEGER && sfTypeIsFloat(expected)) mismatch = true;
+		    if (
+		    	lit->token_type == SF_TOKEN_TYPE_FLOAT &&
+		    	(sfTypeIsInt(expected) || sfTypeIsUnsigned(expected))
+		    ) {
+		    	mismatch = true;
+			}
+
+		    if (
+		    	lit->token_type == SF_TOKEN_TYPE_INTEGER &&
+		    	sfTypeIsFloat(expected)
+		    ) {
+		    	mismatch = true;
+			}
 
 		    if (mismatch) {
 		        sfLogHelper(
 		            "Type Mismatch",
-		            "Cannot assign '%s' literal to variable of type '%s'",
+		            "Cannot assign %s literal to variable of type '%s'",
 		            "make sure the literal matches the variable type",
 		            filename,
 		            SF_SEMANTIC_TYPE_MISMATCH,
@@ -67,11 +154,11 @@ static void analyze_expr(sfASTNode* node, sfValueType expected, sfSymbolTable* t
 		            lit->token_type == SF_TOKEN_TYPE_FLOAT ? "float" : "integer",
 		            sfValueTypeName(expected)
 		        );
-		        break;
+		        return false;
 		    }
 
 		    node->resolved = expected;
-		    break;
+		    return true;
         }
 
         case SF_NODE_IDENTIFIER: {
@@ -85,13 +172,11 @@ static void analyze_expr(sfASTNode* node, sfValueType expected, sfSymbolTable* t
 			        "make sure the variable is declared and also isnt a typo",
 			        filename,
 			        SF_SEMANTIC_UNDECLARED,
-			        0,
-			        0,
+			        0, 0,
 			        SF_SEV_FATAL,
 			        id->name
 			    );
-
-			    break;
+			    return false;
 			}
 
 			if (!sym->initialized) {
@@ -105,15 +190,14 @@ static void analyze_expr(sfASTNode* node, sfValueType expected, sfSymbolTable* t
 		            SF_SEV_FATAL,
 		            id->name
 		        );
-		        break;
+		        return false;
 		    }
 
 			node->resolved = sym->type;
-
-			break;
+			return true;
 		}
 
-        default: break;
+        default: return true;
     }
 }
 
@@ -129,18 +213,51 @@ static void analyze_statement(sfASTNode* node, sfSymbolTable* table, const char*
 			};
 
 			if (var->value != NULL) {
-			    analyze_expr(var->value, var->var_type, table, filename);
+			    if (!analyze_expr(var->value, var->var_type, table, filename)) break;
+
+			    sfValueType resolved = var->value->resolved;
+
+			    if (resolved != SF_VAL_TYPE_UNRESOLVED) {
+			        if (!sfTypeSameGroup(resolved, var->var_type)) {
+			            sfLogHelper(
+			                "Type Mismatch",
+			                "Cannot assign '%s' expression to variable of type '%s'",
+			                "make sure the expression type matches the variable type",
+			                filename,
+			                SF_SEMANTIC_TYPE_MISMATCH,
+			                0, 0,
+			                SF_SEV_FATAL,
+			                sfValueTypeName(resolved),
+			                sfValueTypeName(var->var_type)
+			            );
+			            break;
+			        }
+
+			        if (sfTypeWidth(resolved) > sfTypeWidth(var->var_type)) {
+			            sfLogHelper(
+			                "Narrowing Conversion",
+			                "Cannot implicitly narrow '%s' to '%s'",
+			                "explicitly cast the value or use a wider type",
+			                filename,
+			                SF_SEMANTIC_TYPE_MISMATCH,
+			                0, 0,
+			                SF_SEV_FATAL,
+			                sfValueTypeName(resolved),
+			                sfValueTypeName(var->var_type)
+			            );
+			            break;
+			        }
+			    }
 			}
 
 			sfSymbolTableInsert(table, sym, filename);
-
         	break;
         }
 
         case SF_NODE_ASSIGN: {
         	sfAssignNode* asg = (sfAssignNode*)node;
 
-        	sfSymbol* sym = (sfSymbol*)sfSymbolTableLookup(table, asg->name);
+        	sfSymbol* sym = sfSymbolTableLookup(table, asg->name);
         	if (sym == NULL) {
         		sfLogHelper(
             		"Undeclared Symbol",
@@ -148,19 +265,50 @@ static void analyze_statement(sfASTNode* node, sfSymbolTable* table, const char*
 			        "make sure the variable is declared and also isnt a typo",
 			        filename,
 			        SF_SEMANTIC_UNDECLARED,
-			        0,
-			        0,
+			        0, 0,
 			        SF_SEV_FATAL,
 			        asg->name
 			    );
-
 			    break;
         	}
 
-        	analyze_expr(asg->value, sym->type, table, filename);
+        	if (!analyze_expr(asg->value, sym->type, table, filename)) break;
+
+        	sfValueType resolved = asg->value->resolved;
+
+        	if (resolved != SF_VAL_TYPE_UNRESOLVED) {
+        	    if (!sfTypeSameGroup(resolved, sym->type)) {
+        	        sfLogHelper(
+        	            "Type Mismatch",
+        	            "Cannot assign '%s' expression to variable of type '%s'",
+        	            "make sure the expression type matches the variable type",
+        	            filename,
+        	            SF_SEMANTIC_TYPE_MISMATCH,
+        	            0, 0,
+        	            SF_SEV_FATAL,
+        	            sfValueTypeName(resolved),
+        	            sfValueTypeName(sym->type)
+        	        );
+        	        break;
+        	    }
+
+        	    if (sfTypeWidth(resolved) > sfTypeWidth(sym->type)) {
+        	        sfLogHelper(
+        	            "Narrowing Conversion",
+        	            "Cannot implicitly narrow '%s' to '%s'",
+        	            "explicitly cast the value or use a wider type",
+        	            filename,
+        	            SF_SEMANTIC_TYPE_MISMATCH,
+        	            0, 0,
+        	            SF_SEV_FATAL,
+        	            sfValueTypeName(resolved),
+        	            sfValueTypeName(sym->type)
+        	        );
+        	        break;
+        	    }
+        	}
 
         	sym->initialized = true;
-
         	break;
         }
 
