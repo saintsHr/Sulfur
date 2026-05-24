@@ -124,48 +124,7 @@ sfTokenList tokenize(const char* input, const char* filename) {
             else if (strcmp(tk.value, "u64") == 0)    tk.type = SF_TOKEN_TYPE_KW_U64;
             else if (strcmp(tk.value, "f32") == 0)    tk.type = SF_TOKEN_TYPE_KW_F32;
             else if (strcmp(tk.value, "f64") == 0)    tk.type = SF_TOKEN_TYPE_KW_F64;
-            else if (strcmp(tk.value, "string") == 0) tk.type = SF_TOKEN_TYPE_KW_STRING;
             else tk.type = SF_TOKEN_TYPE_IDENTIFIER;
-
-            addToken(&list, tk);
-            continue;
-        }
-
-        if (c == '"') {
-            sfToken tk = {0};
-            tk.type = SF_TOKEN_TYPE_STRING;
-            tk.line = line;
-            tk.column = col;
-
-            i++;
-            col++;
-
-            int j = 0;
-
-            while (input[i] != '"' && input[i] != '\0') {
-                if (j < SF_MAX_TOKEN_VALUE_SIZE - 1)
-                    tk.value[j++] = input[i];
-                i++;
-                col++;
-            }
-
-            tk.value[j] = '\0';
-
-            if (input[i] == '"') {
-                i++;
-                col++;
-            } else {
-                sfLogHelper(
-                    "Unterminated String",
-                    "String literal was never closed.",
-                    "Add a closing '\"' to the string.",
-                    filename,
-                    SF_LEXER_UNDEFINED_TOKEN,
-                    tk.line,
-                    tk.column,
-                    SF_SEV_FATAL
-                );
-            }
 
             addToken(&list, tk);
             continue;

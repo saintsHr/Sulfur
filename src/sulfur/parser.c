@@ -46,8 +46,6 @@ static bool is_type(sfToken token) {
     if (token.type == SF_TOKEN_TYPE_KW_F32) return true;
     if (token.type == SF_TOKEN_TYPE_KW_F64) return true;
 
-    if (token.type == SF_TOKEN_TYPE_KW_STRING) return true;
-
     return false;
 }
 
@@ -64,10 +62,6 @@ static sfASTNode* parse_primary(sfTokenList list, size_t* current, const char* f
 
     if (token.type == SF_TOKEN_TYPE_IDENTIFIER) {
         return (sfASTNode*)sfNewIdentifier(token.value);
-    }
-
-    if (token.type == SF_TOKEN_TYPE_STRING) {
-        return (sfASTNode*)sfNewLiteral(token.value, token.type);
     }
 
     sfLogHelper(
@@ -139,7 +133,7 @@ static sfASTNode* parse_declaration(sfTokenList list, size_t* current, const cha
         case SF_TOKEN_TYPE_KW_U16:    type = SF_VAL_TYPE_U16;    break;
         case SF_TOKEN_TYPE_KW_U32:    type = SF_VAL_TYPE_U32;    break;
         case SF_TOKEN_TYPE_KW_U64:    type = SF_VAL_TYPE_U64;    break;
-        case SF_TOKEN_TYPE_KW_STRING: type = SF_VAL_TYPE_STRING; break;
+            
         default: 
             sfLogHelper(
                 "Unexpected Token",
@@ -203,7 +197,6 @@ static sfASTNode* parse_statement(sfTokenList list, size_t* current, const char*
 
     if (is_type(token))  return parse_declaration(list, current, filename);
     if (is_ident(token)) return parse_assign(list, current, filename);
-
     sfLogHelper(
         "Unexpected Token",
         "Unexpected token '%s' at statement level",

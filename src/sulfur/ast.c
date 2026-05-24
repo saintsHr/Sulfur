@@ -34,8 +34,6 @@ static const char* sfTypeToString(sfValueType type) {
         case SF_VAL_TYPE_F32: return "f32";
         case SF_VAL_TYPE_F64: return "f64";
 
-        case SF_VAL_TYPE_STRING: return "string";
-
         default: return "?";
     }
 }

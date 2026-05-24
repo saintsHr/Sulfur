@@ -3,7 +3,6 @@
 #include "sulfur/semantic.h"
 
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 static void analyze_expr(sfASTNode* node, sfValueType expected, sfSymbolTable* table, const char* filename) {
