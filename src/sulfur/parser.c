@@ -58,7 +58,7 @@ static bool is_ident(sfToken token) {
 static sfASTNode* parse_primary(sfTokenList list, size_t* current, const char* filename) {
     sfToken token = advance(list, current);
 
-    if (token.type == SF_TOKEN_TYPE_NUMBER || token.type == SF_TOKEN_TYPE_STRING) {
+    if (token.type == SF_TOKEN_TYPE_INTEGER || token.type == SF_TOKEN_TYPE_FLOAT) {
         return (sfASTNode*)sfNewLiteral(token.value, token.type);
     }
 
@@ -66,9 +66,13 @@ static sfASTNode* parse_primary(sfTokenList list, size_t* current, const char* f
         return (sfASTNode*)sfNewIdentifier(token.value);
     }
 
+    if (token.type == SF_TOKEN_TYPE_STRING) {
+        return (sfASTNode*)sfNewLiteral(token.value, token.type);
+    }
+
     sfLogHelper(
         "Unexpected Token",
-        "Expected a value, got '%s'",
+        "Unexpected token '%s', expected a literal or identifier",
         "Follow the language syntax",
         filename,
         SF_PARSER_UNEXPECTED_TOKEN,

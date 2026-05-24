@@ -70,7 +70,6 @@ sfTokenList tokenize(const char* input, const char* filename) {
         if (isdigit(c)) {
             int start_i = i;
             sfToken tk = {0};
-            tk.type = SF_TOKEN_TYPE_NUMBER;
             tk.line = line;
             tk.column = col;
 
@@ -86,6 +85,7 @@ sfTokenList tokenize(const char* input, const char* filename) {
             }
 
             tk.value[j] = '\0';
+            tk.type = has_dot ? SF_TOKEN_TYPE_FLOAT : SF_TOKEN_TYPE_INTEGER;
 
             if (isalpha(input[i])) {
                 i = start_i;

@@ -133,6 +133,13 @@ void sfSymbolTableInsert(sfSymbolTable* table, sfSymbol symbol, const char* file
 	table->symbols[table->count++] = symbol;
 }
 
+void sfSymbolTableFree(sfSymbolTable* table) {
+    free(table->symbols);
+    table->symbols  = NULL;
+    table->count    = 0;
+    table->capacity = 0;
+}
+
 void sfAnalyze(sfProgramNode* program, const char* filename) {
 	sfSymbolTable table;
 	sfSymbolTableInit(&table);
@@ -140,4 +147,6 @@ void sfAnalyze(sfProgramNode* program, const char* filename) {
 	for (uint64_t i = 0; i < program->statement_count; i++) {
 		analyze_statement(program->statements[i], &table, filename);
 	}
+
+	sfSymbolTableFree(&table);
 }
