@@ -4,16 +4,17 @@
 #include <stdint.h>
 
 typedef enum {
-	TEMPORARY,
-	VARIABLE,
-	IMMEDIATE,
+	SF_OPERAND_TYPE_TEMPORARY,
+	SF_OPERAND_TYPE_VARIABLE,
+	SF_OPERAND_TYPE_IMMEDIATE,
 } sfOperandType;
 
 typedef enum {
-	ADD,
-	SUB,
-	DIV,
-	MULT,
+	SF_OPCODE_ADD,
+	SF_OPCODE_SUB,
+	SF_OPCODE_DIV,
+	SF_OPCODE_MULT,
+	SF_OPCODE_ASSIGN,
 } sfOpcode;
 
 typedef struct {
@@ -41,4 +42,5 @@ typedef struct {
     uint32_t     nextTemp;
 } sfIRProgram;
 
-void sfGenerateIR(const sfProgramNode* program, char* output);
+sfIRProgram sfGenerateIR(const sfProgramNode* program);
+void sfPrintIR(const sfIRProgram* program);

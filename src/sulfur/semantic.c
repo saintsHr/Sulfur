@@ -309,6 +309,8 @@ static void analyze_statement(sfASTNode* node, sfSymbolTable* table, const char*
         	}
 
         	sym->initialized = true;
+        	asg->base.resolved = sym->type;
+        	
         	break;
         }
 

@@ -1,12 +1,14 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "sulfur/ir.h"
 #include "sulfur/semantic.h"
 #include "sulfur/util/log.h"
 #include "sulfur/preprocessor.h"
 #include "sulfur/lexer.h"
 #include "sulfur/ast.h"
 #include "sulfur/parser.h"
+#include "sulfur/ir.h"
 
 typedef struct {
     char* output_file;
@@ -36,15 +38,19 @@ int main(int argc, char* argv[]) {
     char*          output = NULL;
     sfProgramNode* ast    = NULL;
     sfTokenList    tokens = {0};
+    sfIRProgram    ir     = {0}; 
     
     output = preprocess(input, inputSize, options.input_file);
     tokens = tokenize(output, options.input_file);
     ast    = parse(tokens, options.input_file);
     sfAnalyze(ast, options.input_file);
+    ir     = sfGenerateIR(ast);
 
     printTokens(&tokens);
     printf("\n\n");
     sfPrintAST((sfASTNode*)ast);
+    printf("\n\n");
+    sfPrintIR(&ir);
 
     writeFile(options.output_file, output);
 
