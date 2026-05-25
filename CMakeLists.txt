@@ -22,6 +22,7 @@ set(SOURCES
 	src/sulfur/preprocessor.c
 	src/sulfur/semantic.c
 	src/sulfur/ir.c
+	src/sulfur/codegen.c
 )
 
 add_executable(sulfur ${SOURCES})

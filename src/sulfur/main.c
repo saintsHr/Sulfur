@@ -1,6 +1,8 @@
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 
+#include "sulfur/codegen.h"
 #include "sulfur/ir.h"
 #include "sulfur/semantic.h"
 #include "sulfur/util/log.h"
@@ -25,8 +27,8 @@ void  writeFile   (const char* filename, const char* content);
 int main(int argc, char* argv[]) {
     sfCompilerOptions options = {
         .warnings           = false,
-        .input_file         = "input.in",
-        .output_file        = "output.out",
+        .input_file         = "input.slfr",
+        .output_file        = "output.asm",
         .optimization_level = 0
     };
 
@@ -35,22 +37,29 @@ int main(int argc, char* argv[]) {
     long  inputSize = 0;
     char* input     = readFile(options.input_file, &inputSize);
 
-    char*          output = NULL;
-    sfProgramNode* ast    = NULL;
-    sfTokenList    tokens = {0};
-    sfIRProgram    ir     = {0}; 
+    char*          output   = NULL;
+
+    sfProgramNode* ast      = NULL;
+    sfTokenList    tokens   = {0};
+    sfIRProgram    ir       = {0};
+    char*          assembly = NULL;
     
-    output = preprocess(input, inputSize, options.input_file);
-    tokens = tokenize(output, options.input_file);
-    ast    = parse(tokens, options.input_file);
-    sfAnalyze(ast, options.input_file);
-    ir     = sfGenerateIR(ast);
+    output   = preprocess(input, inputSize, options.input_file);
+    tokens   = tokenize(output, options.input_file);
+    ast      = parse(tokens, options.input_file);
+               sfAnalyze(ast, options.input_file);
+    ir       = sfGenerateIR(ast);
+    assembly = sfGenerateAssembly(&ir);
 
     printTokens(&tokens);
     printf("\n\n");
     sfPrintAST((sfASTNode*)ast);
     printf("\n\n");
     sfPrintIR(&ir);
+    printf("\n\n");
+    printf("%s", assembly);
+
+    output = assembly;
 
     writeFile(options.output_file, output);
 

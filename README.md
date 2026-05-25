@@ -8,7 +8,7 @@ Built for max performance and control, while giving as much convenience and secu
 - [x] Parser
 - [x] AST
 - [x] Semantic analysis
-- [ ] IR
+- [x] IR
 - [ ] Codegen
 ### Helpers:
 - [ ] Explicit cast
