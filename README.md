@@ -9,7 +9,7 @@ Built for max performance and control, while giving as much convenience and secu
 - [x] AST
 - [x] Semantic analysis
 - [x] IR
-- [ ] Codegen
+- [x] Codegen
 ### Helpers:
 - [ ] Explicit cast
 ### Features:

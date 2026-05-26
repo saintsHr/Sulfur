@@ -135,13 +135,13 @@ static void emit_assign(char** buff, sfOperation op, const sfStackMap* map) {
 
 		switch (op.destiny.type) {
             case SF_OPERAND_TYPE_TEMPORARY: {
-            	dstName = malloc(16 * sizeof(char));
+            	dstName = malloc(32 * sizeof(char));
     			sprintf(dstName, "t%hi", op.destiny.temporaryID);
     			break;
             }
 
             case SF_OPERAND_TYPE_VARIABLE: {
-            	dstName = malloc(16 * sizeof(char));
+            	dstName = malloc(32 * sizeof(char));
     			sprintf(dstName, "%s", op.destiny.variableName);
     			break;
             }
@@ -151,19 +151,19 @@ static void emit_assign(char** buff, sfOperation op, const sfStackMap* map) {
 
         switch (op.source1.type) {
         	case SF_OPERAND_TYPE_TEMPORARY: {
-        		src1Name = malloc(16 * sizeof(char));
+        		src1Name = malloc(32 * sizeof(char));
     			sprintf(src1Name, "t%hi", op.source1.temporaryID);
     			break;
         	}
 
         	case SF_OPERAND_TYPE_VARIABLE: {
-        		src1Name = malloc(16 * sizeof(char));
+        		src1Name = malloc(32 * sizeof(char));
     			sprintf(src1Name, "%s", op.source1.variableName);
     			break;
         	}
 
         	case SF_OPERAND_TYPE_IMMEDIATE: {
-        		src1Name = malloc(16 * sizeof(char));
+        		src1Name = malloc(32 * sizeof(char));
     			sprintf(src1Name, "%s", op.source1.immediateValue);
     			break;
         	}
@@ -171,7 +171,7 @@ static void emit_assign(char** buff, sfOperation op, const sfStackMap* map) {
           	default: break;
         }
 
-        char* instruction = malloc(128 * sizeof(char));
+        char* instruction = malloc(256 * sizeof(char));
 
     	if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE) {
     		sprintf(
@@ -195,6 +195,111 @@ static void emit_assign(char** buff, sfOperation op, const sfStackMap* map) {
 
     	free(instruction);
 	}
+}
+
+static void emit_binary(char** buff, sfOperation op, const sfStackMap* map, const char* instr) {
+    char* dstName  = NULL;
+    char* src1Name = NULL;
+    char* src2Name = NULL;
+
+    switch (op.destiny.type) {
+        case SF_OPERAND_TYPE_TEMPORARY: {
+            dstName = malloc(32 * sizeof(char));
+            sprintf(dstName, "t%hi", op.destiny.temporaryID);
+            break;
+        }
+        case SF_OPERAND_TYPE_VARIABLE: {
+            dstName = malloc(32 * sizeof(char));
+            sprintf(dstName, "%s", op.destiny.variableName);
+            break;
+        }
+        default: break;
+    }
+
+    switch (op.source1.type) {
+        case SF_OPERAND_TYPE_TEMPORARY: {
+            src1Name = malloc(32 * sizeof(char));
+            sprintf(src1Name, "t%hi", op.source1.temporaryID);
+            break;
+        }
+        case SF_OPERAND_TYPE_VARIABLE: {
+            src1Name = malloc(32 * sizeof(char));
+            sprintf(src1Name, "%s", op.source1.variableName);
+            break;
+        }
+        case SF_OPERAND_TYPE_IMMEDIATE: {
+            src1Name = malloc(32 * sizeof(char));
+            sprintf(src1Name, "%s", op.source1.immediateValue);
+            break;
+        }
+        default: break;
+    }
+
+    switch (op.source2.type) {
+        case SF_OPERAND_TYPE_TEMPORARY: {
+            src2Name = malloc(32 * sizeof(char));
+            sprintf(src2Name, "t%hi", op.source2.temporaryID);
+            break;
+        }
+        case SF_OPERAND_TYPE_VARIABLE: {
+            src2Name = malloc(32 * sizeof(char));
+            sprintf(src2Name, "%s", op.source2.variableName);
+            break;
+        }
+        case SF_OPERAND_TYPE_IMMEDIATE: {
+            src2Name = malloc(32 * sizeof(char));
+            sprintf(src2Name, "%s", op.source2.immediateValue);
+            break;
+        }
+        default: break;
+    }
+
+    char* instruction = malloc(256 * sizeof(char));
+
+    if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE && op.source2.type != SF_OPERAND_TYPE_IMMEDIATE) {
+        sprintf(instruction,
+            "	mov rax, [rbp%hi]\n"
+            "	%s rax, [rbp%hi]\n"
+            "	mov [rbp%hi], rax\n",
+            lookup_stack(map, src1Name),
+            instr,
+            lookup_stack(map, src2Name),
+            lookup_stack(map, dstName)
+        );
+    } else if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE && op.source2.type != SF_OPERAND_TYPE_IMMEDIATE) {
+        sprintf(instruction,
+            "	mov rax, %s\n"
+            "	%s rax, [rbp%hi]\n"
+            "	mov [rbp%hi], rax\n",
+            src1Name, instr,
+            lookup_stack(map, src2Name),
+            lookup_stack(map, dstName)
+        );
+    } else if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE && op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        sprintf(instruction,
+            "	mov rax, [rbp%hi]\n"
+            "	%s rax, %s\n"
+            "	mov [rbp%hi], rax\n",
+            lookup_stack(map, src1Name),
+            instr, src2Name,
+            lookup_stack(map, dstName)
+        );
+    } else {
+        sprintf(instruction,
+            "	mov rax, %s\n"
+            "	%s rax, %s\n"
+            "	mov [rbp%hi], rax\n",
+            src1Name, instr, src2Name,
+            lookup_stack(map, dstName)
+        );
+    }
+
+    push_string(instruction, buff);
+
+    free(instruction);
+    free(dstName);
+    free(src1Name);
+    free(src2Name);
 }
 
 char* sfGenerateAssembly(const sfIRProgram* program) {
@@ -232,26 +337,12 @@ char* sfGenerateAssembly(const sfIRProgram* program) {
 		sfOperation op = program->operations[i];
 
 		switch (op.opcode) {
-            case SF_OPCODE_ADD: {
-            	break;
-            }
+            case SF_OPCODE_ADD:  emit_binary(&as, op, &map, "add");  break;
+			case SF_OPCODE_SUB:  emit_binary(&as, op, &map, "sub");  break;
+			case SF_OPCODE_MULT: emit_binary(&as, op, &map, "imul"); break;
+			case SF_OPCODE_DIV:  emit_binary(&as, op, &map, "idiv"); break;
 
-            case SF_OPCODE_SUB: {
-            	break;
-            }
-
-            case SF_OPCODE_DIV: {
-            	break;
-            }
-
-            case SF_OPCODE_MULT: {
-            	break;
-            }
-
-            case SF_OPCODE_ASSIGN: {
-            	emit_assign(&as, op, &map);
-            	break;
-            }
+            case SF_OPCODE_ASSIGN: emit_assign(&as, op, &map); break;
 
             default: break;
         }
