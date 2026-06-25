@@ -1,13 +1,13 @@
 #pragma once
 
-#define SF_MAX_TOKEN_VALUE_SIZE 64
-
 #include <stddef.h>
+
+#define SF_MAX_TOKEN_VALUE_SIZE 64
 
 typedef enum {
     SF_TOKEN_TYPE_IDENTIFIER,
+
     SF_TOKEN_TYPE_INTEGER,
-    SF_TOKEN_TYPE_FLOAT,
 
     SF_TOKEN_TYPE_PLUS,
     SF_TOKEN_TYPE_MINUS,
@@ -27,25 +27,21 @@ typedef enum {
     SF_TOKEN_TYPE_KW_U32,
     SF_TOKEN_TYPE_KW_U64,
 
-    SF_TOKEN_TYPE_KW_F32,
-    SF_TOKEN_TYPE_KW_F64,
-
     SF_TOKEN_TYPE_UNDEFINED,
     SF_TOKEN_TYPE_EOF,
-} sfTokenType;
+} sf_token_type;
 
 typedef struct {
-    sfTokenType type;
+    sf_token_type type;
     char value[SF_MAX_TOKEN_VALUE_SIZE];
     int line;
     int column;
-} sfToken;
+} sf_token;
 
 typedef struct {
-    sfToken* tokens;
+    sf_token* tokens;
     size_t count;
     size_t capacity;
-} sfTokenList;
+} sf_token_list;
 
-sfTokenList tokenize(const char* input, const char* filename);
-void addToken(sfTokenList* list, sfToken token);
+sf_token_list tokenize(const char* input, const char* filename);
