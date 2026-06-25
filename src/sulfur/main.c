@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -15,84 +16,132 @@
 typedef struct {
     char* output_file;
     char* input_file;
-    int   optimization_level;
-    bool  warnings;
-} sfCompilerOptions;
+} sf_compiler_options;
 
-void  printTokens (sfTokenList* list);
-void  parseFlags  (int argc, char* argv[], sfCompilerOptions* options);
-char* readFile    (const char* filename, long* outSize);
-void  writeFile   (const char* filename, const char* content);
+static void print_tokens(const sf_token_list* list);
+static void parse_flags(int argc, char* argv[], sf_compiler_options* options);
+static char* read_file(const char* filename, uint32_t* out_size);
+static void write_file(const char* filename, const char* content);
 
 int main(int argc, char* argv[]) {
-    sfCompilerOptions options = {
-        .warnings           = false,
+    sf_compiler_options options = {
         .input_file         = "input.slfr",
         .output_file        = "output.asm",
-        .optimization_level = 0
     };
 
-    parseFlags(argc, argv, &options);
+    parse_flags(argc, argv, &options);
 
-    long  inputSize = 0;
-    char* input     = readFile(options.input_file, &inputSize);
+    uint32_t inputSize = 0;
+    char* input = read_file(options.input_file, &inputSize);
 
-    char*          output   = NULL;
+    char* output = NULL;
 
-    sfProgramNode* ast      = NULL;
-    sfTokenList    tokens   = {0};
-    sfIRProgram    ir       = {0};
-    char*          assembly = NULL;
+    // stages
+    sfProgramNode* ast = NULL;
+    sf_token_list tokens = {0};
+    sf_ir_program ir = {0};
+    char* assembly = NULL;
     
-    output   = preprocess(input, inputSize, options.input_file);
-    tokens   = tokenize(output, options.input_file);
-    ast      = parse(tokens, options.input_file);
-               sfAnalyze(ast, options.input_file);
-    ir       = sfGenerateIR(ast);
-    assembly = sfGenerateAssembly(&ir);
+    // compilation pipeline
+    output = preprocess(input, inputSize, options.input_file);
+    tokens = tokenize(output, options.input_file);
+    ast = parse(tokens, options.input_file);
+    sf_analyze(ast, options.input_file);
+    ir = sf_generate_ir(ast);
+    assembly = sf_generate_assembly(&ir);
 
-    printTokens(&tokens);
+    // debug
+    print_tokens(&tokens);
     printf("\n\n");
-    sfPrintAST((sfASTNode*)ast);
+    sf_print_ast((sfASTNode*)ast);
     printf("\n\n");
-    sfPrintIR(&ir);
+    sf_print_ir(&ir);
     printf("\n\n");
     printf("%s", assembly);
 
+    // writes to output
     output = assembly;
-
-    writeFile(options.output_file, output);
+    write_file(options.output_file, output);
 
     free(output);
     free(input);
     return 0;
 }
 
-void writeFile(const char* filename, const char* content) {
-    FILE* file = fopen(filename, "wb");
-    if (file == NULL) {
-        sfLogHelper(
-            "Cannot open file.",
-            "Unable to open file (%s) provided.",
-            "Make sure you have enough disk sface & write permission and try again.",
-            filename,
-            SF_MAIN_CANNOT_OPEN_FILE,
+static void print_tokens(const sf_token_list* list) {
+    for (size_t i = 0; i < list->count; i++) {
+        printf("Token %zu: type=%d value=%s (%d:%d)\n",
+            i,
+            list->tokens[i].type,
+            list->tokens[i].value,
+            list->tokens[i].line,
+            list->tokens[i].column
+        );
+    }
+}
+
+static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {
+    for (int i = 1; i < argc; i++) {
+        bool has_next = i + 1 < argc;
+
+        if (strcmp(argv[i], "-i") == 0) {
+            if (!has_next || argv[i + 1][0] == '-') {
+                sf_log_helper(
+                    "No input file",
+                    "Input file not provided",
+                    "Choose a input file or remove the '-i' flag",
+                    "N/A",
+                    SF_MAIN_NO_INPUT_FILE,
+                    0,
+                    0,
+                    SF_SEV_FATAL
+                );
+            }
+
+            options->input_file = argv[i + 1];
+            i++;
+            continue;
+        }
+
+        if (strcmp(argv[i], "-o") == 0) {
+            if (!has_next || argv[i + 1][0] == '-') {
+                sf_log_helper(
+                    "No output file",
+                    "Output file not provided",
+                    "Choose a output file or remove the '-o' flag",
+                    "N/A",
+                    SF_MAIN_NO_OUTPUT_FILE,
+                    0,
+                    0,
+                    SF_SEV_FATAL
+                );
+            }
+
+            options->output_file = argv[i + 1];
+            i++;
+            continue;
+        }
+
+        sf_log_helper(
+            "Unknown flag",
+            "An unknown flag (%s) has been provided.",
+            "Try using the --help flag or removing this flag.",
+            "N/A",
+            SF_MAIN_UNKNOWN_FLAG,
             0,
             0,
             SF_SEV_FATAL,
-            filename
+            argv[i]
         );
     }
-
-    fwrite(content, sizeof(char), strlen(content), file);
-
-    fclose(file);
 }
 
-char* readFile(const char* filename, long* outSize) {
+
+static char* read_file(const char* filename, uint32_t* out_size) {
     FILE* file = fopen(filename, "rb");
+
     if (file == NULL) {
-        sfLogHelper(
+        sf_log_helper(
             "Cannot open file",
             "Unable to open file (%s) provided.",
             "Make sure you are providing the correct filename",
@@ -106,14 +155,16 @@ char* readFile(const char* filename, long* outSize) {
     }
 
     fseek(file, 0, SEEK_END);
-    long size = ftell(file);
+    uint32_t size = ftell(file);
     rewind(file);
-    *outSize = size;
+    *out_size = size;
 
     char* content = malloc(size + 1);
+
     if (content == NULL) {
         fclose(file);
-        sfLogHelper(
+        
+        sf_log_helper(
             "Memory allocation failed",
             "File read memory allocation failed.",
             "Make sure you have enough memory and try again.",
@@ -133,81 +184,24 @@ char* readFile(const char* filename, long* outSize) {
     return content;
 }
 
-void printTokens(sfTokenList* list) {
-    for (size_t i = 0; i < list->count; i++) {
-        printf("Token %zu: type=%d value=%s (%d:%d)\n",
-            i,
-            list->tokens[i].type,
-            list->tokens[i].value,
-            list->tokens[i].line,
-            list->tokens[i].column
-        );
-    }
-}
+void write_file(const char* filename, const char* content) {
+    FILE* file = fopen(filename, "wb");
 
-void parseFlags(int argc, char* argv[], sfCompilerOptions* options) {
-    for (int i = 1; i < argc; i++) {
-        bool hasNext = i + 1 < argc;
-
-        if (strcmp(argv[i], "-i") == 0) {
-            if (!hasNext || argv[i + 1][0] == '-') {
-                sfLogHelper(
-                    "No input file",
-                    "Input file not provided",
-                    "Choose a input file or remove the '-i' flag",
-                    "N/A",
-                    SF_MAIN_NO_INPUT_FILE,
-                    0,
-                    0,
-                    SF_SEV_FATAL
-                );
-            }
-            options->input_file = argv[i + 1];
-            i++;
-            continue;
-        }
-
-        if (strcmp(argv[i], "-o") == 0) {
-            if (!hasNext || argv[i + 1][0] == '-') {
-                sfLogHelper(
-                    "No output file",
-                    "Output file not provided",
-                    "Choose a output file or remove the '-o' flag",
-                    "N/A",
-                    SF_MAIN_NO_OUTPUT_FILE,
-                    0,
-                    0,
-                    SF_SEV_FATAL
-                );
-            }
-            options->output_file = argv[i + 1];
-            i++;
-            continue;
-        }
-
-        if (strcmp(argv[i], "-w") == 0) {
-            options->warnings = true;
-            continue;
-        }
-
-        if (strncmp(argv[i], "-O", 2) == 0) {
-            int level = argv[i][2] - '0';
-            if (level >= 0 && level <= 3) {
-                options->optimization_level = level;
-                continue;
-            }
-        }
-
-        sfLogHelper(
-            "Unknown flag",
-            "An unknown flag (%s) has been provided.",
-            "Try using the --help flag or removing this flag.",
-            "N/A",
-            SF_MAIN_UNKNOWN_FLAG,
+    if (file == NULL) {
+        sf_log_helper(
+            "Cannot open file.",
+            "Unable to open file (%s) provided.",
+            "Make sure you have enough disk space & write permission and try again.",
+            filename,
+            SF_MAIN_CANNOT_OPEN_FILE,
             0,
             0,
             SF_SEV_FATAL,
-            argv[i]
+            filename
         );
     }
+
+    fwrite(content, sizeof(char), strlen(content), file);
+
+    fclose(file);
 }

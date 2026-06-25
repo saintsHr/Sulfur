@@ -132,7 +132,6 @@ static sf_token read_number(const char* input, int* i, int* col, int line) {
     }
 
     tk.value[j] = '\0';
-    tk.type = SF_TOKEN_TYPE_INTEGER;
 
     if (isalpha(input[*i])) {
         *i   = start_i;
