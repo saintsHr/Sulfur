@@ -6,19 +6,15 @@
 #include "sulfur/ast.h"
 
 typedef struct {
-    char*       name;
-    sfValueType type;
-    bool        initialized;
-} sfSymbol;
+    char* name;
+    sf_value_type type;
+    bool initialized;
+} sf_symbol;
 
 typedef struct {
-    sfSymbol* symbols;
-    uint64_t  count;
-    uint64_t  capacity;
-} sfSymbolTable;
+    sf_symbol* symbols;
+    uint32_t count;
+    uint32_t capacity;
+} sf_symbol_table;
 
-void sfAnalyze(sfProgramNode* program, const char* filename);
-
-sfSymbol* sfSymbolTableLookup(sfSymbolTable* table, const char* name);
-void sfSymbolTableInsert(sfSymbolTable* table, sfSymbol symbol,  const char* filename);
-void sfSymbolTableInit(sfSymbolTable* table);
+void sf_analyze(sf_program_node* program, const char* filename);
