@@ -62,6 +62,8 @@ int main(int argc, char* argv[]) {
     output = assembly;
     write_file(options.output_file, output);
 
+    sf_free_ast((sf_ast_node*)ast);
+    sf_free_ir(&ir);
     free(output);
     free(input);
     

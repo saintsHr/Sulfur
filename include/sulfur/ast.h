@@ -50,6 +50,8 @@ typedef struct {
 typedef struct {
     sf_ast_node base;
     char* name;
+    uint32_t depth;
+    uint32_t id;
 } sf_identifier_node;
 
 typedef struct {
@@ -64,12 +66,14 @@ typedef struct {
     char* name;
     sf_value_type var_type;
     sf_ast_node* value;
+    uint32_t id;
 } sf_var_decl_node;
 
 typedef struct {
     sf_ast_node base;
     char* name;
     sf_ast_node* value;
+    uint32_t id;
 } sf_var_assign_node;
 
 typedef struct {

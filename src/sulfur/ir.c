@@ -49,6 +49,30 @@ void sf_print_ir(const sf_ir_program* program) {
     }
 }
 
+void sf_free_ir(sf_ir_program* program) {
+    for (uint32_t i = 0; i < program->count; i++) {
+        sf_operation* op = &program->operations[i];
+
+        if (op->destiny.type == SF_OPERAND_TYPE_VARIABLE) {
+            free(op->destiny.variable_name);
+        }
+
+        if (op->source1.type == SF_OPERAND_TYPE_VARIABLE) {
+            free(op->source1.variable_name);
+        }
+
+        if (op->opcode != SF_OPCODE_ASSIGN && op->source2.type == SF_OPERAND_TYPE_VARIABLE) {
+            free(op->source2.variable_name);
+        }
+    }
+
+    free(program->operations);
+    
+    program->operations = NULL;
+    program->count      = 0;
+    program->capacity   = 0;
+}
+
 static void push(sf_ir_program* program, sf_operation operation) {
 	if (program->capacity <= 0) {
 		program->operations = realloc(
@@ -137,8 +161,8 @@ static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node,
         	operand.type = SF_OPERAND_TYPE_VARIABLE;
         	operand.value_type = id->base.resolved;
 
-            char* mangled = malloc(strlen(id->name) + 12);
-            sprintf(mangled, "%s@%u", id->name, depth);
+            char* mangled = malloc(strlen(id->name) + 32);
+            sprintf(mangled, "%s@%u", id->name, id->id);
 
         	operand.variable_name = mangled;
 
@@ -162,8 +186,8 @@ static void generate_statement(sf_ir_program* program, sf_ast_node* node, uint32
 
         	sf_operand src = generate_expression(program, dcl->value, depth);
 
-            char* mangled = malloc(strlen(dcl->name) + 12);
-            sprintf(mangled, "%s@%u", dcl->name, depth);
+            char* mangled = malloc(strlen(dcl->name) + 32);
+            sprintf(mangled, "%s@%u", dcl->name, dcl->id);
 
         	sf_operand dst = {
         		.type = SF_OPERAND_TYPE_VARIABLE,
@@ -175,6 +199,7 @@ static void generate_statement(sf_ir_program* program, sf_ast_node* node, uint32
         		.opcode = SF_OPCODE_ASSIGN,
         		.destiny = dst,
         		.source1 = src,
+                .source2 = {0},
         	};
 
         	push(program, op);
@@ -186,8 +211,8 @@ static void generate_statement(sf_ir_program* program, sf_ast_node* node, uint32
 
         	sf_operand src = generate_expression(program, as->value, depth);
 
-            char* mangled = malloc(strlen(as->name) + 12);
-            sprintf(mangled, "%s@%u", as->name, depth);
+            char* mangled = malloc(strlen(as->name) + 32);
+            sprintf(mangled, "%s@%u", as->name, as->id);
 
         	sf_operand dst = {
         		.type = SF_OPERAND_TYPE_VARIABLE,
@@ -199,6 +224,7 @@ static void generate_statement(sf_ir_program* program, sf_ast_node* node, uint32
         		.opcode = SF_OPCODE_ASSIGN,
         		.destiny = dst,
         		.source1 = src,
+                .source2 = {0},
         	};
 
         	push(program, op);

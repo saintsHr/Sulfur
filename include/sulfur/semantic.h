@@ -9,6 +9,8 @@ typedef struct {
     char* name;
     sf_value_type type;
     bool initialized;
+    uint32_t depth;
+    uint32_t id;
 } sf_symbol;
 
 typedef struct {
@@ -21,6 +23,7 @@ typedef struct {
     sf_symbol_table* stack;
     uint32_t depth;
     uint32_t capacity;
+    uint32_t next_id;
 } sf_scope;
 
 void sf_analyze(sf_program_node* program, const char* filename);

@@ -146,26 +146,11 @@ static void parse_define(sf_preprocessor_context* ctx, char* line, const char* f
 }
 
 static char* extract_defines(sf_preprocessor_context* ctx, char* str, const char* filename) {
-    size_t size   = strlen(str);
-    char*  buffer = malloc(size + 1);
-
-    if (!buffer) {
-        sf_log_helper(
-            "Memory allocation failed",
-            "Cannot allocate memory for defines buffer.",
-            "Make sure you have enough memory and try again.",
-            filename,
-            SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
-            0,
-            0,
-            SF_SEV_FATAL
-        );
-        return NULL;
-    }
-
-    char* read      = str;
-    char* write     = buffer;
-    char  line[512] = {};
+    size_t buffer_size = strlen(str) + 128;
+    char*  buffer      = malloc(buffer_size);
+    char*  read        = str;
+    char*  write       = buffer;
+    char   line[512]   = {0};
 
     const size_t keywordLen = strlen(DEFINE_KEYWORD);
 
@@ -183,12 +168,14 @@ static char* extract_defines(sf_preprocessor_context* ctx, char* str, const char
             parse_define(ctx, trim, filename);
         } else {
             size_t len = strlen(line);
+            ensure_capacity(&buffer, &write, &buffer_size, len + 1, filename);
             memcpy(write, line, len);
             write += len;
             *write++ = '\n';
         }
     }
 
+    ensure_capacity(&buffer, &write, &buffer_size, 1, filename);
     *write = '\0';
     return buffer;
 }

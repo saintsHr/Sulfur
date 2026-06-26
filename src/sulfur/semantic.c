@@ -185,6 +185,8 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		    }
 
 			node->resolved = sym->type;
+			id->depth = sym->depth;
+			id->id = sym->id;
 			return true;
 		}
 
@@ -242,6 +244,9 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 			}
 
 			scope_insert(scope, sym, filename);
+
+			var->id = scope_lookup(scope, var->name)->id;
+
         	break;
         }
 
@@ -263,6 +268,8 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 			    );
 			    break;
         	}
+
+        	asg->id = sym->id;
 
         	if (!analyze_expr(asg->value, sym->type, scope, filename)) break;
 
@@ -358,6 +365,7 @@ static void scope_init(sf_scope* scope) {
 	scope->stack = NULL;
     scope->depth = 0;
     scope->capacity = 0;
+    scope->next_id = 0;
 }
 
 static void scope_push(sf_scope* scope) {
@@ -405,8 +413,10 @@ static void scope_insert(sf_scope* scope, sf_symbol symbol, const char* filename
         );
     }
 
-    sf_symbol_table* table = &scope->stack[scope->depth - 1];
+    symbol.id    = scope->next_id++;
+    symbol.depth = scope->depth - 1;
 
+    sf_symbol_table* table = &scope->stack[scope->depth - 1];
     symbol_table_insert(table, symbol, filename);
 }
 
