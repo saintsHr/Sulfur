@@ -6,40 +6,83 @@
 #include <ctype.h>
 #include <stdio.h>
 
-#define STR2(x) #x
-#define STR(x) STR2(x)
+static int is_identifier_char(char c);
 
-#define DEFINE_KEYWORD "define"
+static char* skip_whitespace(char* p);
 
-typedef struct {
-    sfDefine defines[SF_MAX_DEFINES];
-    int defineCount;
-} sfPreprocessorContext;
+static void ensure_capacity(char** buffer, char** write, size_t* buffer_size, size_t needed, const char* filename);
 
-static inline int isIdentifierChar(char c) {
+static void parse_define(sf_preprocessor_context* ctx, char* line, const char* filename);
+static char* extract_defines(sf_preprocessor_context* ctx, char* str, const char* filename);
+static char* apply_defines(sf_preprocessor_context* ctx, char* str, const char* filename);
+
+static void remove_carriage_return(char* str);
+static void remove_comments(char* str);
+static void remove_empty_lines(char* str);
+
+char* preprocess(const char* src, long src_size, const char* filename) {
+    sf_preprocessor_context ctx = {0};
+
+    char* out = malloc(src_size + 1);
+    if (!out) {
+        sf_log_helper(
+            "Memory allocation failed",
+            "Preprocessor output memory allocation failed.",
+            "Make sure you have enough memory and try again.",
+            "N/A",
+            SF_PREP_CANNOT_MALLOC_OUTPUT,
+            0,
+            0,
+            SF_SEV_FATAL
+        );
+    }
+
+    memcpy(out, src, src_size);
+    out[src_size] = '\0';
+
+    remove_carriage_return(out);
+    remove_comments(out);
+
+    char* tmp;
+
+    tmp = extract_defines(&ctx, out, filename);
+    free(out);
+    out = tmp;
+
+    tmp = apply_defines(&ctx, out, filename);
+    free(out);
+    out = tmp;
+
+    remove_empty_lines(out);
+
+    return out;
+}
+
+static int is_identifier_char(char c) {
     return isalnum((unsigned char)c) || c == '_';
 }
 
-static inline char* skipWhitesface(char* p) {
+static char* skip_whitespace(char* p) {
     while (isspace((unsigned char)*p)) p++;
     return p;
 }
 
-static void ensureCapacity(
+static void ensure_capacity(
     char** buffer,
     char** write,
-    size_t* bufSize,
+    size_t* buffer_size,
     size_t needed,
     const char* filename
 ) {
     size_t used = *write - *buffer;
 
-    if (used + needed + 1 > *bufSize) {
-        *bufSize = (*bufSize * 2) + needed;
+    if (used + needed + 1 > *buffer_size) {
+        *buffer_size = (*buffer_size * 2) + needed;
 
-        char* tmp = realloc(*buffer, *bufSize);
+        char* tmp = realloc(*buffer, *buffer_size);
+
         if (!tmp) {
-            sfLogHelper(
+            sf_log_helper(
                 "Memory allocation failed",
                 "Cannot realloc memory for defines buffer.",
                 "Make sure you have enough memory and try again.",
@@ -58,9 +101,9 @@ static void ensureCapacity(
     }
 }
 
-static void parseDefine(sfPreprocessorContext* ctx, char* line, const char* filename) {
-    if (ctx->defineCount >= SF_MAX_DEFINES) {
-        sfLogHelper(
+static void parse_define(sf_preprocessor_context* ctx, char* line, const char* filename) {
+    if (ctx->define_count >= SF_MAX_DEFINES) {
+        sf_log_helper(
             "Too many defines",
             "file provided (%s) has too many defines",
             "Remove useless defines.",
@@ -78,7 +121,7 @@ static void parseDefine(sfPreprocessorContext* ctx, char* line, const char* file
     char value[SF_MAX_DEFINE_VALUE_LENGTH] = {0};
 
     char* p = line + strlen(DEFINE_KEYWORD);
-    p = skipWhitesface(p);
+    p = skip_whitespace(p);
 
     char* n = name;
     while (*p && !isspace((unsigned char)*p)) {
@@ -87,27 +130,27 @@ static void parseDefine(sfPreprocessorContext* ctx, char* line, const char* file
     }
     *n = '\0';
 
-    p = skipWhitesface(p);
+    p = skip_whitespace(p);
 
     snprintf(value, sizeof(value), "%s", p);
 
-    sfDefine* def = &ctx->defines[ctx->defineCount];
+    sf_define* def = &ctx->defines[ctx->define_count];
 
     snprintf(def->name, SF_MAX_DEFINE_NAME_LENGTH, "%s", name);
     snprintf(def->value, SF_MAX_DEFINE_VALUE_LENGTH, "%s", value);
 
-    def->nameLen  = strlen(def->name);
-    def->valueLen = strlen(def->value);
+    def->name_lenght  = strlen(def->name);
+    def->value_lenght = strlen(def->value);
 
-    ctx->defineCount++;
+    ctx->define_count++;
 }
 
-static char* extractDefines(sfPreprocessorContext* ctx, char* str, const char* filename) {
+static char* extract_defines(sf_preprocessor_context* ctx, char* str, const char* filename) {
     size_t size   = strlen(str);
     char*  buffer = malloc(size + 1);
 
     if (!buffer) {
-        sfLogHelper(
+        sf_log_helper(
             "Memory allocation failed",
             "Cannot allocate memory for defines buffer.",
             "Make sure you have enough memory and try again.",
@@ -133,11 +176,11 @@ static char* extractDefines(sfPreprocessorContext* ctx, char* str, const char* f
 
         if (*read == '\n') read++;
 
-        char* trim = skipWhitesface(line);
+        char* trim = skip_whitespace(line);
 
         if (strncmp(trim, DEFINE_KEYWORD, keywordLen) == 0 &&
             isspace((unsigned char)trim[keywordLen])) {
-            parseDefine(ctx, trim, filename);
+            parse_define(ctx, trim, filename);
         } else {
             size_t len = strlen(line);
             memcpy(write, line, len);
@@ -150,14 +193,14 @@ static char* extractDefines(sfPreprocessorContext* ctx, char* str, const char* f
     return buffer;
 }
 
-static char* applyDefines(sfPreprocessorContext* ctx, char* str, const char* filename) {
+static char* apply_defines(sf_preprocessor_context* ctx, char* str, const char* filename) {
     if (!str) return NULL;
 
-    size_t bufSize = strlen(str) + 128;
-    char* buffer = malloc(bufSize);
+    size_t buffer_size = strlen(str) + 128;
+    char* buffer = malloc(buffer_size);
 
     if (!buffer) {
-        sfLogHelper(
+        sf_log_helper(
             "Memory allocation failed",
             "Cannot allocate memory for defines buffer.",
             "Make sure you have enough memory and try again.",
@@ -176,20 +219,20 @@ static char* applyDefines(sfPreprocessorContext* ctx, char* str, const char* fil
     while (*read) {
         int replaced = 0;
 
-        for (int i = 0; i < ctx->defineCount; i++) {
-            sfDefine* def = &ctx->defines[i];
+        for (int i = 0; i < ctx->define_count; i++) {
+            sf_define* def = &ctx->defines[i];
 
-            if (strncmp(read, def->name, def->nameLen) != 0) continue;
+            if (strncmp(read, def->name, def->name_lenght) != 0) continue;
 
             char before = (read == str) ? ' ' : read[-1];
-            char after  = read[def->nameLen];
+            char after  = read[def->name_lenght];
 
-            if (!isIdentifierChar(before) && !isIdentifierChar(after)) {
-                ensureCapacity(&buffer, &write, &bufSize, def->valueLen, filename);
+            if (!is_identifier_char(before) && !is_identifier_char(after)) {
+                ensure_capacity(&buffer, &write, &buffer_size, def->value_lenght, filename);
 
-                memcpy(write, def->value, def->valueLen);
-                write += def->valueLen;
-                read  += def->nameLen;
+                memcpy(write, def->value, def->value_lenght);
+                write += def->value_lenght;
+                read  += def->name_lenght;
 
                 replaced = 1;
                 break;
@@ -197,7 +240,7 @@ static char* applyDefines(sfPreprocessorContext* ctx, char* str, const char* fil
         }
 
         if (!replaced) {
-            ensureCapacity(&buffer, &write, &bufSize, 1, filename);
+            ensure_capacity(&buffer, &write, &buffer_size, 1, filename);
             *write++ = *read++;
         }
     }
@@ -206,7 +249,7 @@ static char* applyDefines(sfPreprocessorContext* ctx, char* str, const char* fil
     return buffer;
 }
 
-static inline void removeCarriageReturn(char* str) {
+static void remove_carriage_return(char* str) {
     char* read = str;
     char* write = str;
 
@@ -218,7 +261,7 @@ static inline void removeCarriageReturn(char* str) {
     *write = '\0';
 }
 
-static inline void removeComments(char* str) {
+static void remove_comments(char* str) {
     char* read  = str;
     char* write = str;
 
@@ -233,7 +276,7 @@ static inline void removeComments(char* str) {
     *write = '\0';
 }
 
-static inline void removeEmptyLines(char* str) {
+static void remove_empty_lines(char* str) {
     char* read = str;
     char* write = str;
 
@@ -258,42 +301,4 @@ static inline void removeEmptyLines(char* str) {
     }
 
     *write = '\0';
-}
-
-char* preprocess(const char* src, long srcSize, const char* filename) {
-    sfPreprocessorContext ctx = {0};
-
-    char* out = malloc(srcSize + 1);
-    if (!out) {
-        sfLogHelper(
-            "Memory allocation failed",
-            "Preprocessor output memory allocation failed.",
-            "Make sure you have enough memory and try again.",
-            "N/A",
-            SF_PREP_CANNOT_MALLOC_OUTPUT,
-            0,
-            0,
-            SF_SEV_FATAL
-        );
-    }
-
-    memcpy(out, src, srcSize);
-    out[srcSize] = '\0';
-
-    removeCarriageReturn(out);
-    removeComments(out);
-
-    char* tmp;
-
-    tmp = extractDefines(&ctx, out, filename);
-    free(out);
-    out = tmp;
-
-    tmp = applyDefines(&ctx, out, filename);
-    free(out);
-    out = tmp;
-
-    removeEmptyLines(out);
-
-    return out;
 }

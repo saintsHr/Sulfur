@@ -15,6 +15,7 @@ include_directories(
 )
 
 set(SOURCES
+	src/sulfur/util/log.c
 	src/sulfur/ast.c
 	src/sulfur/lexer.c
 	src/sulfur/main.c

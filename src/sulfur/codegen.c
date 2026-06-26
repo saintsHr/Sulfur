@@ -18,7 +18,7 @@ static void push_string(const char* src, char** dst) {
 	strcat(*dst, src);
 }
 
-static int16_t lookup_stack(const sfStackMap* map, const char* name) {
+static int16_t lookup_stack(const sf_stack_map* map, const char* name) {
 	if (map == NULL) return 0;
 
 	for (int16_t i = 0; i < map->count; i++) {
@@ -30,13 +30,13 @@ static int16_t lookup_stack(const sfStackMap* map, const char* name) {
 	return 0;
 }
 
-static void push_stack(sfStackMap* map, sfStackEntry entry) {
+static void push_stack(sf_stack_map* map, sf_stack_entry entry) {
 	if (map == NULL) return;
 
 	if (map->capacity <= 0) {
 		map->entries = realloc(
 			map->entries,
-			8 * sizeof(sfStackEntry)
+			8 * sizeof(sf_stack_entry)
 		);
 		map->capacity = 8;
 	}
@@ -44,22 +44,22 @@ static void push_stack(sfStackMap* map, sfStackEntry entry) {
 	if (map->count >= map->capacity) {
 		map->entries = realloc(
 			map->entries,
-			(map->capacity * 2) * sizeof(sfStackEntry)
+			(map->capacity * 2) * sizeof(sf_stack_entry)
 		);
 	}
 
 	map->entries[map->count++] = entry;
 }
 
-static void map_operand(sfStackMap* map, sfOperand op, int16_t* next_offset) {
+static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset) {
     if (op.type == SF_OPERAND_TYPE_IMMEDIATE) return;
 
     if (op.type == SF_OPERAND_TYPE_VARIABLE) {
-    	char*   name   = op.variableName;
+    	char*   name   = op.variable_name;
     	int16_t offset = lookup_stack(map, name);
 
     	if (offset == 0) {
-    		sfStackEntry entry = {
+    		sf_stack_entry entry = {
     			.name = name,
     			.offset = *next_offset,
     		};
@@ -72,12 +72,12 @@ static void map_operand(sfStackMap* map, sfOperand op, int16_t* next_offset) {
 
     if (op.type == SF_OPERAND_TYPE_TEMPORARY) {
     	char*   name   = malloc(16 * sizeof(char));
-    	sprintf(name, "t%hi", op.temporaryID);
+    	sprintf(name, "t%hi", op.temporary_id);
 
     	int16_t offset = lookup_stack(map, name);
 
     	if (offset == 0) {
-    		sfStackEntry entry = {
+    		sf_stack_entry entry = {
     			.name = name,
     			.offset = *next_offset,
     		};
@@ -89,14 +89,14 @@ static void map_operand(sfStackMap* map, sfOperand op, int16_t* next_offset) {
     }
 }
 
-static void populate_stack(sfStackMap* map, const sfIRProgram* program) {
+static void populate_stack(sf_stack_map* map, const sf_ir_program* program) {
     if (map     == NULL) return;
     if (program == NULL) return;
 
     int16_t next_offset = -8;
 
     for (uint64_t i = 0; i < program->count; i++) {
-        sfOperation op = program->operations[i];
+        sf_operation op = program->operations[i];
 
         if (op.destiny.type == SF_OPERAND_TYPE_VARIABLE) {
         	map_operand(map, op.destiny, &next_offset);
@@ -112,7 +112,7 @@ static void populate_stack(sfStackMap* map, const sfIRProgram* program) {
     }
 
     for (uint64_t i = 0; i < program->count; i++) {
-        sfOperation op = program->operations[i];
+        sf_operation op = program->operations[i];
 
         if (op.destiny.type == SF_OPERAND_TYPE_TEMPORARY) {
         	map_operand(map, op.destiny, &next_offset);
@@ -128,21 +128,23 @@ static void populate_stack(sfStackMap* map, const sfIRProgram* program) {
     }
 }
 
-static void emit_assign(char** buff, sfOperation op, const sfStackMap* map) {
+static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map) {
 	if (op.opcode == SF_OPCODE_ASSIGN) {
-		char* dstName  = NULL;
-		char* src1Name = NULL;
+		char* dst_name  = NULL;
+		char* src1_name = NULL;
 
 		switch (op.destiny.type) {
             case SF_OPERAND_TYPE_TEMPORARY: {
-            	dstName = malloc(32 * sizeof(char));
-    			sprintf(dstName, "t%hi", op.destiny.temporaryID);
+            	dst_name = malloc(32 * sizeof(char));
+    			sprintf(dst_name, "t%hi", op.destiny.temporary_id);
+
     			break;
             }
 
             case SF_OPERAND_TYPE_VARIABLE: {
-            	dstName = malloc(32 * sizeof(char));
-    			sprintf(dstName, "%s", op.destiny.variableName);
+            	dst_name = malloc(32 * sizeof(char));
+    			sprintf(dst_name, "%s", op.destiny.variable_name);
+
     			break;
             }
 
@@ -151,20 +153,23 @@ static void emit_assign(char** buff, sfOperation op, const sfStackMap* map) {
 
         switch (op.source1.type) {
         	case SF_OPERAND_TYPE_TEMPORARY: {
-        		src1Name = malloc(32 * sizeof(char));
-    			sprintf(src1Name, "t%hi", op.source1.temporaryID);
+        		src1_name = malloc(32 * sizeof(char));
+    			sprintf(src1_name, "t%hi", op.source1.temporary_id);
+
     			break;
         	}
 
         	case SF_OPERAND_TYPE_VARIABLE: {
-        		src1Name = malloc(32 * sizeof(char));
-    			sprintf(src1Name, "%s", op.source1.variableName);
+        		src1_name = malloc(32 * sizeof(char));
+    			sprintf(src1_name, "%s", op.source1.variable_name);
+
     			break;
         	}
 
         	case SF_OPERAND_TYPE_IMMEDIATE: {
-        		src1Name = malloc(32 * sizeof(char));
-    			sprintf(src1Name, "%s", op.source1.immediateValue);
+        		src1_name = malloc(32 * sizeof(char));
+    			sprintf(src1_name, "%s", op.source1.immediate_value);
+
     			break;
         	}
 
@@ -178,16 +183,16 @@ static void emit_assign(char** buff, sfOperation op, const sfStackMap* map) {
     			instruction,
     			"	mov rax, [rbp%hi]\n"
     			"	mov [rbp%hi], rax\n",
-    			lookup_stack(map, src1Name),
-    			lookup_stack(map, dstName)
+    			lookup_stack(map, src1_name),
+    			lookup_stack(map, dst_name)
     		);
     	} else {
     		sprintf(
     			instruction,
     			"	mov rax, %s\n"
     			"	mov [rbp%hi], rax\n",
-    			src1Name,
-    			lookup_stack(map, dstName)
+    			src1_name,
+    			lookup_stack(map, dst_name)
     		);
     	}
 
@@ -197,60 +202,76 @@ static void emit_assign(char** buff, sfOperation op, const sfStackMap* map) {
 	}
 }
 
-static void emit_binary(char** buff, sfOperation op, const sfStackMap* map, const char* instr) {
-    char* dstName  = NULL;
-    char* src1Name = NULL;
-    char* src2Name = NULL;
+static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, const char* instr) {
+    char* dst_name  = NULL;
+    char* src1_name = NULL;
+    char* src2_name = NULL;
 
     switch (op.destiny.type) {
         case SF_OPERAND_TYPE_TEMPORARY: {
-            dstName = malloc(32 * sizeof(char));
-            sprintf(dstName, "t%hi", op.destiny.temporaryID);
+            dst_name = malloc(32 * sizeof(char));
+            sprintf(dst_name, "t%hi", op.destiny.temporary_id);
+
             break;
         }
+
         case SF_OPERAND_TYPE_VARIABLE: {
-            dstName = malloc(32 * sizeof(char));
-            sprintf(dstName, "%s", op.destiny.variableName);
+            dst_name = malloc(32 * sizeof(char));
+            sprintf(dst_name, "%s", op.destiny.variable_name);
+
             break;
         }
+
         default: break;
     }
 
     switch (op.source1.type) {
         case SF_OPERAND_TYPE_TEMPORARY: {
-            src1Name = malloc(32 * sizeof(char));
-            sprintf(src1Name, "t%hi", op.source1.temporaryID);
+            src1_name = malloc(32 * sizeof(char));
+            sprintf(src1_name, "t%hi", op.source1.temporary_id);
+
             break;
         }
+
         case SF_OPERAND_TYPE_VARIABLE: {
-            src1Name = malloc(32 * sizeof(char));
-            sprintf(src1Name, "%s", op.source1.variableName);
+            src1_name = malloc(32 * sizeof(char));
+            sprintf(src1_name, "%s", op.source1.variable_name);
+
             break;
         }
+
         case SF_OPERAND_TYPE_IMMEDIATE: {
-            src1Name = malloc(32 * sizeof(char));
-            sprintf(src1Name, "%s", op.source1.immediateValue);
+            src1_name = malloc(32 * sizeof(char));
+            sprintf(src1_name, "%s", op.source1.immediate_value);
+
             break;
         }
+
         default: break;
     }
 
     switch (op.source2.type) {
         case SF_OPERAND_TYPE_TEMPORARY: {
-            src2Name = malloc(32 * sizeof(char));
-            sprintf(src2Name, "t%hi", op.source2.temporaryID);
+            src2_name = malloc(32 * sizeof(char));
+            sprintf(src2_name, "t%hi", op.source2.temporary_id);
+
             break;
         }
+
         case SF_OPERAND_TYPE_VARIABLE: {
-            src2Name = malloc(32 * sizeof(char));
-            sprintf(src2Name, "%s", op.source2.variableName);
+            src2_name = malloc(32 * sizeof(char));
+            sprintf(src2_name, "%s", op.source2.variable_name);
+
             break;
         }
+
         case SF_OPERAND_TYPE_IMMEDIATE: {
-            src2Name = malloc(32 * sizeof(char));
-            sprintf(src2Name, "%s", op.source2.immediateValue);
+            src2_name = malloc(32 * sizeof(char));
+            sprintf(src2_name, "%s", op.source2.immediate_value);
+
             break;
         }
+
         default: break;
     }
 
@@ -261,51 +282,51 @@ static void emit_binary(char** buff, sfOperation op, const sfStackMap* map, cons
             "	mov rax, [rbp%hi]\n"
             "	%s rax, [rbp%hi]\n"
             "	mov [rbp%hi], rax\n",
-            lookup_stack(map, src1Name),
+            lookup_stack(map, src1_name),
             instr,
-            lookup_stack(map, src2Name),
-            lookup_stack(map, dstName)
+            lookup_stack(map, src2_name),
+            lookup_stack(map, dst_name)
         );
     } else if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE && op.source2.type != SF_OPERAND_TYPE_IMMEDIATE) {
         sprintf(instruction,
             "	mov rax, %s\n"
             "	%s rax, [rbp%hi]\n"
             "	mov [rbp%hi], rax\n",
-            src1Name, instr,
-            lookup_stack(map, src2Name),
-            lookup_stack(map, dstName)
+            src1_name, instr,
+            lookup_stack(map, src2_name),
+            lookup_stack(map, dst_name)
         );
     } else if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE && op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
         sprintf(instruction,
             "	mov rax, [rbp%hi]\n"
             "	%s rax, %s\n"
             "	mov [rbp%hi], rax\n",
-            lookup_stack(map, src1Name),
-            instr, src2Name,
-            lookup_stack(map, dstName)
+            lookup_stack(map, src1_name),
+            instr, src2_name,
+            lookup_stack(map, dst_name)
         );
     } else {
         sprintf(instruction,
             "	mov rax, %s\n"
             "	%s rax, %s\n"
             "	mov [rbp%hi], rax\n",
-            src1Name, instr, src2Name,
-            lookup_stack(map, dstName)
+            src1_name, instr, src2_name,
+            lookup_stack(map, dst_name)
         );
     }
 
     push_string(instruction, buff);
 
     free(instruction);
-    free(dstName);
-    free(src1Name);
-    free(src2Name);
+    free(dst_name);
+    free(src1_name);
+    free(src2_name);
 }
 
-char* sfGenerateAssembly(const sfIRProgram* program) {
+char* sf_generate_assembly(const sf_ir_program* program) {
 	char* as = strdup("");
 
-	sfStackMap map = {
+	sf_stack_map map = {
 		.entries  = NULL,
 		.capacity = 0,
 		.count    = 0,
@@ -334,7 +355,7 @@ char* sfGenerateAssembly(const sfIRProgram* program) {
 	push_string("\n\n", &as);
 
 	for (uint32_t i = 0; i < program->count; i++) {
-		sfOperation op = program->operations[i];
+		sf_operation op = program->operations[i];
 
 		switch (op.opcode) {
             case SF_OPCODE_ADD:  emit_binary(&as, op, &map, "add");  break;

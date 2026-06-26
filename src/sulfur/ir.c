@@ -27,7 +27,7 @@ sf_ir_program sf_generate_ir(const sf_program_node* program){
     return ir;
 }
 
-void sfPrintIR(const sf_ir_program* program) {
+void sf_print_ir(const sf_ir_program* program) {
     for (size_t i = 0; i < program->count; i++) {
         sf_operation* op = &program->operations[i];
 
@@ -217,8 +217,8 @@ static const char* value_type_name(sf_value_type type) {
 
 static void print_operand(sf_operand op) {
     switch (op.type) {
-        case SF_OPERAND_TYPE_TEMPORARY: printf("t%u:%s", op.temporary_id, sfValueTypeName(op.value_type)); break;
-        case SF_OPERAND_TYPE_VARIABLE: printf("%s:%s", op.variable_name, sfValueTypeName(op.value_type)); break;
-        case SF_OPERAND_TYPE_IMMEDIATE: printf("%s:%s", op.immediate_value, sfValueTypeName(op.value_type)); break;
+        case SF_OPERAND_TYPE_TEMPORARY: printf("t%u:%s", op.temporary_id, value_type_name(op.value_type)); break;
+        case SF_OPERAND_TYPE_VARIABLE: printf("%s:%s", op.variable_name, value_type_name(op.value_type)); break;
+        case SF_OPERAND_TYPE_IMMEDIATE: printf("%s:%s", op.immediate_value, value_type_name(op.value_type)); break;
     }
 }

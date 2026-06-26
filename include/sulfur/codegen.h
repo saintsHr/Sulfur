@@ -4,14 +4,14 @@
 #include <stdint.h>
 
 typedef struct {
-    char*    name;
+    char* name;
     int16_t offset;
-} sfStackEntry;
+} sf_stack_entry;
 
 typedef struct {
-    sfStackEntry* entries;
-    uint16_t      count;
-    uint16_t      capacity;
-} sfStackMap;
+    sf_stack_entry* entries;
+    uint16_t count;
+    uint16_t capacity;
+} sf_stack_map;
 
-char* sfGenerateAssembly(const sfIRProgram* program);
+char* sf_generate_assembly(const sf_ir_program* program);
