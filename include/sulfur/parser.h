@@ -3,4 +3,4 @@
 #include "sulfur/ast.h"
 #include "sulfur/lexer.h"
 
-sfProgramNode* parse(sfTokenList list, const char* filename);
+sf_program_node* parse(sf_token_list list, const char* filename);
