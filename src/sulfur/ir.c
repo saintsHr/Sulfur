@@ -4,6 +4,49 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static void push(sf_ir_program* program, sf_operation operation);
+static sf_operand new_temporary(sf_ir_program* program, sf_value_type type);
+static sf_opcode optype_to_opcode(sf_operation_type type);
+static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node);
+static void generate_statement(sf_ir_program* program, sf_ast_node* node);
+static const char* value_type_name(sf_value_type type);
+static void print_operand(sf_operand op);
+
+sf_ir_program sf_generate_ir(const sf_program_node* program){
+    sf_ir_program ir = {
+        .capacity = 0,
+        .count = 0,
+        .nextTemp = 0,
+        .operations = NULL,
+    };
+
+    for (uint64_t i = 0; i < program->statement_count; i++) {
+        generate_statement(&ir, program->statements[i]);
+    }
+
+    return ir;
+}
+
+void sfPrintIR(const sf_ir_program* program) {
+    for (size_t i = 0; i < program->count; i++) {
+        sf_operation* op = &program->operations[i];
+
+        print_operand(op->destiny);
+        printf(" = ");
+        print_operand(op->source1);
+
+        switch (op->opcode) {
+            case SF_OPCODE_ADD:  printf(" + "); print_operand(op->source2); break;
+            case SF_OPCODE_SUB:  printf(" - "); print_operand(op->source2); break;
+            case SF_OPCODE_MULT: printf(" * "); print_operand(op->source2); break;
+            case SF_OPCODE_DIV:  printf(" / "); print_operand(op->source2); break;
+            case SF_OPCODE_ASSIGN: break;
+        }
+
+        printf("\n");
+    }
+}
+
 static void push(sf_ir_program* program, sf_operation operation) {
 	if (program->capacity <= 0) {
 		program->operations = realloc(
@@ -156,7 +199,7 @@ static void generate_statement(sf_ir_program* program, sf_ast_node* node) {
     }
 }
 
-static const char* sfValueTypeName(sf_value_type type) {
+static const char* value_type_name(sf_value_type type) {
     switch (type) {
         case SF_VAL_TYPE_I8:  return "i8";
         case SF_VAL_TYPE_I16: return "i16";
@@ -178,39 +221,4 @@ static void print_operand(sf_operand op) {
         case SF_OPERAND_TYPE_VARIABLE: printf("%s:%s", op.variable_name, sfValueTypeName(op.value_type)); break;
         case SF_OPERAND_TYPE_IMMEDIATE: printf("%s:%s", op.immediate_value, sfValueTypeName(op.value_type)); break;
     }
-}
-
-void sfPrintIR(const sf_ir_program* program) {
-    for (size_t i = 0; i < program->count; i++) {
-        sf_operation* op = &program->operations[i];
-
-        print_operand(op->destiny);
-        printf(" = ");
-        print_operand(op->source1);
-
-        switch (op->opcode) {
-            case SF_OPCODE_ADD:  printf(" + "); print_operand(op->source2); break;
-            case SF_OPCODE_SUB:  printf(" - "); print_operand(op->source2); break;
-            case SF_OPCODE_MULT: printf(" * "); print_operand(op->source2); break;
-            case SF_OPCODE_DIV:  printf(" / "); print_operand(op->source2); break;
-            case SF_OPCODE_ASSIGN: break;
-        }
-
-        printf("\n");
-    }
-}
-
-sf_ir_program sf_generate_ir(const sf_program_node* program){
-	sf_ir_program ir = {
-		.capacity = 0,
-		.count = 0,
-		.nextTemp = 0,
-		.operations = NULL,
-	};
-
-	for (uint64_t i = 0; i < program->statement_count; i++) {
-		generate_statement(&ir, program->statements[i]);
-	}
-
-	return ir;
 }
