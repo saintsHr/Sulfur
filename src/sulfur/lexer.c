@@ -84,7 +84,7 @@ static void undefined(sf_token_list* list, const char* input, int* i, int* col, 
     tk.value[j] = '\0';
     add_token(list, tk);
 
-    sfLogHelper(
+    sf_log_helper(
         "Undefined Token",
         "Undefined token in source file (%s).",
         "follow the language grammar.",

@@ -46,7 +46,7 @@ void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt) {
         );
 
         if (!new_statements) {
-            sfLogHelper(
+            sf_log_helper(
                 "Allocation Failed",
                 "AST program memory reallocation failed.",
                 "Make sure you have enough memory and try again.",
