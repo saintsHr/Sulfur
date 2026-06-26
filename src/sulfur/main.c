@@ -18,7 +18,6 @@ typedef struct {
     char* input_file;
 } sf_compiler_options;
 
-static void print_tokens(const sf_token_list* list);
 static void parse_flags(int argc, char* argv[], sf_compiler_options* options);
 static char* read_file(const char* filename, uint32_t* out_size);
 static void write_file(const char* filename, const char* content);
@@ -37,21 +36,21 @@ int main(int argc, char* argv[]) {
     char* output = NULL;
 
     // stages
-    sf_program_node* ast = NULL;
     sf_token_list tokens = {0};
+    sf_program_node* ast = NULL;
     sf_ir_program ir = {0};
     char* assembly = NULL;
     
     // compilation pipeline
-    output = preprocess(input, inputSize, options.input_file);
-    tokens = tokenize(output, options.input_file);
-    ast = parse(tokens, options.input_file);
+    output = sf_preprocess(input, inputSize, options.input_file);
+    tokens = sf_tokenize(output, options.input_file);
+    ast = sf_parse(tokens, options.input_file);
     sf_analyze(ast, options.input_file);
     ir = sf_generate_ir(ast);
     assembly = sf_generate_assembly(&ir);
 
     // debug
-    print_tokens(&tokens);
+    sf_print_tokens(&tokens);
     printf("\n\n");
     sf_print_ast((sf_ast_node*)ast);
     printf("\n\n");
@@ -67,18 +66,6 @@ int main(int argc, char* argv[]) {
     free(input);
     
     return 0;
-}
-
-static void print_tokens(const sf_token_list* list) {
-    for (size_t i = 0; i < list->count; i++) {
-        printf("Token %zu: type=%d value=%s (%d:%d)\n",
-            i,
-            list->tokens[i].type,
-            list->tokens[i].value,
-            list->tokens[i].line,
-            list->tokens[i].column
-        );
-    }
 }
 
 static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {

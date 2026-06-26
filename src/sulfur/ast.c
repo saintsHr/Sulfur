@@ -17,6 +17,7 @@ static void free_literal(sf_ast_node* node);
 static void free_ident(sf_ast_node* node);
 static void free_program(sf_ast_node* node);
 static void free_binary_expr(sf_ast_node* node);
+static void free_block(sf_ast_node* node);
 
 static void print_var_assign(const sf_ast_node* node, int indent);
 static void print_var_decl(const sf_ast_node* node, int indent);
@@ -24,6 +25,7 @@ static void print_literal(const sf_ast_node* node, int indent);
 static void print_ident(const sf_ast_node* node, int indent);
 static void print_program(const sf_ast_node* node, int indent);
 static void print_binary_expr(const sf_ast_node* node, int indent);
+static void print_block(const sf_ast_node* node, int indent);
 
 sf_program_node* sf_new_program() {
     sf_program_node* program = malloc(sizeof(sf_program_node));
@@ -34,6 +36,17 @@ sf_program_node* sf_new_program() {
     program->statement_capacity = 0;
 
     return program;
+}
+
+sf_block_node* sf_new_block() {
+    sf_block_node* block = malloc(sizeof(sf_block_node));
+
+    block->base.type = SF_NODE_BLOCK;
+    block->statements = NULL;
+    block->statement_count = 0;
+    block->statement_capacity = 0;
+
+    return block;
 }
 
 void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt) {
@@ -65,6 +78,35 @@ void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt) {
     program->statements[program->statement_count++] = stmt;
 }
 
+void sf_block_add_statement(sf_block_node* block, sf_ast_node* stmt) {
+    if (block->statement_count >= block->statement_capacity) {
+        block->statement_capacity = block->statement_capacity == 0 ? 8 : block->statement_capacity * 2;
+        
+        sf_ast_node** new_statements = realloc(
+            block->statements,
+            block->statement_capacity * sizeof(sf_ast_node*)
+        );
+
+        if (!new_statements) {
+            sf_log_helper(
+                "Allocation Failed",
+                "AST program memory reallocation failed.",
+                "Make sure you have enough memory and try again.",
+                NULL,
+                SF_AST_REALLOC_FAILED,
+                0,
+                0,
+                SF_SEV_FATAL,
+                "N/A"
+            );
+        }
+
+        block->statements = new_statements;
+    }
+
+    block->statements[block->statement_count++] = stmt;
+}
+
 sf_identifier_node* sf_new_identifier(const char* name) {
     sf_identifier_node* node = malloc(sizeof(sf_identifier_node));
 
@@ -86,7 +128,7 @@ sf_literal_node* sf_new_literal(const char* value, sf_token_type token_type) {
     return node;
 }
 
-sf_binary_expr_node* sf_new_binary(sf_ast_node* left, sf_ast_node* right, sf_operation_type op) {
+sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, sf_operation_type op) {
     sf_binary_expr_node* node = malloc(sizeof(sf_binary_expr_node));
 
     node->base.type = SF_NODE_BINARY_EXPR;
@@ -110,7 +152,7 @@ sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_n
     return node;
 }
 
-sf_var_assign_node* sf_new_assign(const char* name, sf_ast_node* value) {
+sf_var_assign_node* sf_new_var_assign(const char* name, sf_ast_node* value) {
     sf_var_assign_node* node = malloc(sizeof(sf_var_assign_node));
 
     node->base.type = SF_NODE_VAR_ASSIGN;
@@ -131,6 +173,7 @@ void sf_free_ast(sf_ast_node* node) {
         case SF_NODE_VAR_DECL: free_var_decl(node); break;
         case SF_NODE_VAR_ASSIGN: free_var_assign(node); break;
         case SF_NODE_PROGRAM: free_program(node); break;
+        case SF_NODE_BLOCK: free_block(node); break;
     }
 }
 
@@ -142,7 +185,7 @@ static void print_indent(int indent) {
     for (int i = 0; i < indent; i++) printf("  ");
 }
 
-static const char* sf_op_to_string(sf_operation_type op) {
+static const char* op_to_string(sf_operation_type op) {
     switch(op) {
         case SF_OP_TYPE_ADD: return "+";
         case SF_OP_TYPE_SUB: return "-";
@@ -179,6 +222,7 @@ static void print_ast_node(sf_ast_node* node, int indent) {
         case SF_NODE_BINARY_EXPR: print_binary_expr(node, indent); break;
         case SF_NODE_IDENTIFIER: print_ident(node, indent); break;
         case SF_NODE_LITERAL: print_literal(node, indent); break;
+        case SF_NODE_BLOCK: print_block(node, indent); break;
     }
 }
 
@@ -231,6 +275,17 @@ static void free_binary_expr(sf_ast_node* node) {
     free(bin);
 }
 
+static void free_block(sf_ast_node* node) {
+    sf_block_node* block = (sf_block_node*)node;
+
+    for (size_t i = 0; i < block->statement_count; i++) {
+        sf_free_ast(block->statements[i]);
+    }
+
+    free(block->statements);
+    free(block);
+}
+
 static void print_var_assign(const sf_ast_node* node, int indent) {
     sf_var_assign_node* asg = (sf_var_assign_node*)node;
 
@@ -278,8 +333,19 @@ static void print_binary_expr(const sf_ast_node* node, int indent) {
     sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
 
     print_indent(indent);
-    printf("Binary %s\n", sf_op_to_string(bin->op));
+    printf("Binary %s\n", op_to_string(bin->op));
 
     print_ast_node(bin->left, indent + 1);
     print_ast_node(bin->right, indent + 1);
+}
+
+static void print_block(const sf_ast_node* node, int indent) {
+    sf_block_node* block = (sf_block_node*)node;
+
+    print_indent(indent);
+    printf("Block\n");
+
+    for (size_t i = 0; i < block->statement_count; i++) {
+        print_ast_node(block->statements[i], indent + 1);
+    }
 }

@@ -14,23 +14,33 @@ static bool is_type_unsigned(sf_value_type type);
 static bool is_type_signed(sf_value_type type);
 static bool is_types_same_group(sf_value_type a, sf_value_type b);
 
-static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_symbol_table* table, const char* filename);
-static void analyze_statement(sf_ast_node* node, sf_symbol_table* table, const char* filename);
+static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* scope, const char* filename);
+static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* filename);
 
 static void symbol_table_init(sf_symbol_table* table);
 static sf_symbol* symbol_table_lookup(sf_symbol_table* table, const char* name);
 static void symbol_table_free(sf_symbol_table* table);
 static void symbol_table_insert(sf_symbol_table* table, sf_symbol symbol, const char* filename);
 
+static void scope_init(sf_scope* scope);
+static void scope_push(sf_scope* scope);
+static void scope_pop(sf_scope* scope);
+static sf_symbol* scope_lookup(sf_scope* scope, const char* name);
+static void scope_insert(sf_scope* scope, sf_symbol symbol, const char* filename);
+static void scope_free(sf_scope* scope);
+
 void sf_analyze(sf_program_node* program, const char* filename) {
-	sf_symbol_table table;
-	symbol_table_init(&table);
+	sf_scope scope;
+
+	scope_init(&scope);
+	scope_push(&scope);
 
 	for (uint64_t i = 0; i < program->statement_count; i++) {
-		analyze_statement(program->statements[i], &table, filename);
+		analyze_statement(program->statements[i], &scope, filename);
 	}
 
-	symbol_table_free(&table);
+	scope_pop(&scope);
+	scope_free(&scope);
 }
 
 static const char* value_type_name(sf_value_type type) {
@@ -95,14 +105,14 @@ static sf_value_type type_promote(sf_value_type a, sf_value_type b) {
     return type_width(a) >= type_width(b) ? a : b;
 }
 
-static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_symbol_table* table, const char* filename) {
+static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* scope, const char* filename) {
 	switch (node->type) {
         case SF_NODE_BINARY_EXPR: {
 		    sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
 
 		    bool ok = true;
-		    ok &= analyze_expr(bin->left,  SF_VAL_TYPE_UNRESOLVED, table, filename);
-		    ok &= analyze_expr(bin->right, SF_VAL_TYPE_UNRESOLVED, table, filename);
+		    ok &= analyze_expr(bin->left,  SF_VAL_TYPE_UNRESOLVED, scope, filename);
+		    ok &= analyze_expr(bin->right, SF_VAL_TYPE_UNRESOLVED, scope, filename);
 
 		    if (!ok) return false;
 
@@ -144,7 +154,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_symbol_ta
 
         case SF_NODE_IDENTIFIER: {
         	sf_identifier_node* id = (sf_identifier_node*)node;
-        	sf_symbol* sym = symbol_table_lookup(table, id->name);
+        	sf_symbol* sym = scope_lookup(scope, id->name);
 
 			if (sym == NULL) {
 				sf_log_helper(
@@ -182,7 +192,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_symbol_ta
     }
 }
 
-static void analyze_statement(sf_ast_node* node, sf_symbol_table* table, const char* filename) {
+static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* filename) {
 	switch (node->type) {
         case SF_NODE_VAR_DECL: {
         	sf_var_decl_node* var = (sf_var_decl_node*)node;
@@ -194,7 +204,7 @@ static void analyze_statement(sf_ast_node* node, sf_symbol_table* table, const c
 			};
 
 			if (var->value != NULL) {
-			    if (!analyze_expr(var->value, var->var_type, table, filename)) break;
+			    if (!analyze_expr(var->value, var->var_type, scope, filename)) break;
 
 			    sf_value_type resolved = var->value->resolved;
 
@@ -231,14 +241,14 @@ static void analyze_statement(sf_ast_node* node, sf_symbol_table* table, const c
 			    }
 			}
 
-			symbol_table_insert(table, sym, filename);
+			scope_insert(scope, sym, filename);
         	break;
         }
 
         case SF_NODE_VAR_ASSIGN: {
         	sf_var_assign_node* asg = (sf_var_assign_node*)node;
 
-        	sf_symbol* sym = symbol_table_lookup(table, asg->name);
+        	sf_symbol* sym = scope_lookup(scope, asg->name);
 
         	if (sym == NULL) {
         		sf_log_helper(
@@ -254,7 +264,7 @@ static void analyze_statement(sf_ast_node* node, sf_symbol_table* table, const c
 			    break;
         	}
 
-        	if (!analyze_expr(asg->value, sym->type, table, filename)) break;
+        	if (!analyze_expr(asg->value, sym->type, scope, filename)) break;
 
         	sf_value_type resolved = asg->value->resolved;
 
@@ -296,13 +306,27 @@ static void analyze_statement(sf_ast_node* node, sf_symbol_table* table, const c
         	break;
         }
 
+    	case SF_NODE_BLOCK: {
+    		scope_push(scope);
+
+			sf_block_node* block = (sf_block_node*)node;
+
+			for (uint32_t i = 0; i < block->statement_count; i++) {
+				analyze_statement(block->statements[i], scope, filename);
+			}
+
+    		scope_pop(scope);
+
+    		break;
+    	}
+
         default: break;
     }
 }
 
 static void symbol_table_init(sf_symbol_table* table) {
-    table->symbols  = NULL;
-    table->count    = 0;
+    table->symbols = NULL;
+    table->count = 0;
     table->capacity = 0;
 }
 
@@ -314,20 +338,6 @@ static sf_symbol* symbol_table_lookup(sf_symbol_table* table, const char* name) 
 }
 
 static void symbol_table_insert(sf_symbol_table* table, sf_symbol symbol, const char* filename) {
-    if (symbol_table_lookup(table, symbol.name) != NULL) {
-        sf_log_helper(
-            "Symbol Redefinition",
-            "Redefinition of '%s' symbol",
-            "Dont redefine variables",
-            filename,
-            SF_SEMANTIC_REDECLARATION,
-            0,
-            0,
-            SF_SEV_FATAL,
-            symbol.name
-        );
-    }
-
     if (table->count >= table->capacity) {
     	table->capacity = table->capacity == 0 ? 8 : table->capacity * 2;
     	table->symbols  = realloc(table->symbols, table->capacity * sizeof(sf_symbol));
@@ -339,7 +349,72 @@ static void symbol_table_insert(sf_symbol_table* table, sf_symbol symbol, const 
 static void symbol_table_free(sf_symbol_table* table) {
     free(table->symbols);
 
-    table->symbols  = NULL;
-    table->count    = 0;
+    table->symbols = NULL;
+    table->count = 0;
     table->capacity = 0;
+}
+
+static void scope_init(sf_scope* scope) {
+	scope->stack = NULL;
+    scope->depth = 0;
+    scope->capacity = 0;
+}
+
+static void scope_push(sf_scope* scope) {
+	if (scope->depth >= scope->capacity) {
+    	scope->capacity = scope->capacity == 0 ? 8 : scope->capacity * 2;
+    	scope->stack  = realloc(scope->stack, scope->capacity * sizeof(sf_symbol_table));
+	}
+
+	sf_symbol_table table;
+	symbol_table_init(&table);
+
+	scope->stack[scope->depth] = table;
+
+	scope->depth++;
+}
+
+static void scope_pop(sf_scope* scope) {
+	symbol_table_free(&scope->stack[scope->depth - 1]);
+	scope->depth--;
+}
+
+static sf_symbol* scope_lookup(sf_scope* scope, const char* name) {
+	for (int32_t i = scope->depth - 1; i >= 0; i--) {
+		sf_symbol* symbol = symbol_table_lookup(&scope->stack[i], name);
+		if (symbol != NULL) return symbol;
+	}
+
+	return NULL;
+}
+
+static void scope_insert(sf_scope* scope, sf_symbol symbol, const char* filename) {
+	sf_symbol* sym = symbol_table_lookup(&scope->stack[scope->depth - 1], symbol.name);
+
+	if (sym != NULL) {
+        sf_log_helper(
+            "Symbol Redefinition",
+            "Redefinition of '%s' symbol",
+            "Dont redefine variables in the same scope",
+            filename,
+            SF_SEMANTIC_REDECLARATION,
+            0,
+            0,
+            SF_SEV_FATAL,
+            symbol.name
+        );
+    }
+
+    sf_symbol_table* table = &scope->stack[scope->depth - 1];
+
+    symbol_table_insert(table, symbol, filename);
+}
+
+static void scope_free(sf_scope* scope) {
+	while (scope->depth > 0) scope_pop(scope);
+	free(scope->stack);
+
+	scope->depth = 0;
+	scope->capacity = 0;
+	scope->stack = NULL;
 }

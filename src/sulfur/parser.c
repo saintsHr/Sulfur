@@ -1,4 +1,5 @@
 #include "sulfur/parser.h"
+#include "sulfur/ast.h"
 #include "sulfur/lexer.h"
 #include "sulfur/util/log.h"
 
@@ -10,6 +11,7 @@ static void expect(sf_token_list list, size_t* current, sf_token_type type, cons
 
 static bool is_type(sf_token token);
 static bool is_ident(sf_token token);
+static bool is_block(sf_token token);
 
 static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, const char* filename);
@@ -17,8 +19,9 @@ static sf_ast_node* parse_expression(sf_token_list list, size_t* current, const 
 static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const char* filename);
+static sf_ast_node* parse_block(sf_token_list list, size_t* current, const char* filename);
 
-sf_program_node* parse(sf_token_list list, const char* filename) {
+sf_program_node* sf_parse(sf_token_list list, const char* filename) {
     sf_program_node* program = sf_new_program();
 
     size_t current = 0;
@@ -77,6 +80,10 @@ static bool is_ident(sf_token token) {
     return (token.type == SF_TOKEN_TYPE_IDENTIFIER);
 }
 
+static bool is_block(sf_token token) {
+    return (token.type == SF_TOKEN_TYPE_LBRACE);
+}
+
 static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const char* filename) {
     sf_token token = advance(list, current);
 
@@ -117,7 +124,7 @@ static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, co
             ? SF_OP_TYPE_MUL
             : SF_OP_TYPE_DIV;
 
-        left = (sf_ast_node*)sf_new_binary(left, right, op_type);
+        left = (sf_ast_node*)sf_new_binary_expr(left, right, op_type);
     }
 
     return left;
@@ -137,7 +144,7 @@ static sf_ast_node* parse_expression(sf_token_list list, size_t* current, const 
             ? SF_OP_TYPE_ADD
             : SF_OP_TYPE_SUB;
 
-        left = (sf_ast_node*)sf_new_binary(left, right, op_type);
+        left = (sf_ast_node*)sf_new_binary_expr(left, right, op_type);
     }
 
     return left;
@@ -214,15 +221,16 @@ static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char
 
     expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
 
-    return (sf_ast_node*)sf_new_assign(name, val);
+    return (sf_ast_node*)sf_new_var_assign(name, val);
 }
 
 static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const char* filename) {
     sf_token token = list.tokens[*current];
 
-    if (is_type(token))  return parse_declaration(list, current, filename);
+    if (is_type(token)) return parse_declaration(list, current, filename);
     if (is_ident(token)) return parse_assign(list, current, filename);
-    
+    if (is_block(token)) return parse_block(list, current, filename);
+
     sf_log_helper(
         "Unexpected Token",
         "Unexpected token '%s' at statement level",
@@ -236,4 +244,22 @@ static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const c
     );
 
     return NULL;
+}
+
+static sf_ast_node* parse_block(sf_token_list list, size_t* current, const char* filename) {
+    sf_block_node* block = sf_new_block();
+
+    expect(list, current, SF_TOKEN_TYPE_LBRACE, filename);
+
+    while (
+        list.tokens[*current].type != SF_TOKEN_TYPE_RBRACE &&
+        list.tokens[*current].type != SF_TOKEN_TYPE_EOF
+    ) {
+        sf_ast_node* stmt = parse_statement(list, current, filename);
+        sf_block_add_statement(block, stmt);
+    };
+
+    expect(list, current, SF_TOKEN_TYPE_RBRACE, filename);
+
+    return (sf_ast_node*)block;
 }

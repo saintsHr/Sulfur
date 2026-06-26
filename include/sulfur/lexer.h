@@ -16,6 +16,8 @@ typedef enum {
     SF_TOKEN_TYPE_EQUALS,
 
     SF_TOKEN_TYPE_SEMICOLON,
+    SF_TOKEN_TYPE_LBRACE,
+    SF_TOKEN_TYPE_RBRACE,
 
     SF_TOKEN_TYPE_KW_I8,
     SF_TOKEN_TYPE_KW_I16,
@@ -44,4 +46,5 @@ typedef struct {
     size_t capacity;
 } sf_token_list;
 
-sf_token_list tokenize(const char* input, const char* filename);
+sf_token_list sf_tokenize(const char* input, const char* filename);
+void sf_print_tokens(const sf_token_list* list);

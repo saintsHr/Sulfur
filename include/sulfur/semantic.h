@@ -17,4 +17,10 @@ typedef struct {
     uint32_t capacity;
 } sf_symbol_table;
 
+typedef struct {
+    sf_symbol_table* stack;
+    uint32_t depth;
+    uint32_t capacity;
+} sf_scope;
+
 void sf_analyze(sf_program_node* program, const char* filename);

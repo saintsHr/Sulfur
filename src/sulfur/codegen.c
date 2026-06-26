@@ -35,17 +35,17 @@ char* sf_generate_assembly(const sf_ir_program* program) {
     // data goes here
 
     push_string("section .text\n", &as);
-    push_string("   global _start\n\n", &as);
+    push_string("\tglobal _start\n\n", &as);
 
     push_string("_start:\n", &as);
 
-    push_string("   push rbp\n", &as);
-    push_string("   mov rbp, rsp\n", &as);
+    push_string("\tpush rbp\n", &as);
+    push_string("\tmov rbp, rsp\n", &as);
 
     char buf[32];
     snprintf(buf, sizeof(buf), "%d", map.count * 8);
     
-    push_string("   sub rsp, ", &as);
+    push_string("\tsub rsp, ", &as);
     push_string(buf, &as);
     push_string("\n\n", &as);
 
@@ -64,12 +64,12 @@ char* sf_generate_assembly(const sf_ir_program* program) {
         }
     }
 
-    push_string("\n""   mov rsp, rbp\n", &as);
-    push_string("   pop rbp\n\n", &as);
+    push_string("\n""\tmov rsp, rbp\n", &as);
+    push_string("\tpop rbp\n\n", &as);
 
-    push_string("   mov rax, 60\n", &as);
-    push_string("   xor rdi, rdi\n", &as);
-    push_string("   syscall\n", &as);
+    push_string("\tmov rax, 60\n", &as);
+    push_string("\txor rdi, rdi\n", &as);
+    push_string("\tsyscall\n", &as);
 
     return as;
 }
@@ -175,8 +175,8 @@ static void populate_stack(sf_stack_map* map, const sf_ir_program* program) {
         	map_operand(map, op.source1, &next_offset);
         }
 
-        if (op.source2.type == SF_OPERAND_TYPE_VARIABLE){
-        	map_operand(map, op.source2, &next_offset);
+        if (op.opcode != SF_OPCODE_ASSIGN && op.source2.type == SF_OPERAND_TYPE_VARIABLE) {
+            map_operand(map, op.source2, &next_offset);
         }
     }
 
@@ -191,7 +191,7 @@ static void populate_stack(sf_stack_map* map, const sf_ir_program* program) {
         	map_operand(map, op.source1, &next_offset);
         }
 
-        if (op.source2.type == SF_OPERAND_TYPE_TEMPORARY) {
+        if (op.opcode != SF_OPCODE_ASSIGN && op.source2.type == SF_OPERAND_TYPE_TEMPORARY) {
         	map_operand(map, op.source2, &next_offset);
         }
     }
@@ -250,16 +250,16 @@ static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map) {
     	if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE) {
     		sprintf(
     			instruction,
-    			"	mov rax, [rbp%hi]\n"
-    			"	mov [rbp%hi], rax\n",
+    			"\tmov rax, [rbp%hi]\n"
+    			"\tmov [rbp%hi], rax\n",
     			lookup_stack(map, src1_name),
     			lookup_stack(map, dst_name)
     		);
     	} else {
     		sprintf(
     			instruction,
-    			"	mov rax, %s\n"
-    			"	mov [rbp%hi], rax\n",
+    			"\tmov rax, %s\n"
+    			"\tmov [rbp%hi], rax\n",
     			src1_name,
     			lookup_stack(map, dst_name)
     		);
@@ -348,9 +348,9 @@ static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, c
 
     if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE && op.source2.type != SF_OPERAND_TYPE_IMMEDIATE) {
         sprintf(instruction,
-            "	mov rax, [rbp%hi]\n"
-            "	%s rax, [rbp%hi]\n"
-            "	mov [rbp%hi], rax\n",
+            "\tmov rax, [rbp%hi]\n"
+            "\t%s rax, [rbp%hi]\n"
+            "\tmov [rbp%hi], rax\n",
             lookup_stack(map, src1_name),
             instr,
             lookup_stack(map, src2_name),
@@ -358,27 +358,27 @@ static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, c
         );
     } else if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE && op.source2.type != SF_OPERAND_TYPE_IMMEDIATE) {
         sprintf(instruction,
-            "	mov rax, %s\n"
-            "	%s rax, [rbp%hi]\n"
-            "	mov [rbp%hi], rax\n",
+            "\tmov rax, %s\n"
+            "\t%s rax, [rbp%hi]\n"
+            "\tmov [rbp%hi], rax\n",
             src1_name, instr,
             lookup_stack(map, src2_name),
             lookup_stack(map, dst_name)
         );
     } else if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE && op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
         sprintf(instruction,
-            "	mov rax, [rbp%hi]\n"
-            "	%s rax, %s\n"
-            "	mov [rbp%hi], rax\n",
+            "\tmov rax, [rbp%hi]\n"
+            "\t%s rax, %s\n"
+            "\tmov [rbp%hi], rax\n",
             lookup_stack(map, src1_name),
             instr, src2_name,
             lookup_stack(map, dst_name)
         );
     } else {
         sprintf(instruction,
-            "	mov rax, %s\n"
-            "	%s rax, %s\n"
-            "	mov [rbp%hi], rax\n",
+            "\tmov rax, %s\n"
+            "\t%s rax, %s\n"
+            "\tmov [rbp%hi], rax\n",
             src1_name, instr, src2_name,
             lookup_stack(map, dst_name)
         );

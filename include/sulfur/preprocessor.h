@@ -23,4 +23,4 @@ typedef struct {
     int define_count;
 } sf_preprocessor_context;
 
-char* preprocess(const char* source, long srcSize, const char* filename);
+char* sf_preprocess(const char* source, long srcSize, const char* filename);

@@ -2,6 +2,7 @@
 #include "sulfur/util/log.h"
 
 #include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -17,7 +18,7 @@ static sf_token read_number(const char* input, int* i, int* col, int line);
 static sf_token read_identifier(const char* input, int* i, int* col, int line);
 static sf_token read_symbol(const char* input, int* i, int* col, int line);
 
-sf_token_list tokenize(const char* input, const char* filename) {
+sf_token_list sf_tokenize(const char* input, const char* filename) {
     sf_token_list list = {0};
     
     int i = 0, line = 1, col = 1;
@@ -65,6 +66,18 @@ sf_token_list tokenize(const char* input, const char* filename) {
 
     add_token(&list, make_token(SF_TOKEN_TYPE_EOF, line, col));
     return list;
+}
+
+void sf_print_tokens(const sf_token_list* list) {
+    for (size_t i = 0; i < list->count; i++) {
+        printf("Token %zu: type=%d value=%s (%d:%d)\n",
+            i,
+            list->tokens[i].type,
+            list->tokens[i].value,
+            list->tokens[i].line,
+            list->tokens[i].column
+        );
+    }
 }
 
 static void undefined(sf_token_list* list, const char* input, int* i, int* col, int line, const char* filename) {
@@ -186,6 +199,8 @@ static sf_token read_symbol(const char* input, int* i, int* col, int line) {
         case '/': tk.type = SF_TOKEN_TYPE_DIV;       break;
         case '=': tk.type = SF_TOKEN_TYPE_EQUALS;    break;
         case ';': tk.type = SF_TOKEN_TYPE_SEMICOLON; break;
+        case '{': tk.type = SF_TOKEN_TYPE_LBRACE;    break;
+        case '}': tk.type = SF_TOKEN_TYPE_RBRACE;    break;
 
         default:  return tk;
     }

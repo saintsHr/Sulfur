@@ -20,7 +20,7 @@ static void remove_carriage_return(char* str);
 static void remove_comments(char* str);
 static void remove_empty_lines(char* str);
 
-char* preprocess(const char* src, long src_size, const char* filename) {
+char* sf_preprocess(const char* src, long src_size, const char* filename) {
     sf_preprocessor_context ctx = {0};
 
     char* out = malloc(src_size + 1);

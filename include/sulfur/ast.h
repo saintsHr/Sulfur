@@ -12,6 +12,7 @@ typedef enum {
     SF_NODE_LITERAL,
     SF_NODE_IDENTIFIER,
     SF_NODE_VAR_ASSIGN,
+    SF_NODE_BLOCK,
 } sf_node_type;
 
 typedef enum {
@@ -78,16 +79,25 @@ typedef struct {
     size_t statement_capacity;
 } sf_program_node;
 
+typedef struct {
+    sf_ast_node base;
+    sf_ast_node** statements;
+    size_t statement_count;
+    size_t statement_capacity;
+} sf_block_node;
+
 void sf_print_ast(sf_ast_node* root);
 
 sf_program_node* sf_new_program();
+
 void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt);
+void sf_block_add_statement(sf_block_node* block, sf_ast_node* stmt);
 
 sf_literal_node* sf_new_literal(const char* value, sf_token_type tokenType);
-
 sf_identifier_node* sf_new_identifier(const char* name);
-sf_binary_expr_node* sf_new_binary(sf_ast_node* left, sf_ast_node* right, sf_operation_type op);
+sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, sf_operation_type op);
 sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value);
-sf_var_assign_node* sf_new_assign(const char* name, sf_ast_node* value);
+sf_var_assign_node* sf_new_var_assign(const char* name, sf_ast_node* value);
+sf_block_node* sf_new_block(void);
 
 void sf_free_ast(sf_ast_node* node);
