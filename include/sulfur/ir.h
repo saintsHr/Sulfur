@@ -7,7 +7,7 @@ typedef enum {
 	SF_OPERAND_TYPE_TEMPORARY,
 	SF_OPERAND_TYPE_VARIABLE,
 	SF_OPERAND_TYPE_IMMEDIATE,
-} sfOperandType;
+} sf_operand_type;
 
 typedef enum {
 	SF_OPCODE_ADD,
@@ -15,32 +15,32 @@ typedef enum {
 	SF_OPCODE_DIV,
 	SF_OPCODE_MULT,
 	SF_OPCODE_ASSIGN,
-} sfOpcode;
+} sf_opcode;
 
 typedef struct {
-	sfOperandType type;
-	sfValueType valueType;
+	sf_operand_type type;
+	sf_value_type value_type;
 
 	union {
-		uint8_t temporaryID;
-		char* variableName;
-		char* immediateValue;
+		uint8_t temporary_id;
+		char* variable_name;
+		char* immediate_value;
 	};
-} sfOperand;
+} sf_operand;
 
 typedef struct {
-	sfOpcode  opcode;
-	sfOperand destiny;
-	sfOperand source1;
-	sfOperand source2;
-} sfOperation;
+	sf_opcode opcode;
+	sf_operand destiny;
+	sf_operand source1;
+	sf_operand source2;
+} sf_operation;
 
 typedef struct {
-    sfOperation* operations;
-    uint32_t     count;
-    uint32_t     capacity;
-    uint32_t     nextTemp;
-} sfIRProgram;
+    sf_operation* operations;
+    uint32_t count;
+    uint32_t capacity;
+    uint32_t nextTemp;
+} sf_ir_program;
 
-sfIRProgram sfGenerateIR(const sfProgramNode* program);
-void sfPrintIR(const sfIRProgram* program);
+sf_ir_program sf_generate_ir(const sf_program_node* program);
+void sf_print_ir(const sf_ir_program* program);

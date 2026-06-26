@@ -1,13 +1,14 @@
 #include "sulfur/ast.h"
+#include "sulfur/ir.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <sulfur/ir.h>
 
-static void push(sfIRProgram* program, sfOperation operation) {
+static void push(sf_ir_program* program, sf_operation operation) {
 	if (program->capacity <= 0) {
 		program->operations = realloc(
 			program->operations,
-			8 * sizeof(sfOperation)
+			8 * sizeof(sf_operation)
 		);
 
 		program->capacity = 8;
@@ -16,7 +17,7 @@ static void push(sfIRProgram* program, sfOperation operation) {
 	if (program->count >= program->capacity) {
 		program->operations = realloc(
 			program->operations,
-			program->capacity * 2 * sizeof(sfOperation)
+			program->capacity * 2 * sizeof(sf_operation)
 		);
 
 		program->capacity *= 2;
@@ -25,16 +26,17 @@ static void push(sfIRProgram* program, sfOperation operation) {
 	program->operations[program->count++] = operation;
 }
 
-static sfOperand new_temp(sfIRProgram* program, sfValueType type) {
-    sfOperand op;
+static sf_operand new_temporary(sf_ir_program* program, sf_value_type type) {
+    sf_operand op;
     op.type        = SF_OPERAND_TYPE_TEMPORARY;
-    op.valueType   = type;
-    op.temporaryID = program->nextTemp++;
+    op.value_type   = type;
+    op.temporary_id = program->nextTemp++;
+
     return op;
 }
 
-static sfOpcode optype_to_opcode(sfOperationType type) {
-	sfOpcode op;
+static sf_opcode optype_to_opcode(sf_operation_type type) {
+	sf_opcode op;
 
 	switch (type) {
 	    case SF_OP_TYPE_ADD: op = SF_OPCODE_ADD; break;
@@ -47,23 +49,23 @@ static sfOpcode optype_to_opcode(sfOperationType type) {
 	return op;
 }
 
-static sfOperand generate_expression(sfIRProgram* program, sfASTNode* node) {
-	sfOperand operand;
+static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node) {
+	sf_operand operand;
 
 	switch (node->type) {
         case SF_NODE_BINARY_EXPR: {
-        	sfBinaryExprNode* ex = (sfBinaryExprNode*)node;
+        	sf_binary_expr_node* ex = (sf_binary_expr_node*)node;
 
-        	sfOperand left  = generate_expression(program, ex->left);
-        	sfOperand right = generate_expression(program, ex->right);
+        	sf_operand left  = generate_expression(program, ex->left);
+        	sf_operand right = generate_expression(program, ex->right);
 
-        	sfOperand dst = new_temp(program, node->resolved);
+        	sf_operand dst = new_temporary(program, node->resolved);
 
         	operand = dst;
 
         	push(
         		program,
-        		(sfOperation){
+        		(sf_operation){
         			.opcode=optype_to_opcode(ex->op),
         			.destiny=dst,
         			.source1=left,
@@ -75,21 +77,21 @@ static sfOperand generate_expression(sfIRProgram* program, sfASTNode* node) {
         }
 
         case SF_NODE_LITERAL: {
-        	sfLiteralNode* lt = (sfLiteralNode*)node;
+        	sf_literal_node* lt = (sf_literal_node*)node;
 
         	operand.type = SF_OPERAND_TYPE_IMMEDIATE;
-        	operand.valueType = lt->base.resolved;
-        	operand.immediateValue = lt->value;
+        	operand.value_type = lt->base.resolved;
+        	operand.immediate_value = lt->value;
 
         	break;
         }
 
         case SF_NODE_IDENTIFIER: {
-        	sfIdentifierNode* id = (sfIdentifierNode*)node;
+        	sf_identifier_node* id = (sf_identifier_node*)node;
 
         	operand.type = SF_OPERAND_TYPE_VARIABLE;
-        	operand.valueType = id->base.resolved;
-        	operand.variableName = id->name;
+        	operand.value_type = id->base.resolved;
+        	operand.variable_name = id->name;
 
         	break;
         }
@@ -102,22 +104,22 @@ static sfOperand generate_expression(sfIRProgram* program, sfASTNode* node) {
     return operand;
 }
 
-static void generate_statement(sfIRProgram* program, sfASTNode* node) {
+static void generate_statement(sf_ir_program* program, sf_ast_node* node) {
 	switch (node->type) {
         case SF_NODE_VAR_DECL: {
-        	sfVarDeclNode* dcl = (sfVarDeclNode*)node;
+        	sf_var_decl_node* dcl = (sf_var_decl_node*)node;
 
         	if (dcl->value == NULL) break;
 
-        	sfOperand src = generate_expression(program, dcl->value);
+        	sf_operand src = generate_expression(program, dcl->value);
 
-        	sfOperand dst = {
+        	sf_operand dst = {
         		.type = SF_OPERAND_TYPE_VARIABLE,
-        		.valueType = dcl->var_type,
-        		.variableName = dcl->name,
+        		.value_type = dcl->var_type,
+        		.variable_name = dcl->name,
         	};
 
-        	sfOperation op = {
+        	sf_operation op = {
         		.opcode = SF_OPCODE_ASSIGN,
         		.destiny = dst,
         		.source1 = src,
@@ -127,18 +129,18 @@ static void generate_statement(sfIRProgram* program, sfASTNode* node) {
             break;
         }
 
-        case SF_NODE_ASSIGN: {
-        	sfAssignNode* as = (sfAssignNode*)node;
+        case SF_NODE_VAR_ASSIGN: {
+        	sf_var_assign_node* as = (sf_var_assign_node*)node;
 
-        	sfOperand src = generate_expression(program, as->value);
+        	sf_operand src = generate_expression(program, as->value);
 
-        	sfOperand dst = {
+        	sf_operand dst = {
         		.type = SF_OPERAND_TYPE_VARIABLE,
-        		.valueType = node->resolved,
-        		.variableName = as->name,
+        		.value_type = node->resolved,
+        		.variable_name = as->name,
         	};
 
-        	sfOperation op = {
+        	sf_operation op = {
         		.opcode = SF_OPCODE_ASSIGN,
         		.destiny = dst,
         		.source1 = src,
@@ -154,36 +156,38 @@ static void generate_statement(sfIRProgram* program, sfASTNode* node) {
     }
 }
 
-static const char* sfValueTypeName(sfValueType type) {
+static const char* sfValueTypeName(sf_value_type type) {
     switch (type) {
         case SF_VAL_TYPE_I8:  return "i8";
         case SF_VAL_TYPE_I16: return "i16";
         case SF_VAL_TYPE_I32: return "i32";
         case SF_VAL_TYPE_I64: return "i64";
+
         case SF_VAL_TYPE_U8:  return "u8";
         case SF_VAL_TYPE_U16: return "u16";
         case SF_VAL_TYPE_U32: return "u32";
         case SF_VAL_TYPE_U64: return "u64";
-        case SF_VAL_TYPE_F32: return "f32";
-        case SF_VAL_TYPE_F64: return "f64";
+
         default:              return "unknown";
     }
 }
 
-static void print_operand(sfOperand op) {
+static void print_operand(sf_operand op) {
     switch (op.type) {
-        case SF_OPERAND_TYPE_TEMPORARY: printf("t%u:%s", op.temporaryID,    sfValueTypeName(op.valueType)); break;
-        case SF_OPERAND_TYPE_VARIABLE:  printf("%s:%s",  op.variableName,   sfValueTypeName(op.valueType)); break;
-        case SF_OPERAND_TYPE_IMMEDIATE: printf("%s:%s",  op.immediateValue, sfValueTypeName(op.valueType)); break;
+        case SF_OPERAND_TYPE_TEMPORARY: printf("t%u:%s", op.temporary_id, sfValueTypeName(op.value_type)); break;
+        case SF_OPERAND_TYPE_VARIABLE: printf("%s:%s", op.variable_name, sfValueTypeName(op.value_type)); break;
+        case SF_OPERAND_TYPE_IMMEDIATE: printf("%s:%s", op.immediate_value, sfValueTypeName(op.value_type)); break;
     }
 }
 
-void sfPrintIR(const sfIRProgram* program) {
+void sfPrintIR(const sf_ir_program* program) {
     for (size_t i = 0; i < program->count; i++) {
-        sfOperation* op = &program->operations[i];
+        sf_operation* op = &program->operations[i];
+
         print_operand(op->destiny);
         printf(" = ");
         print_operand(op->source1);
+
         switch (op->opcode) {
             case SF_OPCODE_ADD:  printf(" + "); print_operand(op->source2); break;
             case SF_OPCODE_SUB:  printf(" - "); print_operand(op->source2); break;
@@ -191,12 +195,13 @@ void sfPrintIR(const sfIRProgram* program) {
             case SF_OPCODE_DIV:  printf(" / "); print_operand(op->source2); break;
             case SF_OPCODE_ASSIGN: break;
         }
+
         printf("\n");
     }
 }
 
-sfIRProgram sfGenerateIR(const sfProgramNode* program){
-	sfIRProgram ir = {
+sf_ir_program sf_generate_ir(const sf_program_node* program){
+	sf_ir_program ir = {
 		.capacity = 0,
 		.count = 0,
 		.nextTemp = 0,
