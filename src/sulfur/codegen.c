@@ -71,6 +71,7 @@ char* sf_generate_assembly(const sf_ir_program* program) {
     push_string("\txor rdi, rdi\n", &as);
     push_string("\tsyscall\n", &as);
 
+    free(map.entries);
     return as;
 }
 
@@ -154,7 +155,9 @@ static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset) 
     		push_stack(map, entry);
 
     		*next_offset -= 8;
-    	}
+    	} else {
+            free(name);
+        }
     }
 }
 
@@ -268,6 +271,8 @@ static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map) {
     	push_string(instruction, buff);
 
     	free(instruction);
+        free(dst_name);
+        free(src1_name);
 	}
 }
 
