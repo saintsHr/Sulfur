@@ -1,18 +1,18 @@
 #pragma once
 
 #include "sulfur/lexer.h"
+
 #include <stdlib.h>
 #include <stdint.h>
 
 typedef enum {
     SF_NODE_PROGRAM,
     SF_NODE_VAR_DECL,
-
     SF_NODE_BINARY_EXPR,
     SF_NODE_LITERAL,
     SF_NODE_IDENTIFIER,
-    SF_NODE_ASSIGN,
-} sfNodeType;
+    SF_NODE_VAR_ASSIGN,
+} sf_node_type;
 
 typedef enum {
     SF_VAL_TYPE_I8,
@@ -25,72 +25,69 @@ typedef enum {
     SF_VAL_TYPE_U32,
     SF_VAL_TYPE_U64,
 
-    SF_VAL_TYPE_F32,
-    SF_VAL_TYPE_F64,
-
     SF_VAL_TYPE_UNRESOLVED,
-} sfValueType;
+} sf_value_type;
 
 typedef enum {
     SF_OP_TYPE_ADD,
     SF_OP_TYPE_SUB,
     SF_OP_TYPE_DIV,
     SF_OP_TYPE_MUL,
-} sfOperationType;
+} sf_operation_type;
 
 typedef struct {
-    sfNodeType type;
-    sfValueType resolved;
-} sfASTNode;
+    sf_node_type type;
+    sf_value_type resolved;
+} sf_ast_node;
 
 typedef struct {
-    sfASTNode base;
-    sfTokenType token_type;
+    sf_ast_node base;
+    sf_token_type token_type;
     char* value;
-} sfLiteralNode;
+} sf_literal_node;
 
 typedef struct {
-    sfASTNode base;
+    sf_ast_node base;
     char* name;
-} sfIdentifierNode;
+} sf_identifier_node;
 
 typedef struct {
-    sfASTNode base;
-    sfASTNode* left;
-    sfASTNode* right;
-    sfOperationType op;
-} sfBinaryExprNode;
+    sf_ast_node base;
+    sf_ast_node* left;
+    sf_ast_node* right;
+    sf_operation_type op;
+} sf_binary_expr_node;
 
 typedef struct {
-    sfASTNode base;
+    sf_ast_node base;
     char* name;
-    sfValueType var_type;
-    sfASTNode* value;
-} sfVarDeclNode;
+    sf_value_type var_type;
+    sf_ast_node* value;
+} sf_var_decl_node;
 
 typedef struct {
-    sfASTNode base;
+    sf_ast_node base;
     char* name;
-    sfASTNode* value;
-} sfAssignNode;
+    sf_ast_node* value;
+} sf_var_assign_node;
 
 typedef struct {
-    sfASTNode base;
-    sfASTNode** statements;
+    sf_ast_node base;
+    sf_ast_node** statements;
     size_t statement_count;
     size_t statement_capacity;
-} sfProgramNode;
+} sf_program_node;
 
-void sfPrintAST(sfASTNode* root);
+void sf_print_ast(sf_ast_node* root);
 
-sfProgramNode* sfNewProgram();
-void sfProgramAddStatement(sfProgramNode* program, sfASTNode* stmt);
+sf_program_node* sf_new_program();
+void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt);
 
-sfLiteralNode* sfNewLiteral(const char* value, sfTokenType tokenType);
+sf_literal_node* sf_new_literal(const char* value, sf_token_type tokenType);
 
-sfIdentifierNode* sfNewIdentifier(const char* name);
-sfBinaryExprNode* sfNewBinary(sfASTNode* left, sfASTNode* right, sfOperationType op);
-sfVarDeclNode*    sfNewVarDecl(const char* name, sfValueType type, sfASTNode* value);
-sfAssignNode*     sfNewAssign(const char* name, sfASTNode* value);
+sf_identifier_node* sf_new_identifier(const char* name);
+sf_binary_expr_node* sf_new_binary(sf_ast_node* left, sf_ast_node* right, sf_operation_type op);
+sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value);
+sf_var_assign_node* sf_new_assign(const char* name, sf_ast_node* value);
 
-void sfFreeAST(sfASTNode* node);
+void sf_free_ast(sf_ast_node* node);

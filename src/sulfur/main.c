@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
     char* output = NULL;
 
     // stages
-    sfProgramNode* ast = NULL;
+    sf_program_node* ast = NULL;
     sf_token_list tokens = {0};
     sf_ir_program ir = {0};
     char* assembly = NULL;
@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
     // debug
     print_tokens(&tokens);
     printf("\n\n");
-    sf_print_ast((sfASTNode*)ast);
+    sf_print_ast((sf_ast_node*)ast);
     printf("\n\n");
     sf_print_ir(&ir);
     printf("\n\n");
@@ -65,6 +65,7 @@ int main(int argc, char* argv[]) {
 
     free(output);
     free(input);
+    
     return 0;
 }
 

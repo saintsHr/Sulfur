@@ -5,110 +5,28 @@
 #include <string.h>
 #include <stdio.h>
 
-static void sfPrintIndent(int indent) {
-    for (int i = 0; i < indent; i++) printf("  ");
-}
+static void print_indent(int indent);
+static void print_ast_node(sf_ast_node* node, int indent);
 
-static const char* sfOpToString(sfOperationType op) {
-    switch(op) {
-        case SF_OP_TYPE_ADD: return "+";
-        case SF_OP_TYPE_SUB: return "-";
-        case SF_OP_TYPE_MUL: return "*";
-        case SF_OP_TYPE_DIV: return "/";
-        default: return "?";
-    }
-}
+static const char* op_to_string(sf_operation_type op);
+static const char* type_to_string(sf_value_type type);
 
-static const char* sfTypeToString(sfValueType type) {
-    switch(type) {
-        case SF_VAL_TYPE_I8:  return "i8";
-        case SF_VAL_TYPE_I16: return "i16";
-        case SF_VAL_TYPE_I32: return "i32";
-        case SF_VAL_TYPE_I64: return "i64";
+static void free_var_assign(sf_ast_node* node);
+static void free_var_decl(sf_ast_node* node);
+static void free_literal(sf_ast_node* node);
+static void free_ident(sf_ast_node* node);
+static void free_program(sf_ast_node* node);
+static void free_binary_expr(sf_ast_node* node);
 
-        case SF_VAL_TYPE_U8:  return "u8";
-        case SF_VAL_TYPE_U16: return "u16";
-        case SF_VAL_TYPE_U32: return "u32";
-        case SF_VAL_TYPE_U64: return "u64";
+static void print_var_assign(const sf_ast_node* node, int indent);
+static void print_var_decl(const sf_ast_node* node, int indent);
+static void print_literal(const sf_ast_node* node, int indent);
+static void print_ident(const sf_ast_node* node, int indent);
+static void print_program(const sf_ast_node* node, int indent);
+static void print_binary_expr(const sf_ast_node* node, int indent);
 
-        case SF_VAL_TYPE_F32: return "f32";
-        case SF_VAL_TYPE_F64: return "f64";
-
-        default: return "?";
-    }
-}
-
-static void sfPrintASTNode(sfASTNode* node, int indent) {
-    if (!node) return;
-
-    switch (node->type) {
-
-        case SF_NODE_PROGRAM: {
-            sfProgramNode* prog = (sfProgramNode*)node;
-
-            sfPrintIndent(indent);
-            printf("Program\n");
-
-            for (size_t i = 0; i < prog->statement_count; i++) {
-                sfPrintASTNode(prog->statements[i], indent + 1);
-            }
-            break;
-        }
-
-        case SF_NODE_VAR_DECL: {
-            sfVarDeclNode* var = (sfVarDeclNode*)node;
-
-            sfPrintIndent(indent);
-            printf("VarDecl %s : %s\n", var->name, sfTypeToString(var->var_type));
-
-            sfPrintASTNode(var->value, indent + 1);
-            break;
-        }
-
-        case SF_NODE_ASSIGN: {
-            sfAssignNode* asg = (sfAssignNode*)node;
-
-            sfPrintIndent(indent);
-            printf("Assign %s\n", asg->name);
-
-            sfPrintASTNode(asg->value, indent + 1);
-            break;
-        }
-
-        case SF_NODE_BINARY_EXPR: {
-            sfBinaryExprNode* bin = (sfBinaryExprNode*)node;
-
-            sfPrintIndent(indent);
-            printf("Binary %s\n", sfOpToString(bin->op));
-
-            sfPrintASTNode(bin->left, indent + 1);
-            sfPrintASTNode(bin->right, indent + 1);
-            break;
-        }
-
-        case SF_NODE_IDENTIFIER: {
-            sfIdentifierNode* id = (sfIdentifierNode*)node;
-
-            sfPrintIndent(indent);
-            printf("Identifier %s\n", id->name);
-            break;
-        }
-
-        case SF_NODE_LITERAL: {
-            sfLiteralNode* lit = (sfLiteralNode*)node;
-            sfPrintIndent(indent);
-            printf("Literal %s\n", lit->value);
-            break;
-        }
-    }
-}
-
-void sfPrintAST(sfASTNode* root) {
-    sfPrintASTNode(root, 0);
-}
-
-sfProgramNode* sfNewProgram() {
-    sfProgramNode* program = malloc(sizeof(sfProgramNode));
+sf_program_node* sf_new_program() {
+    sf_program_node* program = malloc(sizeof(sf_program_node));
 
     program->base.type = SF_NODE_PROGRAM;
     program->statements = NULL;
@@ -118,16 +36,16 @@ sfProgramNode* sfNewProgram() {
     return program;
 }
 
-void sfProgramAddStatement(sfProgramNode* program, sfASTNode* stmt) {
+void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt) {
     if (program->statement_count >= program->statement_capacity) {
         program->statement_capacity = program->statement_capacity == 0 ? 8 : program->statement_capacity * 2;
         
-        sfASTNode** newStatements = realloc(
+        sf_ast_node** new_statements = realloc(
             program->statements,
-            program->statement_capacity * sizeof(sfASTNode*)
+            program->statement_capacity * sizeof(sf_ast_node*)
         );
 
-        if (!newStatements) {
+        if (!new_statements) {
             sfLogHelper(
                 "Allocation Failed",
                 "AST program memory reallocation failed.",
@@ -141,109 +59,227 @@ void sfProgramAddStatement(sfProgramNode* program, sfASTNode* stmt) {
             );
         }
 
-        program->statements = newStatements;
+        program->statements = new_statements;
     }
 
     program->statements[program->statement_count++] = stmt;
 }
 
-sfIdentifierNode* sfNewIdentifier(const char* name) {
-    sfIdentifierNode* node = malloc(sizeof(sfIdentifierNode));
+sf_identifier_node* sf_new_identifier(const char* name) {
+    sf_identifier_node* node = malloc(sizeof(sf_identifier_node));
+
     node->base.type = SF_NODE_IDENTIFIER;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->name = strdup(name);
+
     return node;
 }
 
-sfLiteralNode* sfNewLiteral(const char* value, sfTokenType tokenType) {
-    sfLiteralNode* node = malloc(sizeof(sfLiteralNode));
+sf_literal_node* sf_new_literal(const char* value, sf_token_type token_type) {
+    sf_literal_node* node = malloc(sizeof(sf_literal_node));
+
     node->base.type = SF_NODE_LITERAL;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
-    node->token_type = tokenType;
+    node->token_type = token_type;
     node->value = strdup(value);
+
     return node;
 }
 
-sfBinaryExprNode* sfNewBinary(sfASTNode* left, sfASTNode* right, sfOperationType op) {
-    sfBinaryExprNode* node = malloc(sizeof(sfBinaryExprNode));
+sf_binary_expr_node* sf_new_binary(sf_ast_node* left, sf_ast_node* right, sf_operation_type op) {
+    sf_binary_expr_node* node = malloc(sizeof(sf_binary_expr_node));
+
     node->base.type = SF_NODE_BINARY_EXPR;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->left = left;
     node->right = right;
     node->op = op;
+
     return node;
 }
 
-sfVarDeclNode* sfNewVarDecl(const char* name, sfValueType type, sfASTNode* value) {
-    sfVarDeclNode* node = malloc(sizeof(sfVarDeclNode));
+sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value) {
+    sf_var_decl_node* node = malloc(sizeof(sf_var_decl_node));
+
     node->base.type = SF_NODE_VAR_DECL;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->name = strdup(name);
     node->var_type = type;
     node->value = value;
+
     return node;
 }
 
-sfAssignNode* sfNewAssign(const char* name, sfASTNode* value) {
-    sfAssignNode* node = malloc(sizeof(sfAssignNode));
-    node->base.type = SF_NODE_ASSIGN;
+sf_var_assign_node* sf_new_assign(const char* name, sf_ast_node* value) {
+    sf_var_assign_node* node = malloc(sizeof(sf_var_assign_node));
+
+    node->base.type = SF_NODE_VAR_ASSIGN;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->name = strdup(name);
     node->value = value;
+
     return node;
 }
 
-void sfFreeAST(sfASTNode* node) {
+void sf_free_ast(sf_ast_node* node) {
     if (!node) return;
 
     switch (node->type) {
-        case SF_NODE_LITERAL: {
-            sfLiteralNode* lit = (sfLiteralNode*)node;
-            free(lit->value);
-            free(node);
-            break;
-        }
-
-        case SF_NODE_IDENTIFIER: {
-            sfIdentifierNode* id = (sfIdentifierNode*)node;
-            free(id->name);
-            free(id);
-            break;
-        }
-
-        case SF_NODE_BINARY_EXPR: {
-            sfBinaryExprNode* bin = (sfBinaryExprNode*)node;
-            sfFreeAST(bin->left);
-            sfFreeAST(bin->right);
-            free(bin);
-            break;
-        }
-
-        case SF_NODE_VAR_DECL: {
-            sfVarDeclNode* var = (sfVarDeclNode*)node;
-            free(var->name);
-            sfFreeAST(var->value);
-            free(var);
-            break;
-        }
-
-        case SF_NODE_ASSIGN: {
-            sfAssignNode* asg = (sfAssignNode*)node;
-            free(asg->name);
-            sfFreeAST(asg->value);
-            free(asg);
-            break;
-        }
-
-        case SF_NODE_PROGRAM: {
-            sfProgramNode* prog = (sfProgramNode*)node;
-
-            for (size_t i = 0; i < prog->statement_count; i++)
-                sfFreeAST(prog->statements[i]);
-
-            free(prog->statements);
-            free(prog);
-            break;
-        }
+        case SF_NODE_LITERAL: free_literal(node); break;
+        case SF_NODE_IDENTIFIER: free_ident(node); break;
+        case SF_NODE_BINARY_EXPR: free_binary_expr(node); break;
+        case SF_NODE_VAR_DECL: free_var_decl(node); break;
+        case SF_NODE_VAR_ASSIGN: free_var_assign(node); break;
+        case SF_NODE_PROGRAM: free_program(node); break;
     }
+}
+
+void sf_print_ast(sf_ast_node* root) {
+    print_ast_node(root, 0);
+}
+
+static void print_indent(int indent) {
+    for (int i = 0; i < indent; i++) printf("  ");
+}
+
+static const char* sf_op_to_string(sf_operation_type op) {
+    switch(op) {
+        case SF_OP_TYPE_ADD: return "+";
+        case SF_OP_TYPE_SUB: return "-";
+        case SF_OP_TYPE_MUL: return "*";
+        case SF_OP_TYPE_DIV: return "/";
+
+        default: return "?";
+    }
+}
+
+static const char* sf_type_to_string(sf_value_type type) {
+    switch(type) {
+        case SF_VAL_TYPE_I8:  return "i8";
+        case SF_VAL_TYPE_I16: return "i16";
+        case SF_VAL_TYPE_I32: return "i32";
+        case SF_VAL_TYPE_I64: return "i64";
+
+        case SF_VAL_TYPE_U8:  return "u8";
+        case SF_VAL_TYPE_U16: return "u16";
+        case SF_VAL_TYPE_U32: return "u32";
+        case SF_VAL_TYPE_U64: return "u64";
+
+        default: return "?";
+    }
+}
+
+static void print_ast_node(sf_ast_node* node, int indent) {
+    if (!node) return;
+
+    switch (node->type) {
+        case SF_NODE_PROGRAM: print_program(node, indent); break;
+        case SF_NODE_VAR_DECL: print_var_decl(node, indent); break;
+        case SF_NODE_VAR_ASSIGN: print_var_assign(node, indent); break;
+        case SF_NODE_BINARY_EXPR: print_binary_expr(node, indent); break;
+        case SF_NODE_IDENTIFIER: print_ident(node, indent); break;
+        case SF_NODE_LITERAL: print_literal(node, indent); break;
+    }
+}
+
+static void free_var_assign(sf_ast_node* node) {
+    sf_var_assign_node* asg = (sf_var_assign_node*)node;
+
+    free(asg->name);
+    sf_free_ast(asg->value);
+    free(asg);
+}
+
+static void free_var_decl(sf_ast_node* node) {
+    sf_var_decl_node* var = (sf_var_decl_node*)node;
+
+    free(var->name);
+    sf_free_ast(var->value);
+    free(var);
+}
+
+static void free_literal(sf_ast_node* node) {
+    sf_literal_node* lit = (sf_literal_node*)node;
+
+    free(lit->value);
+    free(node);
+}
+
+static void free_ident(sf_ast_node* node) {
+    sf_identifier_node* id = (sf_identifier_node*)node;
+
+    free(id->name);
+    free(id);
+}
+
+static void free_program(sf_ast_node* node) {
+    sf_program_node* prog = (sf_program_node*)node;
+
+    for (size_t i = 0; i < prog->statement_count; i++) {
+        sf_free_ast(prog->statements[i]);
+    }
+
+    free(prog->statements);
+    free(prog);
+}
+
+static void free_binary_expr(sf_ast_node* node) {
+    sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
+
+    sf_free_ast(bin->left);
+    sf_free_ast(bin->right);
+    free(bin);
+}
+
+static void print_var_assign(const sf_ast_node* node, int indent) {
+    sf_var_assign_node* asg = (sf_var_assign_node*)node;
+
+    print_indent(indent);
+    printf("Assign %s\n", asg->name);
+
+    print_ast_node(asg->value, indent + 1);
+}
+
+static void print_var_decl(const sf_ast_node* node, int indent) {
+    sf_var_decl_node* var = (sf_var_decl_node*)node;
+
+    print_indent(indent);
+    printf("VarDecl %s : %s\n", var->name, sf_type_to_string(var->var_type));
+
+    print_ast_node(var->value, indent + 1);
+}
+
+static void print_literal(const sf_ast_node* node, int indent) {
+    sf_literal_node* lit = (sf_literal_node*)node;
+
+    print_indent(indent);
+    printf("Literal %s\n", lit->value);
+}
+
+static void print_ident(const sf_ast_node* node, int indent) {
+    sf_identifier_node* id = (sf_identifier_node*)node;
+
+    print_indent(indent);
+    printf("Identifier %s\n", id->name);
+}
+
+static void print_program(const sf_ast_node* node, int indent) {
+    sf_program_node* prog = (sf_program_node*)node;
+
+    print_indent(indent);
+    printf("Program\n");
+
+    for (size_t i = 0; i < prog->statement_count; i++) {
+        print_ast_node(prog->statements[i], indent + 1);
+    }
+}
+
+static void print_binary_expr(const sf_ast_node* node, int indent) {
+    sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
+
+    print_indent(indent);
+    printf("Binary %s\n", sf_op_to_string(bin->op));
+
+    print_ast_node(bin->left, indent + 1);
+    print_ast_node(bin->right, indent + 1);
 }
