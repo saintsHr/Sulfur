@@ -1,9 +1,78 @@
 #include "sulfur/codegen.h"
 #include "sulfur/ir.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static void push_string(const char* src, char** dst);
+
+static int16_t lookup_stack(const sf_stack_map* map, const char* name);
+static void push_stack(sf_stack_map* map, sf_stack_entry entry);
+static void populate_stack(sf_stack_map* map, const sf_ir_program* program);
+
+static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset);
+
+static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map);
+static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, const char* instr);
+
+char* sf_generate_assembly(const sf_ir_program* program) {
+    char* as = strdup("");
+
+    sf_stack_map map = {
+        .entries  = NULL,
+        .capacity = 0,
+        .count    = 0,
+    };
+
+    populate_stack(&map, program);
+
+    push_string("bits 64\n\n", &as);
+
+    push_string("section .data\n", &as);
+
+    // data goes here
+
+    push_string("section .text\n", &as);
+    push_string("   global _start\n\n", &as);
+
+    push_string("_start:\n", &as);
+
+    push_string("   push rbp\n", &as);
+    push_string("   mov rbp, rsp\n", &as);
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%d", map.count * 8);
+    
+    push_string("   sub rsp, ", &as);
+    push_string(buf, &as);
+    push_string("\n\n", &as);
+
+    for (uint32_t i = 0; i < program->count; i++) {
+        sf_operation op = program->operations[i];
+
+        switch (op.opcode) {
+            case SF_OPCODE_ADD:  emit_binary(&as, op, &map, "add");  break;
+            case SF_OPCODE_SUB:  emit_binary(&as, op, &map, "sub");  break;
+            case SF_OPCODE_MULT: emit_binary(&as, op, &map, "imul"); break;
+            case SF_OPCODE_DIV:  emit_binary(&as, op, &map, "idiv"); break;
+
+            case SF_OPCODE_ASSIGN: emit_assign(&as, op, &map); break;
+
+            default: break;
+        }
+    }
+
+    push_string("\n""   mov rsp, rbp\n", &as);
+    push_string("   pop rbp\n\n", &as);
+
+    push_string("   mov rax, 60\n", &as);
+    push_string("   xor rdi, rdi\n", &as);
+    push_string("   syscall\n", &as);
+
+    return as;
+}
 
 static void push_string(const char* src, char** dst) {
 	if (dst  == NULL) return;
@@ -321,60 +390,4 @@ static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, c
     free(dst_name);
     free(src1_name);
     free(src2_name);
-}
-
-char* sf_generate_assembly(const sf_ir_program* program) {
-	char* as = strdup("");
-
-	sf_stack_map map = {
-		.entries  = NULL,
-		.capacity = 0,
-		.count    = 0,
-	};
-
-	populate_stack(&map, program);
-
-	push_string("bits 64\n\n", &as);
-
-	push_string("section .data\n", &as);
-
-	// data goes here
-
-	push_string("section .text\n", &as);
-	push_string("	global _start\n\n", &as);
-
-	push_string("_start:\n", &as);
-
-	push_string("	push rbp\n", &as);
-	push_string("	mov rbp, rsp\n", &as);
-
-	char buf[32];
-	snprintf(buf, sizeof(buf), "%d", map.count * 8);
-	push_string("	sub rsp, ", &as);
-	push_string(buf, &as);
-	push_string("\n\n", &as);
-
-	for (uint32_t i = 0; i < program->count; i++) {
-		sf_operation op = program->operations[i];
-
-		switch (op.opcode) {
-            case SF_OPCODE_ADD:  emit_binary(&as, op, &map, "add");  break;
-			case SF_OPCODE_SUB:  emit_binary(&as, op, &map, "sub");  break;
-			case SF_OPCODE_MULT: emit_binary(&as, op, &map, "imul"); break;
-			case SF_OPCODE_DIV:  emit_binary(&as, op, &map, "idiv"); break;
-
-            case SF_OPCODE_ASSIGN: emit_assign(&as, op, &map); break;
-
-            default: break;
-        }
-    }
-
-	push_string("\n""	mov rsp, rbp\n", &as);
-	push_string("	pop rbp\n\n", &as);
-
-	push_string("	mov rax, 60\n", &as);
-	push_string("	xor rdi, rdi\n", &as);
-	push_string("	syscall\n", &as);
-
-	return as;
 }
