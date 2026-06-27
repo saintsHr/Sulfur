@@ -11,6 +11,7 @@
 static void push_string(const char* src, char** dst);
 
 static int16_t lookup_stack(const sf_stack_map* map, const char* name);
+static sf_stack_entry* lookup_stack_entry(const sf_stack_map* map, const char* name);
 static void push_stack(sf_stack_map* map, sf_stack_entry entry);
 static void populate_stack(sf_stack_map* map, const sf_ir_program* program);
 
@@ -19,10 +20,15 @@ static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset);
 static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map);
 static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, const char* instr);
 
-static uint8_t size_from_type(sf_value_type type);
 static bool is_signed(sf_value_type type);
+
+static uint8_t size_from_type(sf_value_type type);
+
 static sf_register register_from_size(uint8_t size);
 static sf_size_prefix prefix_from_size(uint8_t size);
+
+static const char* register_to_string(sf_register reg);
+static const char* prefix_to_string(sf_size_prefix prefix);
 
 char* sf_generate_assembly(const sf_ir_program* program) {
     char* as = strdup("");
@@ -49,8 +55,14 @@ char* sf_generate_assembly(const sf_ir_program* program) {
     push_string("\tpush rbp\n", &as);
     push_string("\tmov rbp, rsp\n", &as);
 
+    uint32_t stack_size = 0;
+
+    for (uint32_t i = 0; i < map.count; i++) {
+        stack_size += size_from_type(map.entries[i].type);
+    }
+
     char buf[32];
-    snprintf(buf, sizeof(buf), "%d", map.count * 8);
+    snprintf(buf, sizeof(buf), "%d", stack_size);
     
     push_string("\tsub rsp, ", &as);
     push_string(buf, &as);
@@ -107,6 +119,18 @@ static int16_t lookup_stack(const sf_stack_map* map, const char* name) {
 	return 0;
 }
 
+static sf_stack_entry* lookup_stack_entry(const sf_stack_map* map, const char* name) {
+    if (map == NULL) return NULL;
+
+    for (int16_t i = 0; i < map->count; i++) {
+        if (strcmp(map->entries[i].name, name) == 0) {
+            return &map->entries[i];
+        }
+    }
+
+    return NULL;
+}
+
 static void push_stack(sf_stack_map* map, sf_stack_entry entry) {
 	if (map == NULL) return;
 
@@ -136,14 +160,15 @@ static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset) 
     	int16_t offset = lookup_stack(map, name);
 
     	if (offset == 0) {
+            *next_offset -= size_from_type(op.value_type);
+
     		sf_stack_entry entry = {
     			.name = name,
     			.offset = *next_offset,
+                .type = op.value_type,
     		};
 
     		push_stack(map, entry);
-
-    		*next_offset -= 8;
     	}
     }
 
@@ -154,14 +179,15 @@ static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset) 
     	int16_t offset = lookup_stack(map, name);
 
     	if (offset == 0) {
+            *next_offset -= size_from_type(op.value_type);
+
     		sf_stack_entry entry = {
     			.name = name,
     			.offset = *next_offset,
+                .type = op.value_type,
     		};
 
     		push_stack(map, entry);
-
-    		*next_offset -= 8;
     	} else {
             free(name);
         }
@@ -172,7 +198,7 @@ static void populate_stack(sf_stack_map* map, const sf_ir_program* program) {
     if (map     == NULL) return;
     if (program == NULL) return;
 
-    int16_t next_offset = -8;
+    int16_t next_offset = 0;
 
     for (uint64_t i = 0; i < program->count; i++) {
         sf_operation op = program->operations[i];
@@ -257,23 +283,79 @@ static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map) {
 
         char* instruction = malloc(256 * sizeof(char));
 
-    	if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE) {
-    		sprintf(
-    			instruction,
-    			"\tmov rax, [rbp%hi]\n"
-    			"\tmov [rbp%hi], rax\n",
-    			lookup_stack(map, src1_name),
-    			lookup_stack(map, dst_name)
-    		);
-    	} else {
-    		sprintf(
-    			instruction,
-    			"\tmov rax, %s\n"
-    			"\tmov [rbp%hi], rax\n",
-    			src1_name,
-    			lookup_stack(map, dst_name)
-    		);
-    	}
+        uint8_t src1_size = size_from_type(op.source1.value_type);
+        uint8_t dst_size = size_from_type(op.destiny.value_type);
+
+        sf_register src1_reg = register_from_size(src1_size);
+        sf_register dst_reg = register_from_size(dst_size);
+
+        sf_size_prefix src1_pre = prefix_from_size(src1_size);
+        sf_size_prefix dst_pre = prefix_from_size(dst_size);
+
+        const char* src1_reg_str = register_to_string(src1_reg);
+        const char* dst_reg_str = register_to_string(dst_reg);
+
+        const char* src1_pre_str = prefix_to_string(src1_pre);
+        const char* dst_pre_str = prefix_to_string(dst_pre);
+
+        if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE) {
+            sprintf(
+                instruction,
+
+                "\tmov %s, %s\n"
+                "\tmov %s [rbp%hi], %s\n",
+
+                dst_reg_str,
+                src1_name,
+
+                dst_pre_str,
+                lookup_stack(map, dst_name),
+                src1_reg_str
+            );
+        } else {
+            if (src1_size == 8) {
+                sprintf(
+                    instruction,
+
+                    "\tmov rax, QWORD [rbp%hi]\n"
+                    "\tmov QWORD [rbp%hi], rax\n",
+
+                    lookup_stack(map, src1_name),
+
+                    lookup_stack(map, dst_name)
+                );
+            } else if (is_signed(op.source1.value_type)) {
+                sprintf(
+                    instruction,
+
+                    "\tmovsx %s, %s [rbp%hi]\n"
+                    "\tmov %s [rbp%hi], %s\n",
+
+                    dst_reg_str,
+                    src1_pre_str,
+                    lookup_stack(map, src1_name),
+
+                    dst_pre_str,
+                    lookup_stack(map, dst_name),
+                    dst_reg_str
+                );
+            } else {
+                sprintf(
+                    instruction,
+
+                    "\tmovzx %s, %s [rbp%hi]\n"
+                    "\tmov %s [rbp%hi], %s\n",
+
+                    dst_reg_str,
+                    src1_pre_str,
+                    lookup_stack(map, src1_name),
+
+                    dst_pre_str,
+                    lookup_stack(map, dst_name),
+                    dst_reg_str
+                );
+            }
+        }
 
     	push_string(instruction, buff);
 
@@ -465,4 +547,24 @@ static sf_size_prefix prefix_from_size(uint8_t size) {
     if (size <= 4) return SF_PREFIX_DWORD;
     if (size <= 8) return SF_PREFIX_QWORD;
     return SF_PREFIX_QWORD;
+}
+
+static const char* register_to_string(sf_register reg) {
+    switch (reg) {
+        case SF_REGISTER_AL:  return "al";
+        case SF_REGISTER_AX:  return "ax";
+        case SF_REGISTER_EAX: return "eax";
+        case SF_REGISTER_RAX: return "rax";
+        default:              return "rax";
+    }
+}
+
+static const char* prefix_to_string(sf_size_prefix prefix) {
+    switch (prefix) {
+        case SF_PREFIX_BYTE:  return "BYTE";
+        case SF_PREFIX_WORD:  return "WORD";
+        case SF_PREFIX_DWORD: return "DWORD";
+        case SF_PREFIX_QWORD: return "QWORD";
+        default:              return "QWORD";
+    }
 }

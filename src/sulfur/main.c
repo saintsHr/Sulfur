@@ -50,6 +50,8 @@ int main(int argc, char* argv[]) {
     assembly = sf_generate_assembly(&ir);
 
     // debug
+    printf("%s", input);
+    printf("\n\n");
     sf_print_tokens(&tokens);
     printf("\n\n");
     sf_print_ast((sf_ast_node*)ast);
