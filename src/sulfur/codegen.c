@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-static void push_string(const char* src, char** dst);
+static void push_string(const char* src, char** dst, uint64_t* len, uint64_t* capacity);
 
 static sf_stack_offset_size_t lookup_stack(const sf_stack_map* map, const char* name);
 static sf_stack_entry* lookup_stack_entry(const sf_stack_map* map, const char* name);
@@ -17,8 +17,8 @@ static void populate_stack(sf_stack_map* map, const sf_ir_program* program);
 
 static void map_operand(sf_stack_map* map, sf_operand op, sf_stack_offset_size_t* next_offset);
 
-static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map);
-static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, const char* instr);
+static void emit_assign(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
+static void emit_binary(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map, const char* instr);
 
 static bool is_signed(sf_value_type type);
 
@@ -32,8 +32,14 @@ static const char* prefix_to_string(sf_size_prefix prefix);
 
 static sf_stack_offset_size_t next_aligned_offset(sf_stack_offset_size_t current, uint8_t size);
 
+static void free_stack_map(sf_stack_map* map);
+
 char* sf_generate_assembly(const sf_ir_program* program) {
-    char* as = strdup("");
+    uint64_t as_capacity = 4096;
+    uint64_t as_len = 0;
+    char* as = malloc(as_capacity);
+    if (as == NULL) return NULL;
+    as[0] = '\0';
 
     sf_stack_map map = {
         .entries  = NULL,
@@ -43,23 +49,19 @@ char* sf_generate_assembly(const sf_ir_program* program) {
 
     populate_stack(&map, program);
 
-    push_string("bits 64\n\n", &as);
+    push_string("bits 64\n\n", &as, &as_len, &as_capacity);
+    push_string("section .data\n", &as, &as_len, &as_capacity);
 
-    push_string("section .data\n", &as);
+    push_string("section .text\n", &as, &as_len, &as_capacity);
+    push_string("\tglobal _start\n\n", &as, &as_len, &as_capacity);
 
-    // data goes here
+    push_string("_start:\n", &as, &as_len, &as_capacity);
 
-    push_string("section .text\n", &as);
-    push_string("\tglobal _start\n\n", &as);
-
-    push_string("_start:\n", &as);
-
-    push_string("\tpush rbp\n", &as);
-    push_string("\tmov rbp, rsp\n", &as);
+    push_string("\tpush rbp\n", &as, &as_len, &as_capacity);
+    push_string("\tmov rbp, rsp\n", &as, &as_len, &as_capacity);
 
     sf_stack_offset_size_t stack_size = 0;
-
-    for (sf_stack_offset_size_t i = 0; i < map.count; i++) {
+    for (sf_stack_map_size_t i = 0; i < map.count; i++) {
         sf_stack_offset_size_t abs_offset = (sf_stack_offset_size_t)(-map.entries[i].offset);
         if (abs_offset > stack_size) stack_size = abs_offset;
     }
@@ -69,47 +71,49 @@ char* sf_generate_assembly(const sf_ir_program* program) {
     char buf[32];
     snprintf(buf, sizeof(buf), "%ld", stack_size);
     
-    push_string("\tsub rsp, ", &as);
-    push_string(buf, &as);
-    push_string("\n\n", &as);
+    push_string("\tsub rsp, ", &as, &as_len, &as_capacity);
+    push_string(buf, &as, &as_len, &as_capacity);
+    push_string("\n\n", &as, &as_len, &as_capacity);
 
     for (uint32_t i = 0; i < program->count; i++) {
         sf_operation op = program->operations[i];
 
         switch (op.opcode) {
-            case SF_OPCODE_ADD:  emit_binary(&as, op, &map, "add");  break;
-            case SF_OPCODE_SUB:  emit_binary(&as, op, &map, "sub");  break;
-            case SF_OPCODE_MULT: emit_binary(&as, op, &map, "imul"); break;
-            case SF_OPCODE_DIV:  emit_binary(&as, op, &map, "idiv"); break;
+            case SF_OPCODE_ADD:  emit_binary(&as, &as_len, &as_capacity, op, &map, "add");  break;
+            case SF_OPCODE_SUB:  emit_binary(&as, &as_len, &as_capacity, op, &map, "sub");  break;
+            case SF_OPCODE_MULT: emit_binary(&as, &as_len, &as_capacity, op, &map, "imul"); break;
+            case SF_OPCODE_DIV:  emit_binary(&as, &as_len, &as_capacity, op, &map, "idiv"); break;
 
-            case SF_OPCODE_ASSIGN: emit_assign(&as, op, &map); break;
+            case SF_OPCODE_ASSIGN: emit_assign(&as, &as_len, &as_capacity, op, &map); break;
 
             default: break;
         }
     }
 
-    push_string("\n""\tmov rsp, rbp\n", &as);
-    push_string("\tpop rbp\n\n", &as);
+    push_string("\n\tmov rsp, rbp\n", &as, &as_len, &as_capacity);
+    push_string("\tpop rbp\n\n", &as, &as_len, &as_capacity);
 
-    push_string("\tmov rax, 60\n", &as);
-    push_string("\txor rdi, rdi\n", &as);
-    push_string("\tsyscall\n", &as);
+    push_string("\tmov rax, 60\n", &as, &as_len, &as_capacity);
+    push_string("\txor rdi, rdi\n", &as, &as_len, &as_capacity);
+    push_string("\tsyscall\n", &as, &as_len, &as_capacity);
 
-    free(map.entries);
+    free_stack_map(&map);
+
     return as;
 }
 
-static void push_string(const char* src, char** dst) {
-	if (dst  == NULL) return;
-	if (*dst == NULL) return;
-	if (src  == NULL) return;
+static void push_string(const char* src, char** dst, uint64_t* len, uint64_t* capacity) {
+    if (dst == NULL || *dst == NULL || src == NULL) return;
 
-	*dst = realloc(
-		*dst,
-		strlen(*dst) + (strlen(src) * sizeof(char)) + 1
-	);
+    size_t src_len = strlen(src);
+    
+    while (*len + src_len + 1 > *capacity) {
+        *capacity *= 2;
+        *dst = realloc(*dst, *capacity);
+    }
 
-	strcat(*dst, src);
+    memcpy(*dst + *len, src, src_len + 1);
+    *len += src_len;
 }
 
 static sf_stack_offset_size_t lookup_stack(const sf_stack_map* map, const char* name) {
@@ -162,360 +166,290 @@ static void map_operand(sf_stack_map* map, sf_operand op, sf_stack_offset_size_t
     if (op.type == SF_OPERAND_TYPE_IMMEDIATE) return;
 
     if (op.type == SF_OPERAND_TYPE_VARIABLE) {
-    	char*   name   = op.variable_name;
-    	int64_t offset = lookup_stack(map, name);
+        char* name = op.variable_name;
+        int64_t offset = lookup_stack(map, name);
 
-    	if (offset == 0) {
+        if (offset == 0) {
             *next_offset = next_aligned_offset(
                 *next_offset,
                 size_from_type(op.value_type)
             );
 
-    		sf_stack_entry entry = {
-    			.name = name,
-    			.offset = *next_offset,
+            sf_stack_entry entry = {
+                .name = strdup(name),
+                .offset = *next_offset,
                 .type = op.value_type,
-    		};
+            };
 
-    		push_stack(map, entry);
-    	}
+            push_stack(map, entry);
+        }
     }
 
     if (op.type == SF_OPERAND_TYPE_TEMPORARY) {
-    	char*   name   = malloc(16 * sizeof(char));
-    	sprintf(name, "t%hi", op.temporary_id);
+        char* name = malloc(16 * sizeof(char));
+        sprintf(name, "t%hi", op.temporary_id);
 
-    	int64_t offset = lookup_stack(map, name);
+        int64_t offset = lookup_stack(map, name);
 
-    	if (offset == 0) {
+        if (offset == 0) {
             *next_offset = next_aligned_offset(
                 *next_offset,
                 size_from_type(op.value_type)
             );
 
-    		sf_stack_entry entry = {
-    			.name = name,
-    			.offset = *next_offset,
+            sf_stack_entry entry = {
+                .name = name,
+                .offset = *next_offset,
                 .type = op.value_type,
-    		};
+            };
 
-    		push_stack(map, entry);
-    	} else {
+            push_stack(map, entry);
+        } else {
             free(name);
         }
     }
 }
 
 static void populate_stack(sf_stack_map* map, const sf_ir_program* program) {
-    if (map     == NULL) return;
-    if (program == NULL) return;
+    if (map == NULL || program == NULL) return;
 
     sf_stack_offset_size_t next_offset = 0;
 
     for (uint64_t i = 0; i < program->count; i++) {
         sf_operation op = program->operations[i];
 
-        if (op.destiny.type == SF_OPERAND_TYPE_VARIABLE) {
-        	map_operand(map, op.destiny, &next_offset);
+        if (op.destiny.type == SF_OPERAND_TYPE_VARIABLE || op.destiny.type == SF_OPERAND_TYPE_TEMPORARY) {
+            map_operand(map, op.destiny, &next_offset);
         }
 
-        if (op.source1.type == SF_OPERAND_TYPE_VARIABLE){
-        	map_operand(map, op.source1, &next_offset);
+        if (op.source1.type == SF_OPERAND_TYPE_VARIABLE || op.source1.type == SF_OPERAND_TYPE_TEMPORARY) {
+            map_operand(map, op.source1, &next_offset);
         }
 
-        if (op.opcode != SF_OPCODE_ASSIGN && op.source2.type == SF_OPERAND_TYPE_VARIABLE) {
-            map_operand(map, op.source2, &next_offset);
-        }
-    }
-
-    for (uint64_t i = 0; i < program->count; i++) {
-        sf_operation op = program->operations[i];
-
-        if (op.destiny.type == SF_OPERAND_TYPE_TEMPORARY) {
-        	map_operand(map, op.destiny, &next_offset);
-        }
-
-        if (op.source1.type == SF_OPERAND_TYPE_TEMPORARY) {
-        	map_operand(map, op.source1, &next_offset);
-        }
-
-        if (op.opcode != SF_OPCODE_ASSIGN && op.source2.type == SF_OPERAND_TYPE_TEMPORARY) {
-        	map_operand(map, op.source2, &next_offset);
+        if (op.opcode != SF_OPCODE_ASSIGN) {
+            if (op.source2.type == SF_OPERAND_TYPE_VARIABLE || op.source2.type == SF_OPERAND_TYPE_TEMPORARY) {
+                map_operand(map, op.source2, &next_offset);
+            }
         }
     }
 }
 
-static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map) {
-	if (op.opcode == SF_OPCODE_ASSIGN) {
-		char* dst_name  = NULL;
-		char* src1_name = NULL;
+static void emit_assign(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map) {
+    if (op.opcode != SF_OPCODE_ASSIGN) return;
 
-		switch (op.destiny.type) {
-            case SF_OPERAND_TYPE_TEMPORARY: {
-            	dst_name = malloc(32 * sizeof(char));
-    			sprintf(dst_name, "t%hi", op.destiny.temporary_id);
+    const char* dst_name  = (op.destiny.type == SF_OPERAND_TYPE_VARIABLE) ? op.destiny.variable_name : NULL;
+    const char* src1_name = (op.source1.type == SF_OPERAND_TYPE_VARIABLE) ? op.source1.variable_name : NULL;
 
-    			break;
-            }
+    char* allocated_dst  = NULL;
+    char* allocated_src1 = NULL;
 
-            case SF_OPERAND_TYPE_VARIABLE: {
-            	dst_name = malloc(32 * sizeof(char));
-    			sprintf(dst_name, "%s", op.destiny.variable_name);
+    if (op.destiny.type == SF_OPERAND_TYPE_TEMPORARY) {
+        allocated_dst = malloc(64);
+        snprintf(allocated_dst, 64, "t%hi", op.destiny.temporary_id);
+        dst_name = allocated_dst;
+    }
 
-    			break;
-            }
+    if (op.source1.type == SF_OPERAND_TYPE_TEMPORARY) {
+        allocated_src1 = malloc(64);
+        snprintf(allocated_src1, 64, "t%hi", op.source1.temporary_id);
+        src1_name = allocated_src1;
+    } else if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        allocated_src1 = malloc(64);
+        snprintf(allocated_src1, 64, "%s", op.source1.immediate_value);
+        src1_name = allocated_src1;
+    }
 
-            default: break;
-        }
+    char* instruction = malloc(512 * sizeof(char));
 
-        switch (op.source1.type) {
-        	case SF_OPERAND_TYPE_TEMPORARY: {
-        		src1_name = malloc(32 * sizeof(char));
-    			sprintf(src1_name, "t%hi", op.source1.temporary_id);
+    uint8_t src1_size = size_from_type(op.source1.value_type);
+    uint8_t dst_size = size_from_type(op.destiny.value_type);
 
-    			break;
-        	}
+    sf_register src1_reg = register_from_size(src1_size);
+    sf_register dst_reg = register_from_size(dst_size);
 
-        	case SF_OPERAND_TYPE_VARIABLE: {
-        		src1_name = malloc(32 * sizeof(char));
-    			sprintf(src1_name, "%s", op.source1.variable_name);
+    sf_size_prefix src1_pre = prefix_from_size(src1_size);
+    sf_size_prefix dst_pre = prefix_from_size(dst_size);
 
-    			break;
-        	}
+    const char* src1_reg_str = register_to_string(src1_reg);
+    const char* dst_reg_str = register_to_string(dst_reg);
 
-        	case SF_OPERAND_TYPE_IMMEDIATE: {
-        		src1_name = malloc(32 * sizeof(char));
-    			sprintf(src1_name, "%s", op.source1.immediate_value);
+    const char* src1_pre_str = prefix_to_string(src1_pre);
+    const char* dst_pre_str = prefix_to_string(dst_pre);
 
-    			break;
-        	}
-
-          	default: break;
-        }
-
-        char* instruction = malloc(256 * sizeof(char));
-
-        uint8_t src1_size = size_from_type(op.source1.value_type);
-        uint8_t dst_size = size_from_type(op.destiny.value_type);
-
-        sf_register src1_reg = register_from_size(src1_size);
-        sf_register dst_reg = register_from_size(dst_size);
-
-        sf_size_prefix src1_pre = prefix_from_size(src1_size);
-        sf_size_prefix dst_pre = prefix_from_size(dst_size);
-
-        const char* src1_reg_str = register_to_string(src1_reg);
-        const char* dst_reg_str = register_to_string(dst_reg);
-
-        const char* src1_pre_str = prefix_to_string(src1_pre);
-        const char* dst_pre_str = prefix_to_string(dst_pre);
-
-        if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE) {
+    if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        sprintf(
+            instruction,
+            "\tmov %s, %s\n"
+            "\tmov %s [rbp%li], %s\n",
+            dst_reg_str,
+            src1_name,
+            dst_pre_str,
+            lookup_stack(map, dst_name),
+            dst_reg_str
+        );
+    } else {
+        if (src1_size == dst_size) {
             sprintf(
                 instruction,
-
-                "\tmov %s, %s\n"
+                "\tmov %s, %s [rbp%li]\n"
                 "\tmov %s [rbp%li], %s\n",
-
                 dst_reg_str,
-                src1_name,
-
+                src1_pre_str,
+                lookup_stack(map, src1_name),
                 dst_pre_str,
                 lookup_stack(map, dst_name),
-                src1_reg_str
+                dst_reg_str
             );
-        } else {
-            if (src1_size == dst_size) {
+        } else if (src1_size < dst_size) {
+            if (is_signed(op.source1.value_type)) {
                 sprintf(
                     instruction,
-
-                    "\tmov %s, %s [rbp%li]\n"
+                    "\tmovsx %s, %s [rbp%li]\n"
                     "\tmov %s [rbp%li], %s\n",
-
                     dst_reg_str,
                     src1_pre_str,
                     lookup_stack(map, src1_name),
-
                     dst_pre_str,
                     lookup_stack(map, dst_name),
                     dst_reg_str
                 );
-            } else if (src1_size < dst_size) {
-                if (is_signed(op.source1.value_type)) {
-                    sprintf(
-                        instruction,
-
-                        "\tmovsx %s, %s [rbp%li]\n"
-                        "\tmov %s [rbp%li], %s\n",
-
-                        dst_reg_str,
-                        src1_pre_str,
-                        lookup_stack(map, src1_name),
-
-                        dst_pre_str,
-                        lookup_stack(map, dst_name),
-                        dst_reg_str
-                    );
-                } else {
-                    sprintf(
-                        instruction,
-
-                        "\tmovzx %s, %s [rbp%li]\n"
-                        "\tmov %s [rbp%li], %s\n",
-
-                        dst_reg_str,
-                        src1_pre_str,
-                        lookup_stack(map, src1_name),
-
-                        dst_pre_str,
-                        lookup_stack(map, dst_name),
-                        dst_reg_str
-                    );
-                }
             } else {
                 sprintf(
                     instruction,
-
-                    "\tmov rax, %s [rbp%li]\n"
+                    "\tmovzx %s, %s [rbp%li]\n"
                     "\tmov %s [rbp%li], %s\n",
-
+                    dst_reg_str,
                     src1_pre_str,
                     lookup_stack(map, src1_name),
-
                     dst_pre_str,
                     lookup_stack(map, dst_name),
                     dst_reg_str
                 );
             }
+        } else {
+            sprintf(
+                instruction,
+                "\tmov rax, %s [rbp%li]\n"
+                "\tmov %s [rbp%li], %s\n",
+                src1_pre_str,
+                lookup_stack(map, src1_name),
+                dst_pre_str,
+                lookup_stack(map, dst_name),
+                dst_reg_str
+            );
         }
-
-    	push_string(instruction, buff);
-
-    	free(instruction);
-        free(dst_name);
-        free(src1_name);
-	}
-}
-
-static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, const char* instr) {
-    char* dst_name  = NULL;
-    char* src1_name = NULL;
-    char* src2_name = NULL;
-
-    switch (op.destiny.type) {
-        case SF_OPERAND_TYPE_TEMPORARY: {
-            dst_name = malloc(32 * sizeof(char));
-            sprintf(dst_name, "t%hi", op.destiny.temporary_id);
-
-            break;
-        }
-
-        case SF_OPERAND_TYPE_VARIABLE: {
-            dst_name = malloc(32 * sizeof(char));
-            sprintf(dst_name, "%s", op.destiny.variable_name);
-
-            break;
-        }
-
-        default: break;
     }
 
-    switch (op.source1.type) {
-        case SF_OPERAND_TYPE_TEMPORARY: {
-            src1_name = malloc(32 * sizeof(char));
-            sprintf(src1_name, "t%hi", op.source1.temporary_id);
-
-            break;
-        }
-
-        case SF_OPERAND_TYPE_VARIABLE: {
-            src1_name = malloc(32 * sizeof(char));
-            sprintf(src1_name, "%s", op.source1.variable_name);
-
-            break;
-        }
-
-        case SF_OPERAND_TYPE_IMMEDIATE: {
-            src1_name = malloc(32 * sizeof(char));
-            sprintf(src1_name, "%s", op.source1.immediate_value);
-
-            break;
-        }
-
-        default: break;
-    }
-
-    switch (op.source2.type) {
-        case SF_OPERAND_TYPE_TEMPORARY: {
-            src2_name = malloc(32 * sizeof(char));
-            sprintf(src2_name, "t%hi", op.source2.temporary_id);
-
-            break;
-        }
-
-        case SF_OPERAND_TYPE_VARIABLE: {
-            src2_name = malloc(32 * sizeof(char));
-            sprintf(src2_name, "%s", op.source2.variable_name);
-
-            break;
-        }
-
-        case SF_OPERAND_TYPE_IMMEDIATE: {
-            src2_name = malloc(32 * sizeof(char));
-            sprintf(src2_name, "%s", op.source2.immediate_value);
-
-            break;
-        }
-
-        default: break;
-    }
-
-    char* instruction = malloc(256 * sizeof(char));
-
-    if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE && op.source2.type != SF_OPERAND_TYPE_IMMEDIATE) {
-        sprintf(instruction,
-            "\tmov rax, [rbp%li]\n"
-            "\t%s rax, [rbp%li]\n"
-            "\tmov [rbp%li], rax\n",
-            lookup_stack(map, src1_name),
-            instr,
-            lookup_stack(map, src2_name),
-            lookup_stack(map, dst_name)
-        );
-    } else if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE && op.source2.type != SF_OPERAND_TYPE_IMMEDIATE) {
-        sprintf(instruction,
-            "\tmov rax, %s\n"
-            "\t%s rax, [rbp%li]\n"
-            "\tmov [rbp%li], rax\n",
-            src1_name, instr,
-            lookup_stack(map, src2_name),
-            lookup_stack(map, dst_name)
-        );
-    } else if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE && op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
-        sprintf(instruction,
-            "\tmov rax, [rbp%li]\n"
-            "\t%s rax, %s\n"
-            "\tmov [rbp%li], rax\n",
-            lookup_stack(map, src1_name),
-            instr, src2_name,
-            lookup_stack(map, dst_name)
-        );
-    } else {
-        sprintf(instruction,
-            "\tmov rax, %s\n"
-            "\t%s rax, %s\n"
-            "\tmov [rbp%li], rax\n",
-            src1_name, instr, src2_name,
-            lookup_stack(map, dst_name)
-        );
-    }
-
-    push_string(instruction, buff);
+    push_string(instruction, buff, len, capacity);
 
     free(instruction);
-    free(dst_name);
-    free(src1_name);
-    free(src2_name);
+    if (allocated_dst) free(allocated_dst);
+    if (allocated_src1) free(allocated_src1);
+}
+
+static void emit_binary(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map, const char* instr) {
+    const char* dst_name  = (op.destiny.type == SF_OPERAND_TYPE_VARIABLE) ? op.destiny.variable_name : NULL;
+    const char* src1_name = (op.source1.type == SF_OPERAND_TYPE_VARIABLE) ? op.source1.variable_name : NULL;
+    const char* src2_name = (op.source2.type == SF_OPERAND_TYPE_VARIABLE) ? op.source2.variable_name : NULL;
+
+    char* allocated_dst  = NULL;
+    char* allocated_src1 = NULL;
+    char* allocated_src2 = NULL;
+
+    if (op.destiny.type == SF_OPERAND_TYPE_TEMPORARY) {
+        allocated_dst = malloc(32);
+        sprintf(allocated_dst, "t%hi", op.destiny.temporary_id);
+        dst_name = allocated_dst;
+    }
+    if (op.source1.type == SF_OPERAND_TYPE_TEMPORARY) {
+        allocated_src1 = malloc(32);
+        sprintf(allocated_src1, "t%hi", op.source1.temporary_id);
+        src1_name = allocated_src1;
+    } else if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        allocated_src1 = malloc(32);
+        sprintf(allocated_src1, "%s", op.source1.immediate_value);
+        src1_name = allocated_src1;
+    }
+    if (op.source2.type == SF_OPERAND_TYPE_TEMPORARY) {
+        allocated_src2 = malloc(32);
+        sprintf(allocated_src2, "t%hi", op.source2.temporary_id);
+        src2_name = allocated_src2;
+    } else if (op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        allocated_src2 = malloc(32);
+        sprintf(allocated_src2, "%s", op.source2.immediate_value);
+        src2_name = allocated_src2;
+    }
+
+    char* instruction = malloc(512 * sizeof(char));
+
+    uint8_t size = size_from_type(op.destiny.value_type);
+    const char* reg_str = register_to_string(register_from_size(size));
+    const char* pre_str = prefix_to_string(prefix_from_size(size));
+
+    char src1_formatted[64];
+    if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        strcpy(src1_formatted, src1_name);
+    } else {
+        sprintf(src1_formatted, "%s [rbp%li]", pre_str, lookup_stack(map, src1_name));
+    }
+
+    char src2_formatted[64];
+    if (op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        strcpy(src2_formatted, src2_name);
+    } else {
+        sprintf(src2_formatted, "%s [rbp%li]", pre_str, lookup_stack(map, src2_name));
+    }
+
+    if (op.opcode == SF_OPCODE_DIV) {
+        bool signed_type = is_signed(op.destiny.value_type);
+        const char* div_instr = signed_type ? "idiv" : "div";
+        
+        const char* reg_cx = "rcx";
+        if (size == 4) reg_cx = "ecx";
+        if (size == 2) reg_cx = "cx";
+        if (size == 1) reg_cx = "cl";
+
+        sprintf(instruction, "\tmov %s, %s\n", reg_str, src1_formatted);
+        push_string(instruction, buff, len, capacity);
+
+        if (signed_type) {
+            if (size == 8)      push_string("\tcqo\n", buff, len, capacity);
+            else if (size == 4) push_string("\tcdq\n", buff, len, capacity);
+            else if (size == 2) push_string("\tcwd\n", buff, len, capacity);
+            else if (size == 1) push_string("\tcbw\n", buff, len, capacity);
+        } else {
+            if (size == 8)      push_string("\txor rdx, rdx\n", buff, len, capacity);
+            else if (size == 4) push_string("\txor edx, edx\n", buff, len, capacity);
+            else if (size == 2) push_string("\txor dx, dx\n", buff, len, capacity);
+            else if (size == 1) push_string("\tmov ah, 0\n", buff, len, capacity);
+        }
+
+        if (op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
+            sprintf(instruction, "\tmov %s, %s\n\t%s %s\n", reg_cx, src2_formatted, div_instr, reg_cx);
+        } else {
+            sprintf(instruction, "\t%s %s\n", div_instr, src2_formatted);
+        }
+        push_string(instruction, buff, len, capacity);
+
+        sprintf(instruction, "\tmov %s [rbp%li], %s\n", pre_str, lookup_stack(map, dst_name), reg_str);
+        push_string(instruction, buff, len, capacity);
+
+    } else {
+        sprintf(instruction,
+            "\tmov %s, %s\n"
+            "\t%s %s, %s\n"
+            "\tmov %s [rbp%li], %s\n",
+            reg_str, src1_formatted,
+            instr, reg_str, src2_formatted,
+            pre_str, lookup_stack(map, dst_name), reg_str
+        );
+        push_string(instruction, buff, len, capacity);
+    }
+
+    free(instruction);
+    if (allocated_dst) free(allocated_dst);
+    if (allocated_src1) free(allocated_src1);
+    if (allocated_src2) free(allocated_src2);
 }
 
 static uint8_t size_from_type(sf_value_type type) {
@@ -605,4 +539,12 @@ static sf_stack_offset_size_t next_aligned_offset(sf_stack_offset_size_t current
     uint64_t pos = (uint64_t)(-current) + size;
     pos = (pos + size - 1) / size * size;
     return -(sf_stack_offset_size_t)pos;
+}
+
+static void free_stack_map(sf_stack_map* map) {
+    if (map == NULL) return;
+    for (sf_stack_map_size_t i = 0; i < map->count; i++) {
+        free(map->entries[i].name);
+    }
+    free(map->entries);
 }
