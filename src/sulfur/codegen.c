@@ -1,9 +1,11 @@
 #include "sulfur/codegen.h"
+#include "sulfur/ast.h"
 #include "sulfur/ir.h"
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 static void push_string(const char* src, char** dst);
@@ -16,6 +18,11 @@ static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset);
 
 static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map);
 static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, const char* instr);
+
+static uint8_t size_from_type(sf_value_type type);
+static bool is_signed(sf_value_type type);
+static sf_register register_from_size(uint8_t size);
+static sf_size_prefix prefix_from_size(uint8_t size);
 
 char* sf_generate_assembly(const sf_ir_program* program) {
     char* as = strdup("");
@@ -395,4 +402,67 @@ static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, c
     free(dst_name);
     free(src1_name);
     free(src2_name);
+}
+
+static uint8_t size_from_type(sf_value_type type) {
+    switch (type) {
+        case SF_VAL_TYPE_U8:
+        case SF_VAL_TYPE_I8:
+            return 1;
+            break;
+
+        case SF_VAL_TYPE_U16:
+        case SF_VAL_TYPE_I16:
+            return 2;
+            break;
+
+        case SF_VAL_TYPE_U32:
+        case SF_VAL_TYPE_I32:
+            return 4;
+            break;
+
+        case SF_VAL_TYPE_U64:
+        case SF_VAL_TYPE_I64:
+            return 8;
+            break;
+
+        default: return 8; break;
+    }
+}
+
+static bool is_signed(sf_value_type type) {
+    switch (type) {
+        case SF_VAL_TYPE_I8:
+        case SF_VAL_TYPE_I16:
+        case SF_VAL_TYPE_I32:
+        case SF_VAL_TYPE_I64:
+            return true; break;
+
+        case SF_VAL_TYPE_U8:
+        case SF_VAL_TYPE_U16:
+        case SF_VAL_TYPE_U32:
+        case SF_VAL_TYPE_U64:
+            return false; break;
+
+        case SF_VAL_TYPE_UNRESOLVED:
+            return false; break;
+
+        default: return false; break;
+    }
+}
+
+static sf_register register_from_size(uint8_t size) {
+    if (size <= 1) return SF_REGISTER_AL;
+    if (size <= 2) return SF_REGISTER_AX;
+    if (size <= 4) return SF_REGISTER_EAX;
+    if (size <= 8) return SF_REGISTER_RAX;
+    return SF_REGISTER_RAX;
+}
+
+static sf_size_prefix prefix_from_size(uint8_t size) {
+    if (size <= 1) return SF_PREFIX_BYTE;
+    if (size <= 2) return SF_PREFIX_WORD;
+    if (size <= 4) return SF_PREFIX_DWORD;
+    if (size <= 8) return SF_PREFIX_QWORD;
+    return SF_PREFIX_QWORD;
 }
