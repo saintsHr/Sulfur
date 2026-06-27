@@ -10,12 +10,12 @@
 
 static void push_string(const char* src, char** dst);
 
-static int16_t lookup_stack(const sf_stack_map* map, const char* name);
+static sf_stack_offset_size_t lookup_stack(const sf_stack_map* map, const char* name);
 static sf_stack_entry* lookup_stack_entry(const sf_stack_map* map, const char* name);
 static void push_stack(sf_stack_map* map, sf_stack_entry entry);
 static void populate_stack(sf_stack_map* map, const sf_ir_program* program);
 
-static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset);
+static void map_operand(sf_stack_map* map, sf_operand op, sf_stack_offset_size_t* next_offset);
 
 static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map);
 static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, const char* instr);
@@ -29,6 +29,8 @@ static sf_size_prefix prefix_from_size(uint8_t size);
 
 static const char* register_to_string(sf_register reg);
 static const char* prefix_to_string(sf_size_prefix prefix);
+
+static sf_stack_offset_size_t next_aligned_offset(sf_stack_offset_size_t current, uint8_t size);
 
 char* sf_generate_assembly(const sf_ir_program* program) {
     char* as = strdup("");
@@ -55,14 +57,17 @@ char* sf_generate_assembly(const sf_ir_program* program) {
     push_string("\tpush rbp\n", &as);
     push_string("\tmov rbp, rsp\n", &as);
 
-    uint32_t stack_size = 0;
+    sf_stack_offset_size_t stack_size = 0;
 
-    for (uint32_t i = 0; i < map.count; i++) {
-        stack_size += size_from_type(map.entries[i].type);
+    for (sf_stack_offset_size_t i = 0; i < map.count; i++) {
+        sf_stack_offset_size_t abs_offset = (sf_stack_offset_size_t)(-map.entries[i].offset);
+        if (abs_offset > stack_size) stack_size = abs_offset;
     }
 
+    stack_size = (stack_size + 15) / 16 * 16;
+
     char buf[32];
-    snprintf(buf, sizeof(buf), "%d", stack_size);
+    snprintf(buf, sizeof(buf), "%ld", stack_size);
     
     push_string("\tsub rsp, ", &as);
     push_string(buf, &as);
@@ -107,10 +112,10 @@ static void push_string(const char* src, char** dst) {
 	strcat(*dst, src);
 }
 
-static int16_t lookup_stack(const sf_stack_map* map, const char* name) {
+static sf_stack_offset_size_t lookup_stack(const sf_stack_map* map, const char* name) {
 	if (map == NULL) return 0;
 
-	for (int16_t i = 0; i < map->count; i++) {
+	for (sf_stack_offset_size_t i = 0; i < map->count; i++) {
 		if (strcmp(map->entries[i].name, name) == 0) {
 			return map->entries[i].offset;
 		}
@@ -122,7 +127,7 @@ static int16_t lookup_stack(const sf_stack_map* map, const char* name) {
 static sf_stack_entry* lookup_stack_entry(const sf_stack_map* map, const char* name) {
     if (map == NULL) return NULL;
 
-    for (int16_t i = 0; i < map->count; i++) {
+    for (int64_t i = 0; i < map->count; i++) {
         if (strcmp(map->entries[i].name, name) == 0) {
             return &map->entries[i];
         }
@@ -147,20 +152,24 @@ static void push_stack(sf_stack_map* map, sf_stack_entry entry) {
 			map->entries,
 			(map->capacity * 2) * sizeof(sf_stack_entry)
 		);
+        map->capacity *= 2;
 	}
 
 	map->entries[map->count++] = entry;
 }
 
-static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset) {
+static void map_operand(sf_stack_map* map, sf_operand op, sf_stack_offset_size_t* next_offset) {
     if (op.type == SF_OPERAND_TYPE_IMMEDIATE) return;
 
     if (op.type == SF_OPERAND_TYPE_VARIABLE) {
     	char*   name   = op.variable_name;
-    	int16_t offset = lookup_stack(map, name);
+    	int64_t offset = lookup_stack(map, name);
 
     	if (offset == 0) {
-            *next_offset -= size_from_type(op.value_type);
+            *next_offset = next_aligned_offset(
+                *next_offset,
+                size_from_type(op.value_type)
+            );
 
     		sf_stack_entry entry = {
     			.name = name,
@@ -176,10 +185,13 @@ static void map_operand(sf_stack_map* map, sf_operand op, int16_t* next_offset) 
     	char*   name   = malloc(16 * sizeof(char));
     	sprintf(name, "t%hi", op.temporary_id);
 
-    	int16_t offset = lookup_stack(map, name);
+    	int64_t offset = lookup_stack(map, name);
 
     	if (offset == 0) {
-            *next_offset -= size_from_type(op.value_type);
+            *next_offset = next_aligned_offset(
+                *next_offset,
+                size_from_type(op.value_type)
+            );
 
     		sf_stack_entry entry = {
     			.name = name,
@@ -198,7 +210,7 @@ static void populate_stack(sf_stack_map* map, const sf_ir_program* program) {
     if (map     == NULL) return;
     if (program == NULL) return;
 
-    int16_t next_offset = 0;
+    sf_stack_offset_size_t next_offset = 0;
 
     for (uint64_t i = 0; i < program->count; i++) {
         sf_operation op = program->operations[i];
@@ -303,7 +315,7 @@ static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map) {
                 instruction,
 
                 "\tmov %s, %s\n"
-                "\tmov %s [rbp%hi], %s\n",
+                "\tmov %s [rbp%li], %s\n",
 
                 dst_reg_str,
                 src1_name,
@@ -313,23 +325,12 @@ static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map) {
                 src1_reg_str
             );
         } else {
-            if (src1_size == 8) {
+            if (src1_size == dst_size) {
                 sprintf(
                     instruction,
 
-                    "\tmov rax, QWORD [rbp%hi]\n"
-                    "\tmov QWORD [rbp%hi], rax\n",
-
-                    lookup_stack(map, src1_name),
-
-                    lookup_stack(map, dst_name)
-                );
-            } else if (is_signed(op.source1.value_type)) {
-                sprintf(
-                    instruction,
-
-                    "\tmovsx %s, %s [rbp%hi]\n"
-                    "\tmov %s [rbp%hi], %s\n",
+                    "\tmov %s, %s [rbp%li]\n"
+                    "\tmov %s [rbp%li], %s\n",
 
                     dst_reg_str,
                     src1_pre_str,
@@ -339,14 +340,45 @@ static void emit_assign(char** buff, sf_operation op, const sf_stack_map* map) {
                     lookup_stack(map, dst_name),
                     dst_reg_str
                 );
+            } else if (src1_size < dst_size) {
+                if (is_signed(op.source1.value_type)) {
+                    sprintf(
+                        instruction,
+
+                        "\tmovsx %s, %s [rbp%li]\n"
+                        "\tmov %s [rbp%li], %s\n",
+
+                        dst_reg_str,
+                        src1_pre_str,
+                        lookup_stack(map, src1_name),
+
+                        dst_pre_str,
+                        lookup_stack(map, dst_name),
+                        dst_reg_str
+                    );
+                } else {
+                    sprintf(
+                        instruction,
+
+                        "\tmovzx %s, %s [rbp%li]\n"
+                        "\tmov %s [rbp%li], %s\n",
+
+                        dst_reg_str,
+                        src1_pre_str,
+                        lookup_stack(map, src1_name),
+
+                        dst_pre_str,
+                        lookup_stack(map, dst_name),
+                        dst_reg_str
+                    );
+                }
             } else {
                 sprintf(
                     instruction,
 
-                    "\tmovzx %s, %s [rbp%hi]\n"
-                    "\tmov %s [rbp%hi], %s\n",
+                    "\tmov rax, %s [rbp%li]\n"
+                    "\tmov %s [rbp%li], %s\n",
 
-                    dst_reg_str,
                     src1_pre_str,
                     lookup_stack(map, src1_name),
 
@@ -442,9 +474,9 @@ static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, c
 
     if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE && op.source2.type != SF_OPERAND_TYPE_IMMEDIATE) {
         sprintf(instruction,
-            "\tmov rax, [rbp%hi]\n"
-            "\t%s rax, [rbp%hi]\n"
-            "\tmov [rbp%hi], rax\n",
+            "\tmov rax, [rbp%li]\n"
+            "\t%s rax, [rbp%li]\n"
+            "\tmov [rbp%li], rax\n",
             lookup_stack(map, src1_name),
             instr,
             lookup_stack(map, src2_name),
@@ -453,17 +485,17 @@ static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, c
     } else if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE && op.source2.type != SF_OPERAND_TYPE_IMMEDIATE) {
         sprintf(instruction,
             "\tmov rax, %s\n"
-            "\t%s rax, [rbp%hi]\n"
-            "\tmov [rbp%hi], rax\n",
+            "\t%s rax, [rbp%li]\n"
+            "\tmov [rbp%li], rax\n",
             src1_name, instr,
             lookup_stack(map, src2_name),
             lookup_stack(map, dst_name)
         );
     } else if (op.source1.type != SF_OPERAND_TYPE_IMMEDIATE && op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
         sprintf(instruction,
-            "\tmov rax, [rbp%hi]\n"
+            "\tmov rax, [rbp%li]\n"
             "\t%s rax, %s\n"
-            "\tmov [rbp%hi], rax\n",
+            "\tmov [rbp%li], rax\n",
             lookup_stack(map, src1_name),
             instr, src2_name,
             lookup_stack(map, dst_name)
@@ -472,7 +504,7 @@ static void emit_binary(char** buff, sf_operation op, const sf_stack_map* map, c
         sprintf(instruction,
             "\tmov rax, %s\n"
             "\t%s rax, %s\n"
-            "\tmov [rbp%hi], rax\n",
+            "\tmov [rbp%li], rax\n",
             src1_name, instr, src2_name,
             lookup_stack(map, dst_name)
         );
@@ -567,4 +599,10 @@ static const char* prefix_to_string(sf_size_prefix prefix) {
         case SF_PREFIX_QWORD: return "QWORD";
         default:              return "QWORD";
     }
+}
+
+static sf_stack_offset_size_t next_aligned_offset(sf_stack_offset_size_t current, uint8_t size) {
+    uint64_t pos = (uint64_t)(-current) + size;
+    pos = (pos + size - 1) / size * size;
+    return -(sf_stack_offset_size_t)pos;
 }
