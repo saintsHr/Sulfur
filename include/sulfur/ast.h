@@ -9,6 +9,7 @@ typedef enum {
     SF_NODE_PROGRAM,
     SF_NODE_VAR_DECL,
     SF_NODE_BINARY_EXPR,
+    SF_NODE_UNARY_EXPR,
     SF_NODE_LITERAL,
     SF_NODE_IDENTIFIER,
     SF_NODE_VAR_ASSIGN,
@@ -34,6 +35,7 @@ typedef enum {
     SF_OP_TYPE_SUB,
     SF_OP_TYPE_DIV,
     SF_OP_TYPE_MUL,
+    SF_OP_TYPE_NEGATE,
 } sf_operation_type;
 
 typedef struct {
@@ -60,6 +62,12 @@ typedef struct {
     sf_ast_node* right;
     sf_operation_type op;
 } sf_binary_expr_node;
+
+typedef struct {
+    sf_ast_node base;
+    sf_ast_node* operand;
+    sf_operation_type op;
+} sf_unary_expr_node;
 
 typedef struct {
     sf_ast_node base;
@@ -103,5 +111,6 @@ sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, s
 sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value);
 sf_var_assign_node* sf_new_var_assign(const char* name, sf_ast_node* value);
 sf_block_node* sf_new_block(void);
+sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op);
 
 void sf_free_ast(sf_ast_node* node);

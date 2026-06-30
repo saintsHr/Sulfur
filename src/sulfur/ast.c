@@ -17,6 +17,7 @@ static void free_literal(sf_ast_node* node);
 static void free_ident(sf_ast_node* node);
 static void free_program(sf_ast_node* node);
 static void free_binary_expr(sf_ast_node* node);
+static void free_unary_expr(sf_ast_node* node);
 static void free_block(sf_ast_node* node);
 
 static void print_var_assign(const sf_ast_node* node, int indent);
@@ -25,6 +26,7 @@ static void print_literal(const sf_ast_node* node, int indent);
 static void print_ident(const sf_ast_node* node, int indent);
 static void print_program(const sf_ast_node* node, int indent);
 static void print_binary_expr(const sf_ast_node* node, int indent);
+static void print_unary_expr(const sf_ast_node* node, int indent);
 static void print_block(const sf_ast_node* node, int indent);
 
 sf_program_node* sf_new_program() {
@@ -140,6 +142,16 @@ sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, s
     return node;
 }
 
+sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op) {
+    sf_unary_expr_node* node = malloc(sizeof(sf_unary_expr_node));
+
+    node->base.type = SF_NODE_UNARY_EXPR; 
+    node->op = op;
+    node->operand = operand;
+
+    return node;
+}
+
 sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value) {
     sf_var_decl_node* node = malloc(sizeof(sf_var_decl_node));
 
@@ -170,6 +182,7 @@ void sf_free_ast(sf_ast_node* node) {
         case SF_NODE_LITERAL: free_literal(node); break;
         case SF_NODE_IDENTIFIER: free_ident(node); break;
         case SF_NODE_BINARY_EXPR: free_binary_expr(node); break;
+        case SF_NODE_UNARY_EXPR: free_unary_expr(node); break;
         case SF_NODE_VAR_DECL: free_var_decl(node); break;
         case SF_NODE_VAR_ASSIGN: free_var_assign(node); break;
         case SF_NODE_PROGRAM: free_program(node); break;
@@ -191,6 +204,7 @@ static const char* op_to_string(sf_operation_type op) {
         case SF_OP_TYPE_SUB: return "-";
         case SF_OP_TYPE_MUL: return "*";
         case SF_OP_TYPE_DIV: return "/";
+        case SF_OP_TYPE_NEGATE: return "-";
 
         default: return "?";
     }
@@ -220,6 +234,7 @@ static void print_ast_node(sf_ast_node* node, int indent) {
         case SF_NODE_VAR_DECL: print_var_decl(node, indent); break;
         case SF_NODE_VAR_ASSIGN: print_var_assign(node, indent); break;
         case SF_NODE_BINARY_EXPR: print_binary_expr(node, indent); break;
+        case SF_NODE_UNARY_EXPR: print_unary_expr(node, indent); break;
         case SF_NODE_IDENTIFIER: print_ident(node, indent); break;
         case SF_NODE_LITERAL: print_literal(node, indent); break;
         case SF_NODE_BLOCK: print_block(node, indent); break;
@@ -273,6 +288,13 @@ static void free_binary_expr(sf_ast_node* node) {
     sf_free_ast(bin->left);
     sf_free_ast(bin->right);
     free(bin);
+}
+
+static void free_unary_expr(sf_ast_node* node) {
+    sf_unary_expr_node* un = (sf_unary_expr_node*)node;
+
+    sf_free_ast(un->operand);
+    free(un);
 }
 
 static void free_block(sf_ast_node* node) {
@@ -337,6 +359,15 @@ static void print_binary_expr(const sf_ast_node* node, int indent) {
 
     print_ast_node(bin->left, indent + 1);
     print_ast_node(bin->right, indent + 1);
+}
+
+static void print_unary_expr(const sf_ast_node* node, int indent) {
+    sf_unary_expr_node* un = (sf_unary_expr_node*)node;
+
+    print_indent(indent);
+    printf("Unary %s\n", op_to_string(un->op));
+
+    print_ast_node(un->operand, indent + 1);
 }
 
 static void print_block(const sf_ast_node* node, int indent) {

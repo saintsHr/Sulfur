@@ -140,6 +140,19 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		    return true;
 		}
 
+		case SF_NODE_UNARY_EXPR: {
+            sf_unary_expr_node* un = (sf_unary_expr_node*)node;
+
+            if (!analyze_expr(un->operand, expected, scope, filename)) return false;
+
+            sf_value_type child_type = un->operand->resolved;
+            if (child_type == SF_VAL_TYPE_UNRESOLVED) return false;
+            
+            node->resolved = child_type;
+
+            return true;
+        }
+
         case SF_NODE_LITERAL: {
         	sf_literal_node* lit = (sf_literal_node*)node;
 

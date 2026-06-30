@@ -13,8 +13,10 @@ static bool is_type(sf_token token);
 static bool is_ident(sf_token token);
 static bool is_block(sf_token token);
 
+static sf_ast_node* parse_unary(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, const char* filename);
+
 static sf_ast_node* parse_expression(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char* filename);
@@ -84,10 +86,20 @@ static bool is_block(sf_token token) {
     return (token.type == SF_TOKEN_TYPE_LBRACE);
 }
 
+static sf_ast_node* parse_unary(sf_token_list list, size_t* current, const char* filename) {
+    if (match(list, current, SF_TOKEN_TYPE_MINUS)) {
+        sf_ast_node* operand = parse_unary(list, current, filename);
+
+        return (sf_ast_node*)sf_new_unary_expr(operand, SF_OP_TYPE_NEGATE); 
+    }
+
+    return parse_primary(list, current, filename);
+}
+
 static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const char* filename) {
     if (match(list, current, SF_TOKEN_TYPE_LPAREN)) {
         sf_ast_node* expr = parse_expression(list, current, filename);
-        
+
         expect(list, current, SF_TOKEN_TYPE_RPAREN, filename);
         
         return expr;
@@ -119,14 +131,14 @@ static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const cha
 }
 
 static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, const char* filename) {
-    sf_ast_node* left = parse_primary(list, current, filename);
+    sf_ast_node* left = parse_unary(list, current, filename);
 
     while (
         list.tokens[*current].type == SF_TOKEN_TYPE_MULT ||
         list.tokens[*current].type == SF_TOKEN_TYPE_DIV
     ) {
         sf_token op = advance(list, current);
-        sf_ast_node* right = parse_primary(list, current, filename);
+        sf_ast_node* right = parse_unary(list, current, filename);
 
         sf_operation_type op_type = (op.type == SF_TOKEN_TYPE_MULT)
             ? SF_OP_TYPE_MUL

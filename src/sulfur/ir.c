@@ -35,14 +35,39 @@ void sf_print_ir(const sf_ir_program* program) {
 
         print_operand(op->destiny);
         printf(" = ");
-        print_operand(op->source1);
 
         switch (op->opcode) {
-            case SF_OPCODE_ADD:  printf(" + "); print_operand(op->source2); break;
-            case SF_OPCODE_SUB:  printf(" - "); print_operand(op->source2); break;
-            case SF_OPCODE_MULT: printf(" * "); print_operand(op->source2); break;
-            case SF_OPCODE_DIV:  printf(" / "); print_operand(op->source2); break;
-            case SF_OPCODE_ASSIGN: break;
+            case SF_OPCODE_ASSIGN: {
+                print_operand(op->source1);
+                break;
+            }
+
+            case SF_OPCODE_NEGATE: {
+                printf("neg "); 
+                print_operand(op->source1);
+
+                break;
+            }
+
+            case SF_OPCODE_ADD: {
+                print_operand(op->source1); printf(" + "); print_operand(op->source2); 
+                break;
+            }
+
+            case SF_OPCODE_SUB: {
+                print_operand(op->source1); printf(" - "); print_operand(op->source2); 
+                break;
+            }
+
+            case SF_OPCODE_MULT: {
+                print_operand(op->source1); printf(" * "); print_operand(op->source2); 
+                break;
+            }
+
+            case SF_OPCODE_DIV: {
+                print_operand(op->source1); printf(" / "); print_operand(op->source2); 
+                break;
+            }
         }
 
         printf("\n");
@@ -61,7 +86,11 @@ void sf_free_ir(sf_ir_program* program) {
             free(op->source1.variable_name);
         }
 
-        if (op->opcode != SF_OPCODE_ASSIGN && op->source2.type == SF_OPERAND_TYPE_VARIABLE) {
+        if (
+            op->opcode != SF_OPCODE_ASSIGN &&
+            op->opcode != SF_OPCODE_NEGATE &&
+            op->source2.type == SF_OPERAND_TYPE_VARIABLE
+        ) {
             free(op->source2.variable_name);
         }
     }
@@ -143,6 +172,27 @@ static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node,
         	);
 
         	break;
+        }
+
+        case SF_NODE_UNARY_EXPR: {
+            sf_unary_expr_node* un = (sf_unary_expr_node*)node;
+
+            sf_operand src = generate_expression(program, un->operand, depth);
+            sf_operand dst = new_temporary(program, node->resolved);
+
+            operand = dst;
+
+            push(
+                program,
+                (sf_operation){
+                    .opcode = SF_OPCODE_NEGATE,
+                    .destiny = dst,
+                    .source1 = src,
+                    .source2 = {0}
+                }
+            );
+
+            break;
         }
 
         case SF_NODE_LITERAL: {

@@ -15,6 +15,7 @@ typedef enum {
 	SF_OPCODE_DIV,
 	SF_OPCODE_MULT,
 	SF_OPCODE_ASSIGN,
+	SF_OPCODE_NEGATE,
 } sf_opcode;
 
 typedef struct {
