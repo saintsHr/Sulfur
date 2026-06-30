@@ -85,6 +85,14 @@ static bool is_block(sf_token token) {
 }
 
 static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const char* filename) {
+    if (match(list, current, SF_TOKEN_TYPE_LPAREN)) {
+        sf_ast_node* expr = parse_expression(list, current, filename);
+        
+        expect(list, current, SF_TOKEN_TYPE_RPAREN, filename);
+        
+        return expr;
+    }
+
     sf_token token = advance(list, current);
 
     if (token.type == SF_TOKEN_TYPE_INTEGER) {
@@ -227,9 +235,17 @@ static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char
 static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const char* filename) {
     sf_token token = list.tokens[*current];
 
-    if (is_type(token)) return parse_declaration(list, current, filename);
-    if (is_ident(token)) return parse_assign(list, current, filename);
-    if (is_block(token)) return parse_block(list, current, filename);
+    if (is_type(token)) {
+        return parse_declaration(list, current, filename);
+    }
+
+    if (is_ident(token)) {
+        return parse_assign(list, current, filename);
+    }
+
+    if (is_block(token)) {
+        return parse_block(list, current, filename);
+    }
 
     sf_log_helper(
         "Unexpected Token",

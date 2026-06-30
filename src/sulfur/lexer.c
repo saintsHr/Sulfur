@@ -201,6 +201,8 @@ static sf_token read_symbol(const char* input, int* i, int* col, int line) {
         case ';': tk.type = SF_TOKEN_TYPE_SEMICOLON; break;
         case '{': tk.type = SF_TOKEN_TYPE_LBRACE;    break;
         case '}': tk.type = SF_TOKEN_TYPE_RBRACE;    break;
+        case '(': tk.type = SF_TOKEN_TYPE_LPAREN;    break;
+        case ')': tk.type = SF_TOKEN_TYPE_RPAREN;    break;
 
         default:  return tk;
     }
