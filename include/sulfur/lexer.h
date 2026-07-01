@@ -1,8 +1,9 @@
 #pragma once
 
+#include "sulfur/util/span.h"
 #include <stddef.h>
 
-#define SF_MAX_TOKEN_VALUE_SIZE 64
+#define SF_MAX_TOKEN_VALUE_SIZE 255
 
 typedef enum {
     SF_TOKEN_TYPE_IDENTIFIER,
@@ -42,8 +43,7 @@ typedef enum {
 typedef struct {
     sf_token_type type;
     char value[SF_MAX_TOKEN_VALUE_SIZE];
-    int line;
-    int column;
+    sf_span span;
 } sf_token;
 
 typedef struct {
@@ -53,4 +53,6 @@ typedef struct {
 } sf_token_list;
 
 sf_token_list sf_tokenize(const char* input, const char* filename);
+
 void sf_print_tokens(const sf_token_list* list);
+const char* sf_token_type_name(sf_token_type type);

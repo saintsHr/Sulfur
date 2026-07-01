@@ -18,7 +18,6 @@ static char* apply_defines(sf_preprocessor_context* ctx, char* str, const char* 
 
 static void remove_carriage_return(char* str);
 static void remove_comments(char* str);
-static void remove_empty_lines(char* str);
 
 char* sf_preprocess(const char* src, long src_size, const char* filename) {
     sf_preprocessor_context ctx = {0};
@@ -26,13 +25,12 @@ char* sf_preprocess(const char* src, long src_size, const char* filename) {
     char* out = malloc(src_size + 1);
     if (!out) {
         sf_log_helper(
-            "Memory allocation failed",
-            "Preprocessor output memory allocation failed.",
-            "Make sure you have enough memory and try again.",
+            "memory allocation failed",
+            "failed to allocate memory for preprocessor output",
+            "free up memory and try again",
             "N/A",
             SF_PREP_CANNOT_MALLOC_OUTPUT,
-            0,
-            0,
+            (sf_span){0},
             SF_SEV_FATAL
         );
     }
@@ -52,8 +50,6 @@ char* sf_preprocess(const char* src, long src_size, const char* filename) {
     tmp = apply_defines(&ctx, out, filename);
     free(out);
     out = tmp;
-
-    remove_empty_lines(out);
 
     return out;
 }
@@ -83,15 +79,15 @@ static void ensure_capacity(
 
         if (!tmp) {
             sf_log_helper(
-                "Memory allocation failed",
-                "Cannot realloc memory for defines buffer.",
-                "Make sure you have enough memory and try again.",
+                "memory allocation failed",
+                "failed to grow buffer while processing defines",
+                "free up memory and try again",
                 filename,
                 SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
-                0,
-                0,
+                (sf_span){0},
                 SF_SEV_FATAL
             );
+            
             free(*buffer);
             return;
         }
@@ -104,13 +100,12 @@ static void ensure_capacity(
 static void parse_define(sf_preprocessor_context* ctx, char* line, const char* filename) {
     if (ctx->define_count >= SF_MAX_DEFINES) {
         sf_log_helper(
-            "Too many defines",
-            "file provided (%s) has too many defines",
-            "Remove useless defines.",
+            "too many defines",
+            "'%s' exceeds the maximum number of defines allowed",
+            "remove unused defines to stay under the limit",
             filename,
             SF_PREP_TOO_MANY_DEFINES,
-            0,
-            0,
+            (sf_span){0},
             SF_SEV_FATAL,
             filename
         );
@@ -166,6 +161,8 @@ static char* extract_defines(sf_preprocessor_context* ctx, char* str, const char
         if (strncmp(trim, DEFINE_KEYWORD, keywordLen) == 0 &&
             isspace((unsigned char)trim[keywordLen])) {
             parse_define(ctx, trim, filename);
+            ensure_capacity(&buffer, &write, &buffer_size, 1, filename);
+            *write++ = '\n';
         } else {
             size_t len = strlen(line);
             ensure_capacity(&buffer, &write, &buffer_size, len + 1, filename);
@@ -188,13 +185,12 @@ static char* apply_defines(sf_preprocessor_context* ctx, char* str, const char* 
 
     if (!buffer) {
         sf_log_helper(
-            "Memory allocation failed",
-            "Cannot allocate memory for defines buffer.",
-            "Make sure you have enough memory and try again.",
+            "memory allocation failed",
+            "failed to allocate memory for define expansion",
+            "free up memory and try again",
             filename,
             SF_PREP_CANNOT_MALLOC_DEFINES_BUFFER,
-            0,
-            0,
+            (sf_span){0},
             SF_SEV_FATAL
         );
         return NULL;
@@ -256,33 +252,6 @@ static void remove_comments(char* str) {
         if (*read == '/' && *(read + 1) == '/') {
             while (*read && *read != '\n') read++;
         } else {
-            *write++ = *read++;
-        }
-    }
-
-    *write = '\0';
-}
-
-static void remove_empty_lines(char* str) {
-    char* read = str;
-    char* write = str;
-
-    while (*read) {
-        char* lineStart = read;
-
-        while (isspace((unsigned char)*read) && *read != '\n') read++;
-
-        if (*read == '\n') {
-            read++;
-            continue;
-        }
-
-        read = lineStart;
-        while (*read && *read != '\n') {
-            *write++ = *read++;
-        }
-
-        if (*read == '\n') {
             *write++ = *read++;
         }
     }

@@ -1,17 +1,16 @@
 #pragma once
-
 #include <stdint.h>
 #include <stdarg.h>
+#include "sulfur/util/span.h"
 
-#define SF_COLOR_BLACK   "\x1b[30m"
-#define SF_COLOR_RED     "\x1b[31m"
-#define SF_COLOR_GREEN   "\x1b[32m"
-#define SF_COLOR_YELLOW  "\x1b[33m"
-#define SF_COLOR_BLUE    "\x1b[34m"
-#define SF_COLOR_MAGENTA "\x1b[35m"
-#define SF_COLOR_CYAN    "\x1b[36m"
-#define SF_COLOR_WHITE   "\x1b[37m"
-
+#define SF_COLOR_BLACK    "\x1b[30m"
+#define SF_COLOR_RED      "\x1b[31m"
+#define SF_COLOR_GREEN    "\x1b[32m"
+#define SF_COLOR_YELLOW   "\x1b[33m"
+#define SF_COLOR_BLUE     "\x1b[34m"
+#define SF_COLOR_MAGENTA  "\x1b[35m"
+#define SF_COLOR_CYAN     "\x1b[36m"
+#define SF_COLOR_WHITE    "\x1b[37m"
 #define SF_COLOR_BBLACK   "\x1b[90m"
 #define SF_COLOR_BRED     "\x1b[91m"
 #define SF_COLOR_BGREEN   "\x1b[92m"
@@ -20,8 +19,7 @@
 #define SF_COLOR_BMAGENTA "\x1b[95m"
 #define SF_COLOR_BCYAN    "\x1b[96m"
 #define SF_COLOR_BWHITE   "\x1b[97m"
-
-#define SF_COLOR_RESET "\x1b[0m"
+#define SF_COLOR_RESET    "\x1b[0m"
 
 #define SF_INDENT "   "
 
@@ -38,8 +36,7 @@ typedef struct {
     const char* hint;
     const char* file;
     uint16_t code;
-    int line;
-    int col;
+    sf_span span;
     sf_severity sev;
 } sf_log_info;
 
@@ -69,15 +66,17 @@ typedef enum {
     SF_SEMANTIC_INVALID_IMPLICIT_CAST = 0x5005,
 } sf_error_code;
 
+void sf_log_set_source(const char* filename, const char* content);
+
 void sf_log(sf_log_info info, ...);
+
 void sf_log_helper(
     const char* title,
     const char* desc,
     const char* hint,
     const char* file,
     uint16_t code,
-    int line,
-    int col,
+    sf_span span,
     sf_severity sev,
     ...
 );

@@ -35,6 +35,8 @@ int main(int argc, char* argv[]) {
 
     char* output = NULL;
 
+    sf_log_set_source(options.input_file, input);
+
     // stages
     sf_token_list tokens = {0};
     sf_program_node* ast = NULL;
@@ -79,13 +81,12 @@ static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {
         if (strcmp(argv[i], "-i") == 0) {
             if (!has_next || argv[i + 1][0] == '-') {
                 sf_log_helper(
-                    "No input file",
-                    "Input file not provided",
-                    "Choose a input file or remove the '-i' flag",
+                    "no input file",
+                    "no input file was provided after '-i'",
+                    "provide a filename after '-i', or remove the flag",
                     "N/A",
                     SF_MAIN_NO_INPUT_FILE,
-                    0,
-                    0,
+                    (sf_span){0},
                     SF_SEV_FATAL
                 );
             }
@@ -98,13 +99,12 @@ static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {
         if (strcmp(argv[i], "-o") == 0) {
             if (!has_next || argv[i + 1][0] == '-') {
                 sf_log_helper(
-                    "No output file",
-                    "Output file not provided",
-                    "Choose a output file or remove the '-o' flag",
+                    "no output file",
+                    "no output file was provided after '-o'",
+                    "provide a filename after '-o', or remove the flag",
                     "N/A",
                     SF_MAIN_NO_OUTPUT_FILE,
-                    0,
-                    0,
+                    (sf_span){0},
                     SF_SEV_FATAL
                 );
             }
@@ -115,13 +115,12 @@ static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {
         }
 
         sf_log_helper(
-            "Unknown flag",
-            "An unknown flag (%s) has been provided.",
-            "Try using the --help flag or removing this flag.",
+            "unknown flag",
+            "unrecognized flag '%s'",
+            "check available flags with --help, or remove this flag",
             "N/A",
             SF_MAIN_UNKNOWN_FLAG,
-            0,
-            0,
+            (sf_span){0},
             SF_SEV_FATAL,
             argv[i]
         );
@@ -134,13 +133,12 @@ static char* read_file(const char* filename, uint32_t* out_size) {
 
     if (file == NULL) {
         sf_log_helper(
-            "Cannot open file",
-            "Unable to open file (%s) provided.",
-            "Make sure you are providing the correct filename",
+            "cannot open file",
+            "unable to open file '%s' for reading",
+            "make sure the file exists and the path is correct",
             filename,
             SF_MAIN_CANNOT_OPEN_FILE,
-            0,
-            0,
+            (sf_span){0},
             SF_SEV_FATAL,
             filename
         );
@@ -157,13 +155,12 @@ static char* read_file(const char* filename, uint32_t* out_size) {
         fclose(file);
         
         sf_log_helper(
-            "Memory allocation failed",
-            "File read memory allocation failed.",
-            "Make sure you have enough memory and try again.",
+            "memory allocation failed",
+            "failed to allocate buffer to read file '%s'",
+            "free up memory and try again",
             filename,
             SF_MAIN_CANNOT_MALLOC_FILE_BUFFER,
-            0,
-            0,
+            (sf_span){0},
             SF_SEV_FATAL,
             filename
         );
@@ -181,13 +178,12 @@ void write_file(const char* filename, const char* content) {
 
     if (file == NULL) {
         sf_log_helper(
-            "Cannot open file.",
-            "Unable to open file (%s) provided.",
-            "Make sure you have enough disk space & write permission and try again.",
+            "cannot open file",
+            "unable to open file '%s' for writing",
+            "check disk space and write permissions, then try again",
             filename,
             SF_MAIN_CANNOT_OPEN_FILE,
-            0,
-            0,
+            (sf_span){0},
             SF_SEV_FATAL,
             filename
         );

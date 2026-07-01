@@ -1,7 +1,6 @@
 #pragma once
-
 #include "sulfur/lexer.h"
-
+#include "sulfur/util/span.h"
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -22,12 +21,10 @@ typedef enum {
     SF_VAL_TYPE_I16,
     SF_VAL_TYPE_I32,
     SF_VAL_TYPE_I64,
-
     SF_VAL_TYPE_U8,
     SF_VAL_TYPE_U16,
     SF_VAL_TYPE_U32,
     SF_VAL_TYPE_U64,
-
     SF_VAL_TYPE_UNRESOLVED,
 } sf_value_type;
 
@@ -42,6 +39,7 @@ typedef enum {
 typedef struct {
     sf_node_type type;
     sf_value_type resolved;
+    sf_span span;
 } sf_ast_node;
 
 typedef struct {
@@ -112,13 +110,13 @@ sf_program_node* sf_new_program();
 void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt);
 void sf_block_add_statement(sf_block_node* block, sf_ast_node* stmt);
 
-sf_literal_node* sf_new_literal(const char* value, sf_token_type tokenType);
-sf_identifier_node* sf_new_identifier(const char* name);
-sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, sf_operation_type op);
-sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value);
-sf_var_assign_node* sf_new_var_assign(const char* name, sf_ast_node* value);
-sf_block_node* sf_new_block(void);
-sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op);
-sf_cast_expr_node* sf_new_cast_expr(sf_ast_node* operand, sf_value_type target_type);
+sf_literal_node* sf_new_literal(const char* value, sf_token_type tokenType, sf_span span);
+sf_identifier_node* sf_new_identifier(const char* name, sf_span span);
+sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, sf_operation_type op, sf_span span);
+sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value, sf_span span);
+sf_var_assign_node* sf_new_var_assign(const char* name, sf_ast_node* value, sf_span span);
+sf_block_node* sf_new_block(sf_span span);
+sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op, sf_span span);
+sf_cast_expr_node* sf_new_cast_expr(sf_ast_node* operand, sf_value_type target_type, sf_span span);
 
 void sf_free_ast(sf_ast_node* node);

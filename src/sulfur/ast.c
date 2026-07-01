@@ -35,6 +35,7 @@ sf_program_node* sf_new_program() {
     sf_program_node* program = malloc(sizeof(sf_program_node));
 
     program->base.type = SF_NODE_PROGRAM;
+    program->base.span = (sf_span){0};
     program->statements = NULL;
     program->statement_count = 0;
     program->statement_capacity = 0;
@@ -42,10 +43,11 @@ sf_program_node* sf_new_program() {
     return program;
 }
 
-sf_block_node* sf_new_block() {
+sf_block_node* sf_new_block(sf_span span) {
     sf_block_node* block = malloc(sizeof(sf_block_node));
 
     block->base.type = SF_NODE_BLOCK;
+    block->base.span = span;
     block->statements = NULL;
     block->statement_count = 0;
     block->statement_capacity = 0;
@@ -69,8 +71,7 @@ void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt) {
                 "Make sure you have enough memory and try again.",
                 NULL,
                 SF_AST_REALLOC_FAILED,
-                0,
-                0,
+                (sf_span){0},
                 SF_SEV_FATAL,
                 "N/A"
             );
@@ -98,8 +99,7 @@ void sf_block_add_statement(sf_block_node* block, sf_ast_node* stmt) {
                 "Make sure you have enough memory and try again.",
                 NULL,
                 SF_AST_REALLOC_FAILED,
-                0,
-                0,
+                (sf_span){0},
                 SF_SEV_FATAL,
                 "N/A"
             );
@@ -111,32 +111,35 @@ void sf_block_add_statement(sf_block_node* block, sf_ast_node* stmt) {
     block->statements[block->statement_count++] = stmt;
 }
 
-sf_identifier_node* sf_new_identifier(const char* name) {
+sf_identifier_node* sf_new_identifier(const char* name, sf_span span) {
     sf_identifier_node* node = malloc(sizeof(sf_identifier_node));
 
     node->base.type = SF_NODE_IDENTIFIER;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+    node->base.span = span;
     node->name = strdup(name);
 
     return node;
 }
 
-sf_literal_node* sf_new_literal(const char* value, sf_token_type token_type) {
+sf_literal_node* sf_new_literal(const char* value, sf_token_type token_type, sf_span span) {
     sf_literal_node* node = malloc(sizeof(sf_literal_node));
 
     node->base.type = SF_NODE_LITERAL;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+    node->base.span = span;
     node->token_type = token_type;
     node->value = strdup(value);
 
     return node;
 }
 
-sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, sf_operation_type op) {
+sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, sf_operation_type op, sf_span span) {
     sf_binary_expr_node* node = malloc(sizeof(sf_binary_expr_node));
 
     node->base.type = SF_NODE_BINARY_EXPR;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+    node->base.span = span;
     node->left = left;
     node->right = right;
     node->op = op;
@@ -144,33 +147,36 @@ sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, s
     return node;
 }
 
-sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op) {
+sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op, sf_span span) {
     sf_unary_expr_node* node = malloc(sizeof(sf_unary_expr_node));
 
     node->base.type = SF_NODE_UNARY_EXPR;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+    node->base.span = span;
     node->op = op;
     node->operand = operand;
 
     return node;
 }
 
-sf_cast_expr_node* sf_new_cast_expr(sf_ast_node* operand, sf_value_type target_type) {
+sf_cast_expr_node* sf_new_cast_expr(sf_ast_node* operand, sf_value_type target_type, sf_span span) {
     sf_cast_expr_node* node = malloc(sizeof(sf_cast_expr_node));
 
     node->base.type = SF_NODE_CAST_EXPR;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+    node->base.span = span;
     node->target_type = target_type;
     node->operand = operand;
 
     return node;
 }
 
-sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value) {
+sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value, sf_span span) {
     sf_var_decl_node* node = malloc(sizeof(sf_var_decl_node));
 
     node->base.type = SF_NODE_VAR_DECL;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+    node->base.span = span;
     node->name = strdup(name);
     node->var_type = type;
     node->value = value;
@@ -178,11 +184,12 @@ sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_n
     return node;
 }
 
-sf_var_assign_node* sf_new_var_assign(const char* name, sf_ast_node* value) {
+sf_var_assign_node* sf_new_var_assign(const char* name, sf_ast_node* value, sf_span span) {
     sf_var_assign_node* node = malloc(sizeof(sf_var_assign_node));
 
     node->base.type = SF_NODE_VAR_ASSIGN;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+    node->base.span = span;
     node->name = strdup(name);
     node->value = value;
 

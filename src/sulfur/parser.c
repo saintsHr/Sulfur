@@ -53,14 +53,14 @@ static bool match(sf_token_list list, size_t* current, sf_token_type type) {
 static void expect(sf_token_list list, size_t* current, sf_token_type type, const char* filename) {
     if (!match(list, current, type)) {
         sf_log_helper(
-            "Unexpected Token",
-            "Unexpected token '%s'",
-            "Follow the language syntax",
+            "unexpected token",
+            "expected %s but found '%s'",
+            "check for a missing or misplaced token nearby",
             filename,
             SF_PARSER_UNEXPECTED_TOKEN,
-            list.tokens[*current].line,
-            list.tokens[*current].column,
+            list.tokens[*current].span,
             SF_SEV_FATAL,
+            sf_token_type_name(type),
             list.tokens[*current].value
         );
     }
@@ -89,10 +89,11 @@ static bool is_block(sf_token token) {
 }
 
 static sf_ast_node* parse_unary(sf_token_list list, size_t* current, const char* filename) {
+    sf_span minus_span = list.tokens[*current].span;
+
     if (match(list, current, SF_TOKEN_TYPE_MINUS)) {
         sf_ast_node* operand = parse_unary(list, current, filename);
-
-        return (sf_ast_node*)sf_new_unary_expr(operand, SF_OP_TYPE_NEGATE); 
+        return (sf_ast_node*)sf_new_unary_expr(operand, SF_OP_TYPE_NEGATE, minus_span);
     }
 
     return parse_primary(list, current, filename);
@@ -110,21 +111,20 @@ static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const cha
     sf_token token = advance(list, current);
 
     if (token.type == SF_TOKEN_TYPE_INTEGER) {
-        return (sf_ast_node*)sf_new_literal(token.value, token.type);
+        return (sf_ast_node*)sf_new_literal(token.value, token.type, token.span);
     }
 
     if (token.type == SF_TOKEN_TYPE_IDENTIFIER) {
-        return (sf_ast_node*)sf_new_identifier(token.value);
+        return (sf_ast_node*)sf_new_identifier(token.value, token.span);
     }
 
     sf_log_helper(
-        "Unexpected Token",
-        "Unexpected token '%s', expected a literal or identifier",
-        "Follow the language syntax",
+        "unexpected token",
+        "expected a literal or identifier but found '%s'",
+        "check for a missing or misplaced token nearby",
         filename,
         SF_PARSER_UNEXPECTED_TOKEN,
-        token.line,
-        token.column,
+        token.span,
         SF_SEV_FATAL,
         token.value
     );
@@ -146,7 +146,7 @@ static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, co
             ? SF_OP_TYPE_MUL
             : SF_OP_TYPE_DIV;
 
-        left = (sf_ast_node*)sf_new_binary_expr(left, right, op_type);
+        left = (sf_ast_node*)sf_new_binary_expr(left, right, op_type, op.span);
     }
 
     return left;
@@ -166,7 +166,7 @@ static sf_ast_node* parse_expression(sf_token_list list, size_t* current, const 
             ? SF_OP_TYPE_ADD
             : SF_OP_TYPE_SUB;
 
-        left = (sf_ast_node*)sf_new_binary_expr(left, right, op_type);
+        left = (sf_ast_node*)sf_new_binary_expr(left, right, op_type, op.span);
     }
 
     return left;
@@ -189,13 +189,12 @@ static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const
             
         default: 
             sf_log_helper(
-                "Unexpected Token",
-                "Unexpected token, expected a type keyword.",
-                "Follow the language syntax.",
+                "unexpected token",
+                "expected a type keyword but found '%s'",
+                "use any type keyword",
                 filename,
                 SF_PARSER_UNEXPECTED_TOKEN,
-                type_token.line,
-                type_token.column,
+                type_token.span,
                 SF_SEV_FATAL,
                 type_token.value
             );
@@ -215,7 +214,7 @@ static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const
 
     expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
 
-    return (sf_ast_node*)sf_new_var_decl(name, type, val);
+    return (sf_ast_node*)sf_new_var_decl(name, type, val, name_token.span);
 }
 
 static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char* filename) {
@@ -223,13 +222,12 @@ static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char
 
     if (name_token.type != SF_TOKEN_TYPE_IDENTIFIER) {
         sf_log_helper(
-            "Unexpected Token",
-            "Expected an identifier, got '%s'",
-            "Follow the language syntax",
+            "unexpected token",
+            "expected an identifier but found '%s'",
+            "check for a missing or misplaced token nearby",
             filename,
             SF_PARSER_UNEXPECTED_TOKEN,
-            name_token.line,
-            name_token.column,
+            name_token.span,
             SF_SEV_FATAL,
             name_token.value
         );
@@ -243,7 +241,7 @@ static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char
 
     expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename);
 
-    return (sf_ast_node*)sf_new_var_assign(name, val);
+    return (sf_ast_node*)sf_new_var_assign(name, val, name_token.span);
 }
 
 static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const char* filename) {
@@ -262,13 +260,12 @@ static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const c
     }
 
     sf_log_helper(
-        "Unexpected Token",
-        "Unexpected token '%s' at statement level",
-        "Follow the language syntax",
+        "unexpected token",
+        "unexpected '%s' at the start of a statement",
+        "a statement must start with a type, identifier, or '{'",
         filename,
         SF_PARSER_UNEXPECTED_TOKEN,
-        token.line,
-        token.column,
+        token.span,
         SF_SEV_FATAL,
         token.value
     );
@@ -277,7 +274,8 @@ static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const c
 }
 
 static sf_ast_node* parse_block(sf_token_list list, size_t* current, const char* filename) {
-    sf_block_node* block = sf_new_block();
+    sf_span block_span = list.tokens[*current].span;
+    sf_block_node* block = sf_new_block(block_span);
 
     expect(list, current, SF_TOKEN_TYPE_LBRACE, filename);
 
@@ -297,7 +295,10 @@ static sf_ast_node* parse_block(sf_token_list list, size_t* current, const char*
 static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* filename) {
     sf_ast_node* expr = parse_unary(list, current, filename);
 
-    while (match(list, current, SF_TOKEN_TYPE_KW_AS)) {
+    while (true) {
+        sf_span as_span = list.tokens[*current].span;
+        if (!match(list, current, SF_TOKEN_TYPE_KW_AS)) break;
+
         sf_token type_token = advance(list, current);
         sf_value_type target_type;
 
@@ -314,13 +315,12 @@ static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* 
                 
             default: 
                 sf_log_helper(
-                    "Unexpected Token",
-                    "Unexpected token, expected a type keyword.",
-                    "Follow the language syntax.",
+                    "unexpected token",
+                    "expected a type keyword after 'as' but found '%s'",
+                    "use any type keyword",
                     filename,
                     SF_PARSER_UNEXPECTED_TOKEN,
-                    type_token.line,
-                    type_token.column,
+                    type_token.span,
                     SF_SEV_FATAL,
                     type_token.value
                 );
@@ -329,7 +329,7 @@ static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* 
                 break;
         }
 
-        expr = (sf_ast_node*)sf_new_cast_expr(expr, target_type);
+        expr = (sf_ast_node*)sf_new_cast_expr(expr, target_type, as_span);
     }
 
     return expr;

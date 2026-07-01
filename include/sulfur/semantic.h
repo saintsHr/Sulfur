@@ -11,6 +11,7 @@ typedef struct {
     bool initialized;
     uint32_t depth;
     uint32_t id;
+    sf_span span;
 } sf_symbol;
 
 typedef struct {
