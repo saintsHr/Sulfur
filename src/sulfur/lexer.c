@@ -167,6 +167,8 @@ static sf_token_type resolve_keyword(const char* value) {
     if (strcmp(value, "u32") == 0) return SF_TOKEN_TYPE_KW_U32;
     if (strcmp(value, "u64") == 0) return SF_TOKEN_TYPE_KW_U64;
 
+    if (strcmp(value, "as") == 0) return SF_TOKEN_TYPE_KW_AS;
+
     return SF_TOKEN_TYPE_IDENTIFIER;
 }
 

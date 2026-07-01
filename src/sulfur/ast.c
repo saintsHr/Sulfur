@@ -19,6 +19,7 @@ static void free_program(sf_ast_node* node);
 static void free_binary_expr(sf_ast_node* node);
 static void free_unary_expr(sf_ast_node* node);
 static void free_block(sf_ast_node* node);
+static void free_cast_expr(sf_ast_node* node);
 
 static void print_var_assign(const sf_ast_node* node, int indent);
 static void print_var_decl(const sf_ast_node* node, int indent);
@@ -28,6 +29,7 @@ static void print_program(const sf_ast_node* node, int indent);
 static void print_binary_expr(const sf_ast_node* node, int indent);
 static void print_unary_expr(const sf_ast_node* node, int indent);
 static void print_block(const sf_ast_node* node, int indent);
+static void print_cast_expr(const sf_ast_node* node, int indent);
 
 sf_program_node* sf_new_program() {
     sf_program_node* program = malloc(sizeof(sf_program_node));
@@ -145,8 +147,20 @@ sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, s
 sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op) {
     sf_unary_expr_node* node = malloc(sizeof(sf_unary_expr_node));
 
-    node->base.type = SF_NODE_UNARY_EXPR; 
+    node->base.type = SF_NODE_UNARY_EXPR;
+    node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->op = op;
+    node->operand = operand;
+
+    return node;
+}
+
+sf_cast_expr_node* sf_new_cast_expr(sf_ast_node* operand, sf_value_type target_type) {
+    sf_cast_expr_node* node = malloc(sizeof(sf_cast_expr_node));
+
+    node->base.type = SF_NODE_CAST_EXPR;
+    node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+    node->target_type = target_type;
     node->operand = operand;
 
     return node;
@@ -187,6 +201,7 @@ void sf_free_ast(sf_ast_node* node) {
         case SF_NODE_VAR_ASSIGN: free_var_assign(node); break;
         case SF_NODE_PROGRAM: free_program(node); break;
         case SF_NODE_BLOCK: free_block(node); break;
+        case SF_NODE_CAST_EXPR: free_cast_expr(node); break;
     }
 }
 
@@ -210,7 +225,7 @@ static const char* op_to_string(sf_operation_type op) {
     }
 }
 
-static const char* sf_type_to_string(sf_value_type type) {
+static const char* type_to_string(sf_value_type type) {
     switch(type) {
         case SF_VAL_TYPE_I8:  return "i8";
         case SF_VAL_TYPE_I16: return "i16";
@@ -238,6 +253,7 @@ static void print_ast_node(sf_ast_node* node, int indent) {
         case SF_NODE_IDENTIFIER: print_ident(node, indent); break;
         case SF_NODE_LITERAL: print_literal(node, indent); break;
         case SF_NODE_BLOCK: print_block(node, indent); break;
+        case SF_NODE_CAST_EXPR: print_cast_expr(node, indent); break;
     }
 }
 
@@ -308,6 +324,14 @@ static void free_block(sf_ast_node* node) {
     free(block);
 }
 
+static void free_cast_expr(sf_ast_node* node) {
+    sf_cast_expr_node* cast = (sf_cast_expr_node*)node;
+
+    sf_free_ast(cast->operand);
+
+    free(cast);
+}
+
 static void print_var_assign(const sf_ast_node* node, int indent) {
     sf_var_assign_node* asg = (sf_var_assign_node*)node;
 
@@ -321,7 +345,7 @@ static void print_var_decl(const sf_ast_node* node, int indent) {
     sf_var_decl_node* var = (sf_var_decl_node*)node;
 
     print_indent(indent);
-    printf("VarDecl %s : %s\n", var->name, sf_type_to_string(var->var_type));
+    printf("VarDecl %s : %s\n", var->name, type_to_string(var->var_type));
 
     print_ast_node(var->value, indent + 1);
 }
@@ -379,4 +403,13 @@ static void print_block(const sf_ast_node* node, int indent) {
     for (size_t i = 0; i < block->statement_count; i++) {
         print_ast_node(block->statements[i], indent + 1);
     }
+}
+
+static void print_cast_expr(const sf_ast_node* node, int indent) {
+    sf_cast_expr_node* cast = (sf_cast_expr_node*)node;
+
+    print_indent(indent);
+    printf("Cast to %s\n", type_to_string(cast->target_type));
+
+    print_ast_node(cast->operand, indent + 1);
 }

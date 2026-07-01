@@ -33,6 +33,8 @@ typedef enum {
     SF_TOKEN_TYPE_KW_U32,
     SF_TOKEN_TYPE_KW_U64,
 
+    SF_TOKEN_TYPE_KW_AS,
+
     SF_TOKEN_TYPE_UNDEFINED,
     SF_TOKEN_TYPE_EOF,
 } sf_token_type;

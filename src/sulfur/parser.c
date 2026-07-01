@@ -13,14 +13,16 @@ static bool is_type(sf_token token);
 static bool is_ident(sf_token token);
 static bool is_block(sf_token token);
 
+static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const char* filename);
+static sf_ast_node* parse_expression(sf_token_list list, size_t* current, const char* filename);
+
 static sf_ast_node* parse_unary(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, const char* filename);
+static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* filename);
 
-static sf_ast_node* parse_expression(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char* filename);
-static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_block(sf_token_list list, size_t* current, const char* filename);
 
 sf_program_node* sf_parse(sf_token_list list, const char* filename) {
@@ -131,14 +133,14 @@ static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const cha
 }
 
 static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, const char* filename) {
-    sf_ast_node* left = parse_unary(list, current, filename);
+    sf_ast_node* left = parse_cast(list, current, filename);
 
     while (
         list.tokens[*current].type == SF_TOKEN_TYPE_MULT ||
         list.tokens[*current].type == SF_TOKEN_TYPE_DIV
     ) {
         sf_token op = advance(list, current);
-        sf_ast_node* right = parse_unary(list, current, filename);
+        sf_ast_node* right = parse_cast(list, current, filename);
 
         sf_operation_type op_type = (op.type == SF_TOKEN_TYPE_MULT)
             ? SF_OP_TYPE_MUL
@@ -290,4 +292,45 @@ static sf_ast_node* parse_block(sf_token_list list, size_t* current, const char*
     expect(list, current, SF_TOKEN_TYPE_RBRACE, filename);
 
     return (sf_ast_node*)block;
+}
+
+static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* filename) {
+    sf_ast_node* expr = parse_unary(list, current, filename);
+
+    while (match(list, current, SF_TOKEN_TYPE_KW_AS)) {
+        sf_token type_token = advance(list, current);
+        sf_value_type target_type;
+
+        switch (type_token.type) {
+            case SF_TOKEN_TYPE_KW_I8:  target_type = SF_VAL_TYPE_I8;     break;
+            case SF_TOKEN_TYPE_KW_I16: target_type = SF_VAL_TYPE_I16;    break;
+            case SF_TOKEN_TYPE_KW_I32: target_type = SF_VAL_TYPE_I32;    break;
+            case SF_TOKEN_TYPE_KW_I64: target_type = SF_VAL_TYPE_I64;    break;
+                
+            case SF_TOKEN_TYPE_KW_U8:  target_type = SF_VAL_TYPE_U8;     break;
+            case SF_TOKEN_TYPE_KW_U16: target_type = SF_VAL_TYPE_U16;    break;
+            case SF_TOKEN_TYPE_KW_U32: target_type = SF_VAL_TYPE_U32;    break;
+            case SF_TOKEN_TYPE_KW_U64: target_type = SF_VAL_TYPE_U64;    break;
+                
+            default: 
+                sf_log_helper(
+                    "Unexpected Token",
+                    "Unexpected token, expected a type keyword.",
+                    "Follow the language syntax.",
+                    filename,
+                    SF_PARSER_UNEXPECTED_TOKEN,
+                    type_token.line,
+                    type_token.column,
+                    SF_SEV_FATAL,
+                    type_token.value
+                );
+
+                return NULL;
+                break;
+        }
+
+        expr = (sf_ast_node*)sf_new_cast_expr(expr, target_type);
+    }
+
+    return expr;
 }

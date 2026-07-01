@@ -13,6 +13,7 @@ static sf_value_type type_promote(sf_value_type a, sf_value_type b);
 static bool is_type_unsigned(sf_value_type type);
 static bool is_type_signed(sf_value_type type);
 static bool is_types_same_group(sf_value_type a, sf_value_type b);
+static bool is_castable(sf_value_type from, sf_value_type to);
 
 static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* scope, const char* filename);
 static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* filename);
@@ -91,6 +92,10 @@ static bool is_types_same_group(sf_value_type a, sf_value_type b) {
     return false;
 }
 
+static bool is_castable(sf_value_type from, sf_value_type to) {
+	return true;
+}
+
 static int type_width(sf_value_type type) {
     switch (type) {
         case SF_VAL_TYPE_I8:  case SF_VAL_TYPE_U8:  return 8;
@@ -111,8 +116,8 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		    sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
 
 		    bool ok = true;
-		    ok &= analyze_expr(bin->left,  SF_VAL_TYPE_UNRESOLVED, scope, filename);
-		    ok &= analyze_expr(bin->right, SF_VAL_TYPE_UNRESOLVED, scope, filename);
+		    ok &= analyze_expr(bin->left,  expected, scope, filename);
+    		ok &= analyze_expr(bin->right, expected, scope, filename);
 
 		    if (!ok) return false;
 
@@ -125,7 +130,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		        sf_log_helper(
 		            "Type Mismatch",
 		            "Cannot mix '%s' and '%s' in binary expression",
-		            "cast both operands to the same type explicitly",
+		            "Cast both operands to the same type explicitly",
 		            filename,
 		            SF_SEMANTIC_TYPE_MISMATCH,
 		            0, 0,
@@ -153,6 +158,37 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
             return true;
         }
 
+        case SF_NODE_CAST_EXPR: {
+		    sf_cast_expr_node* cast = (sf_cast_expr_node*)node;
+
+		    if (!analyze_expr(cast->operand, SF_VAL_TYPE_UNRESOLVED, scope, filename)) return false;
+
+		    sf_value_type from_type = cast->operand->resolved;
+		    sf_value_type to_type = cast->target_type;
+
+		    if (from_type == SF_VAL_TYPE_UNRESOLVED) return false;
+
+		    if (is_castable(from_type, to_type)) {
+		    	node->resolved = cast->target_type;
+		    } else {
+		    	sf_log_helper(
+		            "Invalid Cast",
+		            "Cannot cast '%s' to '%s'",
+		            "Types provided are not castable between eachother.",
+		            filename,
+		            SF_SEMANTIC_INVALID_EXPLICIT_CAST,
+		            0, 0,
+		            SF_SEV_FATAL,
+		            value_type_name(from_type),
+		            value_type_name(to_type)
+		        );
+
+		        return false;
+		    }
+
+		    return true;
+		}
+
         case SF_NODE_LITERAL: {
         	sf_literal_node* lit = (sf_literal_node*)node;
 
@@ -173,7 +209,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 				sf_log_helper(
             		"Undeclared Symbol",
             		"Symbol '%s' is undeclared",
-			        "make sure the variable is declared and also isnt a typo",
+			        "Make sure the variable is declared and also isnt a typo",
 			        filename,
 			        SF_SEMANTIC_UNDECLARED,
 			        0, 0,
@@ -187,7 +223,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		        sf_log_helper(
 		            "Uninitialized Variable",
 		            "Variable '%s' is used before being initialized",
-		            "make sure the variable is assigned a value before using it",
+		            "Make sure the variable is assigned a value before using it",
 		            filename,
 		            SF_SEMANTIC_UNINITIALIZED,
 		            0, 0,
@@ -228,7 +264,7 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 			            sf_log_helper(
 			                "Type Mismatch",
 			                "Cannot assign '%s' expression to variable of type '%s'",
-			                "make sure the expression type matches the variable type",
+			                "Make sure the expression type matches the variable type or cast it",
 			                filename,
 			                SF_SEMANTIC_TYPE_MISMATCH,
 			                0, 0,
@@ -245,7 +281,7 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 			                "Cannot implicitly narrow '%s' to '%s'",
 			                "explicitly cast the value or use a wider type",
 			                filename,
-			                SF_SEMANTIC_TYPE_MISMATCH,
+			                SF_SEMANTIC_INVALID_IMPLICIT_CAST,
 			                0, 0,
 			                SF_SEV_FATAL,
 			                value_type_name(resolved),

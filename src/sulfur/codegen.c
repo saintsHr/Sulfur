@@ -28,6 +28,7 @@ static void emit_sub(char** buff, size_t* len, size_t* capacity, sf_operation op
 static void emit_mult(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
 static void emit_div(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
 static void emit_neg(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
+static void emit_cast(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
 
 static bool is_signed(sf_value_type type);
 
@@ -94,6 +95,7 @@ char* sf_generate_assembly(const sf_ir_program* program) {
             case SF_OPCODE_DIV: emit_div(&as, &as_len, &as_capacity, op, &map); break;
             case SF_OPCODE_ASSIGN: emit_assign(&as, &as_len, &as_capacity, op, &map); break;
             case SF_OPCODE_NEGATE: emit_neg(&as, &as_len, &as_capacity, op, &map); break;
+            case SF_OPCODE_CAST: emit_cast(&as, &as_len, &as_capacity, op, &map); break;
 
             default: break;
         }
@@ -301,7 +303,8 @@ static void emit_assign(char** buff, size_t* len, size_t* capacity, sf_operation
             }
             emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
         } else {
-            emitf(buff, len, capacity, "\tmov rax, %s\n", src1_fmt);
+            const char* src_reg_str = register_to_string(register_from_size(src1_size));
+            emitf(buff, len, capacity, "\tmov %s, %s\n", src_reg_str, src1_fmt);
             emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
         }
     }
@@ -409,6 +412,38 @@ static void emit_neg(char** buff, size_t* len, size_t* capacity, sf_operation op
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
     emitf(buff, len, capacity, "\tneg %s\n", reg_str);
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_cast(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map) {
+    char src1_fmt[256], dst_fmt[256];
+    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    uint8_t src1_size = size_from_type(op.source1.value_type);
+    uint8_t dst_size = size_from_type(op.destiny.value_type);
+
+    uint8_t size = dst_size;
+    const char* dst_reg_str = register_to_string(register_from_size(size));
+
+    if (op.source1.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        emitf(buff, len, capacity, "\tmov %s, %s\n", dst_reg_str, src1_fmt);
+        emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
+    } else if (src1_size == dst_size) {
+        emitf(buff, len, capacity, "\tmov %s, %s\n", dst_reg_str, src1_fmt);
+        emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
+    } else if (src1_size < dst_size) {
+        if (is_signed(op.source1.value_type)) {
+            emitf(buff, len, capacity, "\tmovsx %s, %s\n", dst_reg_str, src1_fmt);
+        }
+        if (!is_signed(op.source1.value_type)){
+            emitf(buff, len, capacity, "\tmovzx %s, %s\n", dst_reg_str, src1_fmt);
+        }
+        emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
+    } else if (src1_size > dst_size) {
+        const char* src_reg_str = register_to_string(register_from_size(src1_size));
+        emitf(buff, len, capacity, "\tmov %s, %s\n", src_reg_str, src1_fmt);
+        emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
+    }
 }
 
 static uint8_t size_from_type(sf_value_type type) {
