@@ -103,7 +103,7 @@ char* sf_generate_assembly(const sf_ir_program* program) {
         push_string("\n", &as, &as_len, &as_capacity);
     }
 
-    push_string("\n\tmov rsp, rbp\n", &as, &as_len, &as_capacity);
+    push_string("\tmov rsp, rbp\n", &as, &as_len, &as_capacity);
     push_string("\tpop rbp\n\n", &as, &as_len, &as_capacity);
 
     push_string("\tmov rax, 60\n", &as, &as_len, &as_capacity);
