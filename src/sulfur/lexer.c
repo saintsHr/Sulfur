@@ -40,10 +40,14 @@ sf_token_list sf_tokenize(const char* input, const char* filename) {
         }
 
         if (isdigit(c)) {
-            add_token(
-                &list,
-                read_number(input, &i, &col, line)
-            );
+            sf_token tk = read_number(input, &i, &col, line);
+
+            if (tk.type == SF_TOKEN_TYPE_UNDEFINED) {
+                undefined(&list, input, &i, &col, line, filename);
+            } else {
+                add_token(&list, tk);
+            }
+
             continue;
         }
 

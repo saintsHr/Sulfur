@@ -466,6 +466,8 @@ static void scope_insert(sf_scope* scope, sf_symbol symbol, const char* filename
 		    SF_SEV_ERROR,
 		    symbol.name
 		);
+
+		return;
     }
 
     symbol.id    = scope->next_id++;
