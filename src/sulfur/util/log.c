@@ -1,29 +1,26 @@
 #include "sulfur/util/log.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 static void emit_log(sf_log_info info, va_list args);
+static void sf_log_internal(sf_log_info info, ...);
 static void print_source_snippet(sf_span span, const char* msg);
 static const char* find_line(const char* content, uint32_t target_line, size_t* out_len);
 
 static const char* g_source_filename = NULL;
 static const char* g_source_content  = NULL;
+static bool g_had_fatal = false;
+static uint8_t g_error_count = 0;
 
 void sf_log_set_source(const char* filename, const char* content) {
     g_source_filename = filename;
     g_source_content  = content;
 }
 
-void sf_log(sf_log_info info, ...) {
-    va_list args;
-    va_start(args, info);
-    emit_log(info, args);
-    va_end(args);
-}
-
-void sf_log_helper(
+void sf_log(
     const char* title,
     const char* desc,
     const char* hint,
@@ -48,6 +45,18 @@ void sf_log_helper(
     emit_log(l, args);
     va_end(args);
 }
+
+void sf_log_init(void) {
+    g_had_fatal = false;
+}
+
+bool sf_log_had_fatal(void) {
+    return g_had_fatal;
+}
+
+bool sf_log_had_errors(void) {
+    return g_error_count > 0;
+};
 
 static const char* find_line(const char* content, uint32_t target_line, size_t* out_len) {
     if (!content) return NULL;
@@ -118,6 +127,7 @@ static void print_source_snippet(sf_span span, const char* msg) {
 
 static void emit_log(sf_log_info info, va_list args) {
     const char *sevStr = "";
+    
     switch (info.sev) {
         case SF_SEV_INFO:    sevStr = SF_COLOR_BCYAN    "info"    SF_COLOR_RESET; break;
         case SF_SEV_WARNING: sevStr = SF_COLOR_BMAGENTA "warning" SF_COLOR_RESET; break;
@@ -166,5 +176,13 @@ static void emit_log(sf_log_info info, va_list args) {
 
     printf("\n");
 
-    if (info.sev == SF_SEV_FATAL) exit(EXIT_FAILURE);
+    if (info.sev == SF_SEV_ERROR || info.sev == SF_SEV_FATAL) g_error_count++;
+    if (info.sev == SF_SEV_FATAL) g_had_fatal = true;
+}
+
+static void sf_log_internal(sf_log_info info, ...) {
+    va_list args;
+    va_start(args, info);
+    emit_log(info, args);
+    va_end(args);
 }

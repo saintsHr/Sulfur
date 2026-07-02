@@ -24,7 +24,7 @@ char* sf_preprocess(const char* src, long src_size, const char* filename) {
 
     char* out = malloc(src_size + 1);
     if (!out) {
-        sf_log_helper(
+        sf_log(
             "memory allocation failed",
             "failed to allocate memory for preprocessor output",
             "free up memory and try again",
@@ -78,7 +78,7 @@ static void ensure_capacity(
         char* tmp = realloc(*buffer, *buffer_size);
 
         if (!tmp) {
-            sf_log_helper(
+            sf_log(
                 "memory allocation failed",
                 "failed to grow buffer while processing defines",
                 "free up memory and try again",
@@ -99,7 +99,7 @@ static void ensure_capacity(
 
 static void parse_define(sf_preprocessor_context* ctx, char* line, const char* filename) {
     if (ctx->define_count >= SF_MAX_DEFINES) {
-        sf_log_helper(
+        sf_log(
             "too many defines",
             "'%s' exceeds the maximum number of defines allowed",
             "remove unused defines to stay under the limit",
@@ -184,7 +184,7 @@ static char* apply_defines(sf_preprocessor_context* ctx, char* str, const char* 
     char* buffer = malloc(buffer_size);
 
     if (!buffer) {
-        sf_log_helper(
+        sf_log(
             "memory allocation failed",
             "failed to allocate memory for define expansion",
             "free up memory and try again",

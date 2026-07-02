@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
     char* output = NULL;
 
     sf_log_set_source(options.input_file, input);
+    sf_log_init();
 
     // stages
     sf_token_list tokens = {0};
@@ -45,11 +46,24 @@ int main(int argc, char* argv[]) {
     
     // compilation pipeline
     output = sf_preprocess(input, inputSize, options.input_file);
+    if (sf_log_had_fatal()) return EXIT_FAILURE;
+
     tokens = sf_tokenize(output, options.input_file);
+    if (sf_log_had_fatal()) return EXIT_FAILURE;
+
     ast = sf_parse(tokens, options.input_file);
+    if (sf_log_had_fatal()) return EXIT_FAILURE;
+
     sf_analyze(ast, options.input_file);
+    if (sf_log_had_fatal()) return EXIT_FAILURE;
+
     ir = sf_generate_ir(ast);
+    if (sf_log_had_fatal()) return EXIT_FAILURE;
+
     assembly = sf_generate_assembly(&ir);
+    if (sf_log_had_fatal()) return EXIT_FAILURE;
+
+    if (sf_log_had_errors()) return EXIT_FAILURE;
 
     // debug
     printf("%s", input);
@@ -80,7 +94,7 @@ static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {
 
         if (strcmp(argv[i], "-i") == 0) {
             if (!has_next || argv[i + 1][0] == '-') {
-                sf_log_helper(
+                sf_log(
                     "no input file",
                     "no input file was provided after '-i'",
                     "provide a filename after '-i', or remove the flag",
@@ -98,7 +112,7 @@ static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {
 
         if (strcmp(argv[i], "-o") == 0) {
             if (!has_next || argv[i + 1][0] == '-') {
-                sf_log_helper(
+                sf_log(
                     "no output file",
                     "no output file was provided after '-o'",
                     "provide a filename after '-o', or remove the flag",
@@ -114,7 +128,7 @@ static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {
             continue;
         }
 
-        sf_log_helper(
+        sf_log(
             "unknown flag",
             "unrecognized flag '%s'",
             "check available flags with --help, or remove this flag",
@@ -132,7 +146,7 @@ static char* read_file(const char* filename, uint32_t* out_size) {
     FILE* file = fopen(filename, "rb");
 
     if (file == NULL) {
-        sf_log_helper(
+        sf_log(
             "cannot open file",
             "unable to open file '%s' for reading",
             "make sure the file exists and the path is correct",
@@ -154,7 +168,7 @@ static char* read_file(const char* filename, uint32_t* out_size) {
     if (content == NULL) {
         fclose(file);
         
-        sf_log_helper(
+        sf_log(
             "memory allocation failed",
             "failed to allocate buffer to read file '%s'",
             "free up memory and try again",
@@ -177,7 +191,7 @@ void write_file(const char* filename, const char* content) {
     FILE* file = fopen(filename, "wb");
 
     if (file == NULL) {
-        sf_log_helper(
+        sf_log(
             "cannot open file",
             "unable to open file '%s' for writing",
             "check disk space and write permissions, then try again",

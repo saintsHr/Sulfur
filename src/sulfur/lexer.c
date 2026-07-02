@@ -142,7 +142,7 @@ static void undefined(sf_token_list* list, const char* input, int* i, int* col, 
     tk.span.len = (uint8_t)j;
     add_token(list, tk);
 
-    sf_log_helper(
+    sf_log(
         "undefined token",
         "unrecognized token '%s' in source file",
         "check for typos or invalid characters, and follow the language grammar",

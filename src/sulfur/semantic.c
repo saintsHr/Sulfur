@@ -127,14 +127,14 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		    if (ltype == SF_VAL_TYPE_UNRESOLVED || rtype == SF_VAL_TYPE_UNRESOLVED) return false;
 
 		    if (!is_types_same_group(ltype, rtype)) {
-		        sf_log_helper(
+		        sf_log(
 				    "type mismatch",
 				    "cannot mix '%s' and '%s' in the same expression",
 				    "cast one of the operands to match the other's type",
 				    filename,
 				    SF_SEMANTIC_TYPE_MISMATCH,
 				    node->span,
-				    SF_SEV_FATAL,
+				    SF_SEV_ERROR,
 				    value_type_name(ltype),
 				    value_type_name(rtype)
 				);
@@ -172,14 +172,14 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		    if (is_castable(from_type, to_type)) {
 		    	node->resolved = cast->target_type;
 		    } else {
-		    	sf_log_helper(
+		    	sf_log(
 				    "invalid cast",
 				    "cannot cast '%s' to '%s'",
 				    "these types are not compatible for casting",
 				    filename,
 				    SF_SEMANTIC_INVALID_EXPLICIT_CAST,
 				    node->span,
-				    SF_SEV_FATAL,
+				    SF_SEV_ERROR,
 				    value_type_name(from_type),
 				    value_type_name(to_type)
 				);
@@ -207,28 +207,28 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
         	sf_symbol* sym = scope_lookup(scope, id->name);
 
 			if (sym == NULL) {
-				sf_log_helper(
+				sf_log(
 				    "undeclared symbol",
 				    "'%s' is not declared in this scope",
 				    "check for typos, or declare the variable before using it",
 				    filename,
 				    SF_SEMANTIC_UNDECLARED,
 				    node->span,
-				    SF_SEV_FATAL,
+				    SF_SEV_ERROR,
 				    id->name
 				);
 			    return false;
 			}
 
 			if (!sym->initialized) {
-		        sf_log_helper(
+		        sf_log(
 				    "uninitialized variable",
 				    "'%s' is used before being initialized",
 				    "assign a value to the variable before using it",
 				    filename,
 				    SF_SEMANTIC_UNINITIALIZED,
 				    node->span,
-				    SF_SEV_FATAL,
+				    SF_SEV_ERROR,
 				    id->name
 				);
 		        return false;
@@ -263,14 +263,14 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 
 			    if (resolved != SF_VAL_TYPE_UNRESOLVED) {
 			        if (!is_types_same_group(resolved, var->var_type)) {
-			            sf_log_helper(
+			            sf_log(
 						    "type mismatch",
 						    "cannot assign '%s' to a variable of type '%s'",
 						    "make sure the expression type matches the variable type, or cast it",
 						    filename,
 						    SF_SEMANTIC_TYPE_MISMATCH,
 						    var->base.span,
-						    SF_SEV_FATAL,
+						    SF_SEV_ERROR,
 						    value_type_name(resolved),
 						    value_type_name(var->var_type)
 						);
@@ -279,14 +279,14 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 			        }
 
 			        if (type_width(resolved) > type_width(var->var_type)) {
-			            sf_log_helper(
+			            sf_log(
 						    "narrowing conversion",
 						    "cannot implicitly narrow '%s' to '%s'",
 						    "cast the value explicitly, or use a wider variable type",
 						    filename,
 						    SF_SEMANTIC_INVALID_IMPLICIT_CAST,
 						    var->base.span,
-						    SF_SEV_FATAL,
+						    SF_SEV_ERROR,
 						    value_type_name(resolved),
 						    value_type_name(var->var_type)
 						);
@@ -309,14 +309,14 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
         	sf_symbol* sym = scope_lookup(scope, asg->name);
 
         	if (sym == NULL) {
-        		sf_log_helper(
+        		sf_log(
 				    "undeclared symbol",
 				    "'%s' is not declared in this scope",
 				    "check for typos, or declare the variable before assigning to it",
 				    filename,
 				    SF_SEMANTIC_UNDECLARED,
 				    asg->base.span,
-				    SF_SEV_FATAL,
+				    SF_SEV_ERROR,
 				    asg->name
 				);
 
@@ -331,14 +331,14 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 
         	if (resolved != SF_VAL_TYPE_UNRESOLVED) {
         	    if (!is_types_same_group(resolved, sym->type)) {
-        	        sf_log_helper(
+        	        sf_log(
 					    "type mismatch",
 					    "cannot assign '%s' to a variable of type '%s'",
 					    "make sure the expression type matches the variable type, or cast it",
 					    filename,
 					    SF_SEMANTIC_TYPE_MISMATCH,
 					    asg->base.span,
-					    SF_SEV_FATAL,
+					    SF_SEV_ERROR,
 					    value_type_name(resolved),
 					    value_type_name(sym->type)
 					);
@@ -347,14 +347,14 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
         	    }
 
         	    if (type_width(resolved) > type_width(sym->type)) {
-        	        sf_log_helper(
+        	        sf_log(
 					    "narrowing conversion",
 					    "cannot implicitly narrow '%s' to '%s'",
 					    "cast the value explicitly, or use a wider variable type",
 					    filename,
 					    SF_SEMANTIC_TYPE_MISMATCH,
 					    asg->base.span,
-					    SF_SEV_FATAL,
+					    SF_SEV_ERROR,
 					    value_type_name(resolved),
 					    value_type_name(sym->type)
 					);
@@ -456,14 +456,14 @@ static void scope_insert(sf_scope* scope, sf_symbol symbol, const char* filename
 	sf_symbol* sym = symbol_table_lookup(&scope->stack[scope->depth - 1], symbol.name);
 
 	if (sym != NULL) {
-        sf_log_helper(
+        sf_log(
 		    "symbol redefinition",
 		    "'%s' is already declared in this scope",
 		    "rename the new variable, or remove the duplicate declaration",
 		    filename,
 		    SF_SEMANTIC_REDECLARATION,
 		    symbol.span,
-		    SF_SEV_FATAL,
+		    SF_SEV_ERROR,
 		    symbol.name
 		);
     }

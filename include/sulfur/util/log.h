@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
 #include <stdarg.h>
+#include <stdbool.h>
+
 #include "sulfur/util/span.h"
 
 #define SF_COLOR_BLACK    "\x1b[30m"
@@ -68,9 +70,7 @@ typedef enum {
 
 void sf_log_set_source(const char* filename, const char* content);
 
-void sf_log(sf_log_info info, ...);
-
-void sf_log_helper(
+void sf_log(
     const char* title,
     const char* desc,
     const char* hint,
@@ -80,3 +80,7 @@ void sf_log_helper(
     sf_severity sev,
     ...
 );
+
+void sf_log_init(void);
+bool sf_log_had_fatal(void);
+bool sf_log_had_errors(void);
