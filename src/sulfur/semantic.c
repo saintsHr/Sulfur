@@ -4,11 +4,14 @@
 #include "sulfur/semantic.h"
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char* value_type_name(sf_value_type type);
-static int type_width(sf_value_type type);
+static uint8_t type_width(sf_value_type type);
 static sf_value_type type_promote(sf_value_type a, sf_value_type b);
+
+static uint32_t levenshtein_distance(const char* a, const char* b);
 
 static bool is_type_unsigned(sf_value_type type);
 static bool is_type_signed(sf_value_type type);
@@ -29,6 +32,7 @@ static void scope_pop(sf_scope* scope);
 static sf_symbol* scope_lookup(sf_scope* scope, const char* name);
 static void scope_insert(sf_scope* scope, sf_symbol symbol, const char* filename);
 static void scope_free(sf_scope* scope);
+static const char* scope_find_closest(sf_scope* scope, const char* name);
 
 void sf_analyze(sf_program_node* program, const char* filename) {
 	sf_scope scope;
@@ -96,7 +100,7 @@ static bool is_castable(sf_value_type from, sf_value_type to) {
 	return true;
 }
 
-static int type_width(sf_value_type type) {
+static uint8_t type_width(sf_value_type type) {
     switch (type) {
         case SF_VAL_TYPE_I8:  case SF_VAL_TYPE_U8:  return 8;
         case SF_VAL_TYPE_I16: case SF_VAL_TYPE_U16: return 16;
@@ -108,6 +112,41 @@ static int type_width(sf_value_type type) {
 
 static sf_value_type type_promote(sf_value_type a, sf_value_type b) {
     return type_width(a) >= type_width(b) ? a : b;
+}
+
+static uint32_t levenshtein_distance(const char* a, const char* b) {
+	uint32_t a_len = strlen(a);
+	uint32_t b_len = strlen(b);
+	uint32_t dp[a_len + 1][b_len + 1];
+
+	// fills the firsts lines and columns (distance to empty string)
+	for (uint32_t i = 0; i <= b_len; i++) {
+		dp[0][i] = i;
+	}
+	for (uint32_t i = 0; i <= a_len; i++) {
+		dp[i][0] = i;
+	}
+
+	// fills distance in the remaining grid cells
+	for (uint32_t i = 1; i <= a_len; i++) {
+		for (uint32_t j = 1; j <= b_len; j++) {
+			if (a[i - 1] == b[j - 1]) {
+				dp[i][j] = dp[i - 1][j - 1];
+			} else {
+				uint32_t sub = dp[i - 1][j - 1];
+				uint32_t del = dp[i - 1][j];
+				uint32_t ins = dp[i][j - 1];
+
+				uint32_t min = sub;
+				if (del < min) min = del;
+				if (ins < min) min = ins;
+
+				dp[i][j] = 1 + min;
+			}
+		}
+	}
+
+	return dp[a_len][b_len];
 }
 
 static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* scope, const char* filename) {
@@ -207,16 +246,33 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
         	sf_symbol* sym = scope_lookup(scope, id->name);
 
 			if (sym == NULL) {
-				sf_log(
-				    "undeclared symbol",
-				    "'%s' is not declared in this scope",
-				    "check for typos, or declare the variable before using it",
-				    filename,
-				    SF_SEMANTIC_UNDECLARED,
-				    node->span,
-				    SF_SEV_ERROR,
-				    id->name
-				);
+				const char* closest = scope_find_closest(scope, id->name);
+
+				if (closest != NULL) {
+					sf_log(
+					    "undeclared symbol",
+					    "'%s' is not declared in this scope",
+					    "did u mean '%s'?",
+					    filename,
+					    SF_SEMANTIC_UNDECLARED,
+					    node->span,
+					    SF_SEV_ERROR,
+					    id->name,
+					    closest
+					);
+				} else {
+					sf_log(
+					    "undeclared symbol",
+					    "'%s' is not declared in this scope",
+					    "check for typos, or declare the variable before using it",
+					    filename,
+					    SF_SEMANTIC_UNDECLARED,
+					    node->span,
+					    SF_SEV_ERROR,
+					    id->name
+					);
+				}
+
 			    return false;
 			}
 
@@ -309,16 +365,32 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
         	sf_symbol* sym = scope_lookup(scope, asg->name);
 
         	if (sym == NULL) {
-        		sf_log(
-				    "undeclared symbol",
-				    "'%s' is not declared in this scope",
-				    "check for typos, or declare the variable before assigning to it",
-				    filename,
-				    SF_SEMANTIC_UNDECLARED,
-				    asg->base.span,
-				    SF_SEV_ERROR,
-				    asg->name
-				);
+        		const char* closest = scope_find_closest(scope, asg->name);
+
+				if (closest != NULL) {
+					sf_log(
+					    "undeclared symbol",
+					    "'%s' is not declared in this scope",
+					    "did u mean '%s'?",
+					    filename,
+					    SF_SEMANTIC_UNDECLARED,
+					    node->span,
+					    SF_SEV_ERROR,
+					    asg->name,
+					    closest
+					);
+				} else {
+					sf_log(
+					    "undeclared symbol",
+					    "'%s' is not declared in this scope",
+					    "check for typos, or declare the variable before assigning it",
+					    filename,
+					    SF_SEMANTIC_UNDECLARED,
+					    node->span,
+					    SF_SEV_ERROR,
+					    asg->name
+					);
+				}
 
 			    break;
         	}
@@ -484,4 +556,26 @@ static void scope_free(sf_scope* scope) {
 	scope->depth = 0;
 	scope->capacity = 0;
 	scope->stack = NULL;
+}
+
+static const char* scope_find_closest(sf_scope* scope, const char* name) {
+	const char* best_candidate = NULL;
+	uint32_t minimal_distance = UINT32_MAX;
+
+	for (int32_t i = scope->depth - 1; i >= 0; i--) {
+		for (uint32_t j = 0; j < scope->stack[i].count; j++) {
+			sf_symbol* sym = &scope->stack[i].symbols[j];
+			uint32_t distance = levenshtein_distance(sym->name, name);
+
+			if (distance < minimal_distance) {
+				minimal_distance = distance;
+				best_candidate = sym->name;
+			}
+		}
+	}
+
+	static const uint32_t threshold = 2;
+	if (minimal_distance > strlen(name) / threshold) return NULL;
+
+	return best_candidate;
 }

@@ -1,5 +1,6 @@
 #include "sulfur/util/log.h"
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +10,7 @@ static void emit_log(sf_log_info info, va_list args);
 static void sf_log_internal(sf_log_info info, ...);
 static void print_source_snippet(sf_span span, const char* msg);
 static const char* find_line(const char* content, uint32_t target_line, size_t* out_len);
+static void format_into(char* buf, size_t buf_size, size_t* buf_pos, const char* fmt, va_list args);
 
 static const char* g_source_filename = NULL;
 static const char* g_source_content  = NULL;
@@ -139,21 +141,46 @@ static void emit_log(sf_log_info info, va_list args) {
     char descBuffer[1024];
     char hintBuffer[1024];
 
-    va_list args2, args3;
-    va_copy(args2, args);
-    va_copy(args3, args);
+    size_t pos;
 
-    if (info.title) vsnprintf(titleBuffer, sizeof(titleBuffer), info.title, args);
-    else titleBuffer[0] = '\0';
+    pos = 0;
+    if (info.title) {
+        format_into(
+            titleBuffer,
+            sizeof(titleBuffer),
+            &pos,
+            info.title,
+            args
+        );
+    } else {
+        titleBuffer[0] = '\0';
+    }
 
-    if (info.desc) vsnprintf(descBuffer, sizeof(descBuffer), info.desc, args2);
-    else descBuffer[0] = '\0';
+    pos = 0;
+    if (info.desc) {
+        format_into(
+            descBuffer,
+            sizeof(descBuffer),
+            &pos,
+            info.desc,
+            args
+        );
+    } else {
+        descBuffer[0] = '\0';
+    }
 
-    if (info.hint) vsnprintf(hintBuffer, sizeof(hintBuffer), info.hint, args3);
-    else hintBuffer[0] = '\0';
-
-    va_end(args2);
-    va_end(args3);
+    pos = 0;
+    if (info.hint) {
+        format_into(
+            hintBuffer,
+            sizeof(hintBuffer),
+            &pos,
+            info.hint,
+            args
+        );
+    } else {
+        hintBuffer[0] = '\0';
+    }
 
     printf(
         "%s " SF_COLOR_BBLACK "[0x%04x]" SF_COLOR_RESET ": %s\n",
@@ -185,4 +212,174 @@ static void sf_log_internal(sf_log_info info, ...) {
     va_start(args, info);
     emit_log(info, args);
     va_end(args);
+}
+
+static void format_into(char* buf, size_t buf_size, size_t* buf_pos, const char* fmt, va_list args) {
+    if (!fmt) return;
+    char num_buf[64];
+    char spec_buf[32];
+
+    for (const char* p = fmt; *p != '\0'; p++) {
+        if (*p != '%') {
+            if (*buf_pos < buf_size - 1) buf[(*buf_pos)++] = *p;
+            continue;
+        }
+
+        const char* spec_start = p;
+        p++;
+        if (*p == '\0') break;
+
+        while (*p == '-' || *p == '0' || *p == '+' || *p == ' ' || *p == '#') p++;
+
+        while (*p >= '0' && *p <= '9') p++;
+
+        if (*p == '.') {
+            p++;
+            while (*p >= '0' && *p <= '9') p++;
+        }
+
+        int len_mod = 0;
+        if (*p == 'l') {
+            p++;
+            if (*p == 'l') { len_mod = 2; p++; }
+            else len_mod = 1;
+        } else if (*p == 'h') {
+            p++;
+            if (*p == 'h') { len_mod = -2; p++; }
+            else len_mod = -1;
+        } else if (*p == 'z') {
+            len_mod = 3;
+            p++;
+        }
+
+        if (*p == '\0') break;
+
+        size_t prefix_len = (size_t)(p - spec_start);
+        char flags_width_prec[24];
+        {
+            const char* q = spec_start + 1;
+            size_t k = 0;
+            while ((*q == '-' || *q == '0' || *q == '+' || *q == ' ' || *q == '#' ||
+                    (*q >= '0' && *q <= '9') || *q == '.') && k < sizeof(flags_width_prec) - 1) {
+                flags_width_prec[k++] = *q;
+                q++;
+            }
+            flags_width_prec[k] = '\0';
+        }
+
+        switch (*p) {
+            case 's': {
+                const char* s = va_arg(args, const char*);
+                if (!s) s = "(null)";
+                snprintf(spec_buf, sizeof(spec_buf), "%%%ss", flags_width_prec);
+                int n = snprintf(num_buf, sizeof(num_buf), spec_buf, s);
+                size_t space = buf_size - 1 - *buf_pos;
+                size_t to_copy = (size_t)n < space ? (size_t)n : space;
+                memcpy(buf + *buf_pos, num_buf, to_copy);
+                *buf_pos += to_copy;
+                break;
+            }
+
+            case 'd':
+            case 'i': {
+                int n;
+                if (len_mod == 2) {
+                    long long v = va_arg(args, long long);
+                    snprintf(spec_buf, sizeof(spec_buf), "%%%slld", flags_width_prec);
+                    n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
+                } else if (len_mod == 1) {
+                    long v = va_arg(args, long);
+                    snprintf(spec_buf, sizeof(spec_buf), "%%%sld", flags_width_prec);
+                    n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
+                } else if (len_mod == 3) {
+                    ptrdiff_t v = va_arg(args, ptrdiff_t);
+                    snprintf(spec_buf, sizeof(spec_buf), "%%%std", flags_width_prec);
+                    n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
+                } else {
+                    int v = va_arg(args, int);
+                    snprintf(spec_buf, sizeof(spec_buf), "%%%sd", flags_width_prec);
+                    n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
+                }
+                size_t space = buf_size - 1 - *buf_pos;
+                size_t to_copy = (size_t)n < space ? (size_t)n : space;
+                memcpy(buf + *buf_pos, num_buf, to_copy);
+                *buf_pos += to_copy;
+                break;
+            }
+
+            case 'u':
+            case 'x':
+            case 'X':
+            case 'o': {
+                char conv = *p;
+                int n;
+                if (len_mod == 2) {
+                    unsigned long long v = va_arg(args, unsigned long long);
+                    snprintf(spec_buf, sizeof(spec_buf), "%%%sll%c", flags_width_prec, conv);
+                    n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
+                } else if (len_mod == 1) {
+                    unsigned long v = va_arg(args, unsigned long);
+                    snprintf(spec_buf, sizeof(spec_buf), "%%%sl%c", flags_width_prec, conv);
+                    n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
+                } else if (len_mod == 3) {
+                    size_t v = va_arg(args, size_t);
+                    snprintf(spec_buf, sizeof(spec_buf), "%%%sz%c", flags_width_prec, conv);
+                    n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
+                } else {
+                    unsigned int v = va_arg(args, unsigned int);
+                    snprintf(spec_buf, sizeof(spec_buf), "%%%s%c", flags_width_prec, conv);
+                    n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
+                }
+                size_t space = buf_size - 1 - *buf_pos;
+                size_t to_copy = (size_t)n < space ? (size_t)n : space;
+                memcpy(buf + *buf_pos, num_buf, to_copy);
+                *buf_pos += to_copy;
+                break;
+            }
+
+            case 'f':
+            case 'e':
+            case 'E':
+            case 'g':
+            case 'G': {
+                double v = va_arg(args, double);
+                snprintf(spec_buf, sizeof(spec_buf), "%%%s%c", flags_width_prec, *p);
+                int n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
+                size_t space = buf_size - 1 - *buf_pos;
+                size_t to_copy = (size_t)n < space ? (size_t)n : space;
+                memcpy(buf + *buf_pos, num_buf, to_copy);
+                *buf_pos += to_copy;
+                break;
+            }
+
+            case 'p': {
+                void* v = va_arg(args, void*);
+                int n = snprintf(num_buf, sizeof(num_buf), "%p", v);
+                size_t space = buf_size - 1 - *buf_pos;
+                size_t to_copy = (size_t)n < space ? (size_t)n : space;
+                memcpy(buf + *buf_pos, num_buf, to_copy);
+                *buf_pos += to_copy;
+                break;
+            }
+
+            case 'c': {
+                int v = va_arg(args, int);
+                if (*buf_pos < buf_size - 1) buf[(*buf_pos)++] = (char)v;
+                break;
+            }
+
+            case '%': {
+                if (*buf_pos < buf_size - 1) buf[(*buf_pos)++] = '%';
+                break;
+            }
+
+            default: {
+                if (*buf_pos < buf_size - 1) buf[(*buf_pos)++] = '%';
+                if (*buf_pos < buf_size - 1) buf[(*buf_pos)++] = *p;
+                break;
+            }
+        }
+    }
+
+    buf[*buf_pos < buf_size ? *buf_pos : buf_size - 1] = '\0';
 }
