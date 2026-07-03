@@ -2,6 +2,7 @@
 #include "sulfur/util/log.h"
 
 #include <ctype.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -178,28 +179,88 @@ static sf_token read_number(const char* input, int* i, int* col, int line) {
     int start_i   = *i;
     int start_col = *col;
 
-    sf_token tk = make_token(SF_TOKEN_TYPE_INTEGER, (sf_span){ .line = line, .col = *col, .len = 0 });
-
-    int j = 0;
-
-    while (isdigit(input[*i])) {
-        if (j < SF_MAX_TOKEN_VALUE_SIZE - 1) {
-            tk.value[j++] = input[*i];
+    sf_token tk = make_token(
+        SF_TOKEN_TYPE_INTEGER,
+        (sf_span){
+            .line = line,
+            .col = *col,
+            .len = 0
         }
+    );
+
+    unsigned long long value = 0;
+    int base = 10;
+
+    if (input[*i] == '0') {
+        char next = input[*i + 1];
+
+        if (next == 'x' || next == 'X') {
+            base = 16;
+            (*i) += 2;
+            (*col) += 2;
+        } else if (next == 'b' || next == 'B') {
+            base = 2;
+            (*i) += 2;
+            (*col) += 2;
+        }
+    }
+
+    bool has_digit = false;
+
+    while (input[*i] != '\0') {
+        char c = input[*i];
+        int digit = -1;
+
+        if (base == 10) {
+            if (isdigit(c)) digit = c - '0';
+        }
+        else if (base == 16) {
+            if (isdigit(c)) digit = c - '0';
+            else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+            else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+        }
+        else if (base == 2) {
+            if (c == '0' || c == '1') digit = c - '0';
+        }
+
+        if (digit == -1)
+            break;
+
+        has_digit = true;
+
+        value = value * base + digit;
 
         (*i)++;
         (*col)++;
     }
 
-    tk.value[j] = '\0';
-    tk.span.len = (uint8_t)j;
+    if (!has_digit) {
+        return make_token(
+            SF_TOKEN_TYPE_UNDEFINED,
+            (sf_span){
+                .line = line,
+                .col = start_col,
+                .len = 0
+            }
+        );
+    }
 
-    if (isalpha(input[*i])) {
-        *i   = start_i;
-        *col = start_col;
-        tk.type     = SF_TOKEN_TYPE_UNDEFINED;
-        tk.value[0] = '\0';
-        tk.span.len = 0;
+    if (*i == start_i) {
+        return make_token(
+            SF_TOKEN_TYPE_UNDEFINED,
+            (sf_span){
+                .line = line,
+                .col = start_col,
+                .len = 0
+            }
+        );
+    }
+
+    snprintf(tk.value, SF_MAX_TOKEN_VALUE_SIZE, "%llu", value);
+    tk.span.len = (uint8_t)strlen(tk.value);
+
+    if (isalnum(input[*i]) || input[*i] == '_') {
+        tk.type = SF_TOKEN_TYPE_UNDEFINED;
     }
 
     return tk;
