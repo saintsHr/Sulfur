@@ -99,6 +99,12 @@ void sf_print_ir(const sf_ir_program* program) {
                 print_operand(op->source1); printf(" << "); print_operand(op->source2); 
                 break;
             }
+
+            case SF_OPCODE_BITWISE_NOT: {
+                printf("not ");
+                print_operand(op->source1); 
+                break;
+            }
         }
 
         printf("\n");
@@ -180,7 +186,8 @@ static sf_opcode optype_to_opcode(sf_operation_type type) {
         case SF_OP_TYPE_BITWISE_OR:     op = SF_OPCODE_BITWISE_OR;     break;
         case SF_OP_TYPE_BITWISE_XOR:    op = SF_OPCODE_BITWISE_XOR;    break;
         case SF_OP_TYPE_BITWISE_RSHIFT: op = SF_OPCODE_BITWISE_RSHIFT; break;
-	    case SF_OP_TYPE_BITWISE_LSHIFT: op = SF_OPCODE_BITWISE_LSHIFT; break;
+        case SF_OP_TYPE_BITWISE_LSHIFT: op = SF_OPCODE_BITWISE_LSHIFT; break;
+	    case SF_OP_TYPE_BITWISE_NOT:    op = SF_OPCODE_BITWISE_NOT;    break;
 
 	    default: break;
 	}
@@ -205,10 +212,10 @@ static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node,
         	push(
         		program,
         		(sf_operation){
-        			.opcode=optype_to_opcode(ex->op),
-        			.destiny=dst,
-        			.source1=left,
-        			.source2=right
+        			.opcode = optype_to_opcode(ex->op),
+        			.destiny = dst,
+        			.source1 = left,
+        			.source2 = right
         		}
         	);
 
@@ -226,7 +233,7 @@ static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node,
             push(
                 program,
                 (sf_operation){
-                    .opcode = SF_OPCODE_NEGATE,
+                    .opcode = optype_to_opcode(un->op),
                     .destiny = dst,
                     .source1 = src,
                     .source2 = {0}

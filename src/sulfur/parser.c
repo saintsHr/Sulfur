@@ -167,13 +167,28 @@ static sf_ast_node* parse_unary(sf_token_list list, size_t* current, const char*
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
-    sf_span minus_span = list.tokens[*current].span;
+    sf_span span = list.tokens[*current].span;
 
     if (match(list, current, SF_TOKEN_TYPE_MINUS)) {
         sf_ast_node* operand = parse_unary(list, current, filename);
         if (operand == NULL) return NULL;
 
-        return (sf_ast_node*)sf_new_unary_expr(operand, SF_OP_TYPE_NEGATE, minus_span);
+        return (sf_ast_node*)sf_new_unary_expr(
+            operand,
+            SF_OP_TYPE_NEGATE,
+            span
+        );
+    }
+
+    if (match(list, current, SF_TOKEN_TYPE_TILDE)) {
+        sf_ast_node* operand = parse_unary(list, current, filename);
+        if (operand == NULL) return NULL;
+
+        return (sf_ast_node*)sf_new_unary_expr(
+            operand,
+            SF_OP_TYPE_BITWISE_NOT,
+            span
+        );
     }
 
     return parse_primary(list, current, filename);
