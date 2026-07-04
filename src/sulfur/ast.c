@@ -226,7 +226,14 @@ static const char* op_to_string(sf_operation_type op) {
         case SF_OP_TYPE_SUB: return "-";
         case SF_OP_TYPE_MUL: return "*";
         case SF_OP_TYPE_DIV: return "/";
+
         case SF_OP_TYPE_NEGATE: return "-";
+
+        case SF_OP_TYPE_BITWISE_AND: return "&";
+        case SF_OP_TYPE_BITWISE_OR: return "|";
+        case SF_OP_TYPE_BITWISE_XOR: return "^";
+        case SF_OP_TYPE_BITWISE_RSHIFT: return ">>";
+        case SF_OP_TYPE_BITWISE_LSHIFT: return "<<";
 
         default: return "?";
     }

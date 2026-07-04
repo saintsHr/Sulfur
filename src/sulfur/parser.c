@@ -19,12 +19,11 @@ static bool is_block(sf_token token);
 
 static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_expression(sf_token_list list, size_t* current, const char* filename);
-
 static sf_ast_node* parse_unary(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* filename);
-
+static sf_ast_node* parse_bitwise(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_block(sf_token_list list, size_t* current, const char* filename);
@@ -231,7 +230,7 @@ static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, co
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
-    sf_ast_node* left = parse_cast(list, current, filename);
+    sf_ast_node* left = parse_bitwise(list, current, filename);
     if (left == NULL) return NULL;
 
     while (
@@ -240,7 +239,7 @@ static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, co
     ) {
         sf_token op = advance(list, current);
 
-        sf_ast_node* right = parse_cast(list, current, filename);
+        sf_ast_node* right = parse_bitwise(list, current, filename);
         if (right == NULL) return NULL;
 
         sf_operation_type op_type = (op.type == SF_TOKEN_TYPE_MULT)
@@ -338,7 +337,7 @@ static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const
     sf_ast_node* val = NULL;
 
     if (match(list, current, SF_TOKEN_TYPE_EQUALS)) {
-        val = parse_expression(list, current, filename);
+        val = parse_bitwise(list, current, filename);
         if (val == NULL) {
             recover_statement(list, current);
             return NULL;
@@ -385,7 +384,7 @@ static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char
         return NULL;
     }
 
-    sf_ast_node* val = parse_expression(list, current, filename);
+    sf_ast_node* val = parse_bitwise(list, current, filename);
 
     if (val == NULL) {
         recover_statement(list, current);
@@ -515,4 +514,63 @@ static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* 
     }
 
     return expr;
+}
+
+static sf_ast_node* parse_bitwise(sf_token_list list, size_t* current, const char* filename) {
+    if (filename == NULL) return NULL;
+    if (current == NULL) return NULL;
+
+    sf_ast_node* left = parse_cast(list, current, filename);
+    if (left == NULL) return NULL;
+
+    while (
+        list.tokens[*current].type == SF_TOKEN_TYPE_AMPERSAND ||
+        list.tokens[*current].type == SF_TOKEN_TYPE_PIPE ||
+        list.tokens[*current].type == SF_TOKEN_TYPE_CARET ||
+        list.tokens[*current].type == SF_TOKEN_TYPE_RIGHT_SHIFT ||
+        list.tokens[*current].type == SF_TOKEN_TYPE_LEFT_SHIFT
+    ) {
+        sf_token op = advance(list, current);
+
+        sf_ast_node* right = parse_cast(list, current, filename);
+        if (right == NULL) return NULL;
+
+        sf_operation_type op_type;
+
+        switch (op.type) {
+            case SF_TOKEN_TYPE_AMPERSAND:
+                op_type = SF_OP_TYPE_BITWISE_AND;
+                break;
+
+            case SF_TOKEN_TYPE_PIPE:
+                op_type = SF_OP_TYPE_BITWISE_OR;
+                break;
+
+            case SF_TOKEN_TYPE_CARET:
+                op_type = SF_OP_TYPE_BITWISE_XOR;
+                break;
+
+            case SF_TOKEN_TYPE_RIGHT_SHIFT:
+                op_type = SF_OP_TYPE_BITWISE_RSHIFT;
+                break;
+
+            case SF_TOKEN_TYPE_LEFT_SHIFT:
+                op_type = SF_OP_TYPE_BITWISE_LSHIFT;
+                break;
+
+            default:
+                return NULL;
+        }
+
+        left = (sf_ast_node*)sf_new_binary_expr(
+            left,
+            right,
+            op_type,
+            op.span
+        );
+
+        if (left == NULL) return NULL;
+    }
+
+    return left;
 }

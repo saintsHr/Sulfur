@@ -156,7 +156,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 
 		    bool ok = true;
 		    ok &= analyze_expr(bin->left,  expected, scope, filename);
-    		ok &= analyze_expr(bin->right, expected, scope, filename);
+		    ok &= analyze_expr(bin->right, expected, scope, filename);
 
 		    if (!ok) return false;
 
@@ -165,19 +165,34 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 
 		    if (ltype == SF_VAL_TYPE_UNRESOLVED || rtype == SF_VAL_TYPE_UNRESOLVED) return false;
 
+		    bool is_shift = (
+		    	bin->op == SF_OP_TYPE_BITWISE_LSHIFT ||
+		    	bin->op == SF_OP_TYPE_BITWISE_RSHIFT
+		    );
+
+		    bool is_bitwise_logical = (
+		    	bin->op == SF_OP_TYPE_BITWISE_AND || 
+		        bin->op == SF_OP_TYPE_BITWISE_OR  || 
+		        bin->op == SF_OP_TYPE_BITWISE_XOR
+		    );
+
+		    if (is_shift) {
+		        node->resolved = ltype;
+		        return true;
+		    }
+
 		    if (!is_types_same_group(ltype, rtype)) {
 		        sf_log(
-				    "type mismatch",
-				    "cannot mix '%s' and '%s' in the same expression",
-				    "cast one of the operands to match the other's type",
-				    filename,
-				    SF_SEMANTIC_TYPE_MISMATCH,
-				    node->span,
-				    SF_SEV_ERROR,
-				    value_type_name(ltype),
-				    value_type_name(rtype)
-				);
-
+		            "type mismatch",
+		            "cannot mix '%s' and '%s' in the same expression",
+		            "cast one of the operands to match the other's type",
+		            filename,
+		            SF_SEMANTIC_TYPE_MISMATCH,
+		            node->span,
+		            SF_SEV_ERROR,
+		            value_type_name(ltype),
+		            value_type_name(rtype)
+		        );
 		        return false;
 		    }
 

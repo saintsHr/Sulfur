@@ -63,8 +63,6 @@ int main(int argc, char* argv[]) {
     assembly = sf_generate_assembly(&ir);
     if (sf_log_had_fatal()) return EXIT_FAILURE;
 
-    if (sf_log_had_errors()) return EXIT_FAILURE;
-
     // debug
     printf("%s", input);
     printf("\n\n");
@@ -75,6 +73,8 @@ int main(int argc, char* argv[]) {
     sf_print_ir(&ir);
     printf("\n\n");
     printf("%s", assembly);
+
+    if (sf_log_had_errors()) return EXIT_FAILURE;
 
     // writes to output
     output = assembly;

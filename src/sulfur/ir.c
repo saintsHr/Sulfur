@@ -74,6 +74,31 @@ void sf_print_ir(const sf_ir_program* program) {
                 print_operand(op->source1); printf(" / "); print_operand(op->source2); 
                 break;
             }
+
+            case SF_OPCODE_BITWISE_AND: {
+                print_operand(op->source1); printf(" & "); print_operand(op->source2); 
+                break;
+            }
+
+            case SF_OPCODE_BITWISE_OR: {
+                print_operand(op->source1); printf(" | "); print_operand(op->source2); 
+                break;
+            }
+
+            case SF_OPCODE_BITWISE_XOR: {
+                print_operand(op->source1); printf(" ^ "); print_operand(op->source2); 
+                break;
+            }
+
+            case SF_OPCODE_BITWISE_RSHIFT: {
+                print_operand(op->source1); printf(" >> "); print_operand(op->source2); 
+                break;
+            }
+
+            case SF_OPCODE_BITWISE_LSHIFT: {
+                print_operand(op->source1); printf(" << "); print_operand(op->source2); 
+                break;
+            }
         }
 
         printf("\n");
@@ -144,10 +169,19 @@ static sf_opcode optype_to_opcode(sf_operation_type type) {
 	sf_opcode op;
 
 	switch (type) {
-	    case SF_OP_TYPE_ADD: op = SF_OPCODE_ADD; break;
-	    case SF_OP_TYPE_SUB: op = SF_OPCODE_SUB; break;
+	    case SF_OP_TYPE_ADD: op = SF_OPCODE_ADD;  break;
+	    case SF_OP_TYPE_SUB: op = SF_OPCODE_SUB;  break;
 	    case SF_OP_TYPE_MUL: op = SF_OPCODE_MULT; break;
-	    case SF_OP_TYPE_DIV: op = SF_OPCODE_DIV; break;
+        case SF_OP_TYPE_DIV: op = SF_OPCODE_DIV;  break;
+
+        case SF_OP_TYPE_NEGATE: op = SF_OPCODE_NEGATE; break;
+
+        case SF_OP_TYPE_BITWISE_AND:    op = SF_OPCODE_BITWISE_AND;    break;
+        case SF_OP_TYPE_BITWISE_OR:     op = SF_OPCODE_BITWISE_OR;     break;
+        case SF_OP_TYPE_BITWISE_XOR:    op = SF_OPCODE_BITWISE_XOR;    break;
+        case SF_OP_TYPE_BITWISE_RSHIFT: op = SF_OPCODE_BITWISE_RSHIFT; break;
+	    case SF_OP_TYPE_BITWISE_LSHIFT: op = SF_OPCODE_BITWISE_LSHIFT; break;
+
 	    default: break;
 	}
 

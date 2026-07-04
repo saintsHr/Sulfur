@@ -33,7 +33,14 @@ typedef enum {
     SF_OP_TYPE_SUB,
     SF_OP_TYPE_DIV,
     SF_OP_TYPE_MUL,
+
     SF_OP_TYPE_NEGATE,
+
+    SF_OP_TYPE_BITWISE_AND,
+    SF_OP_TYPE_BITWISE_OR,
+    SF_OP_TYPE_BITWISE_XOR,
+    SF_OP_TYPE_BITWISE_RSHIFT,
+    SF_OP_TYPE_BITWISE_LSHIFT,
 } sf_operation_type;
 
 typedef struct {

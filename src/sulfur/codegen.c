@@ -23,12 +23,20 @@ static void map_operand(sf_stack_map* map, sf_operand op, sf_stack_offset_size_t
 static void emitf(char** buff, size_t* len, size_t* capacity, const char* format, ...);
 
 static void emit_assign(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
+
 static void emit_add(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
 static void emit_sub(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
 static void emit_mult(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
 static void emit_div(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
+
 static void emit_neg(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
 static void emit_cast(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
+
+static void emit_bitwise_and(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
+static void emit_bitwise_or(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
+static void emit_bitwise_xor(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
+static void emit_bitwise_rshift(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
+static void emit_bitwise_lshift(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map);
 
 static bool is_signed(sf_value_type type);
 
@@ -89,13 +97,22 @@ char* sf_generate_assembly(const sf_ir_program* program) {
         sf_operation op = program->operations[i];
 
         switch (op.opcode) {
-            case SF_OPCODE_ADD: emit_add(&as, &as_len, &as_capacity, op, &map); break;
-            case SF_OPCODE_SUB: emit_sub(&as, &as_len, &as_capacity, op, &map); break;
+            case SF_OPCODE_ADD: emit_add(&as, &as_len, &as_capacity, op, &map);   break;
+            case SF_OPCODE_SUB: emit_sub(&as, &as_len, &as_capacity, op, &map);   break;
             case SF_OPCODE_MULT: emit_mult(&as, &as_len, &as_capacity, op, &map); break;
-            case SF_OPCODE_DIV: emit_div(&as, &as_len, &as_capacity, op, &map); break;
+            case SF_OPCODE_DIV: emit_div(&as, &as_len, &as_capacity, op, &map);   break;
+
             case SF_OPCODE_ASSIGN: emit_assign(&as, &as_len, &as_capacity, op, &map); break;
+            
             case SF_OPCODE_NEGATE: emit_neg(&as, &as_len, &as_capacity, op, &map); break;
+            
             case SF_OPCODE_CAST: emit_cast(&as, &as_len, &as_capacity, op, &map); break;
+
+            case SF_OPCODE_BITWISE_AND:    emit_bitwise_and(&as, &as_len, &as_capacity, op, &map);    break;
+            case SF_OPCODE_BITWISE_OR:     emit_bitwise_or(&as, &as_len, &as_capacity, op, &map);     break;
+            case SF_OPCODE_BITWISE_XOR:    emit_bitwise_xor(&as, &as_len, &as_capacity, op, &map);    break;
+            case SF_OPCODE_BITWISE_RSHIFT: emit_bitwise_rshift(&as, &as_len, &as_capacity, op, &map); break;
+            case SF_OPCODE_BITWISE_LSHIFT: emit_bitwise_lshift(&as, &as_len, &as_capacity, op, &map); break;
 
             default: break;
         }
@@ -444,6 +461,98 @@ static void emit_cast(char** buff, size_t* len, size_t* capacity, sf_operation o
         emitf(buff, len, capacity, "\tmov %s, %s\n", src_reg_str, src1_fmt);
         emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
     }
+}
+
+static void emit_bitwise_and(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    uint8_t size = size_from_type(op.destiny.value_type);
+    const char* reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emitf(buff, len, capacity, "\tand %s, %s\n", reg_str, src2_fmt);
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_bitwise_or(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    uint8_t size = size_from_type(op.destiny.value_type);
+    const char* reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emitf(buff, len, capacity, "\tor %s, %s\n", reg_str, src2_fmt);
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_bitwise_xor(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    uint8_t size = size_from_type(op.destiny.value_type);
+    const char* reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emitf(buff, len, capacity, "\txor %s, %s\n", reg_str, src2_fmt);
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_bitwise_rshift(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    uint8_t size = size_from_type(op.destiny.value_type);
+    const char* reg_str = register_to_string(register_from_size(size));
+    
+    const char* shift_instr = is_signed(op.destiny.value_type) ? "sar" : "shr";
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+
+    if (op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        emitf(buff, len, capacity, "\t%s %s, %s\n", shift_instr, reg_str, src2_fmt);
+    } else {
+        uint8_t src2_size = size_from_type(op.source2.value_type);
+        const char* rcx_variant = (src2_size == 8) ? "rcx" : (src2_size == 4) ? "ecx" : (src2_size == 2) ? "cx" : "cl";
+        
+        emitf(buff, len, capacity, "\tmov %s, %s\n", rcx_variant, src2_fmt);
+        emitf(buff, len, capacity, "\t%s %s, cl\n", shift_instr, reg_str);
+    }
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_bitwise_lshift(char** buff, size_t* len, size_t* capacity, sf_operation op, const sf_stack_map* map) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    uint8_t size = size_from_type(op.destiny.value_type);
+    const char* reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+
+    if (op.source2.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        emitf(buff, len, capacity, "\tshl %s, %s\n", reg_str, src2_fmt);
+    } else {
+        uint8_t src2_size = size_from_type(op.source2.value_type);
+        const char* rcx_variant = (src2_size == 8) ? "rcx" : (src2_size == 4) ? "ecx" : (src2_size == 2) ? "cx" : "cl";
+        
+        emitf(buff, len, capacity, "\tmov %s, %s\n", rcx_variant, src2_fmt);
+        emitf(buff, len, capacity, "\tshl %s, cl\n", reg_str);
+    }
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
 }
 
 static uint8_t size_from_type(sf_value_type type) {

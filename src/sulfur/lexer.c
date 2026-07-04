@@ -306,18 +306,56 @@ static sf_token read_symbol(const char* input, int* i, int* col, int line) {
     sf_token tk = make_token(SF_TOKEN_TYPE_UNDEFINED, (sf_span){ .line = line, .col = *col, .len = 0 });
 
     switch (c) {
-        case '+': tk.type = SF_TOKEN_TYPE_PLUS;      break;
-        case '-': tk.type = SF_TOKEN_TYPE_MINUS;     break;
-        case '*': tk.type = SF_TOKEN_TYPE_MULT;      break;
-        case '/': tk.type = SF_TOKEN_TYPE_DIV;       break;
-        case '=': tk.type = SF_TOKEN_TYPE_EQUALS;    break;
+        case '+': tk.type = SF_TOKEN_TYPE_PLUS;   break;
+        case '-': tk.type = SF_TOKEN_TYPE_MINUS;  break;
+        case '*': tk.type = SF_TOKEN_TYPE_MULT;   break;
+        case '/': tk.type = SF_TOKEN_TYPE_DIV;    break;
+        case '=': tk.type = SF_TOKEN_TYPE_EQUALS; break;
+
         case ';': tk.type = SF_TOKEN_TYPE_SEMICOLON; break;
         case '{': tk.type = SF_TOKEN_TYPE_LBRACE;    break;
         case '}': tk.type = SF_TOKEN_TYPE_RBRACE;    break;
         case '(': tk.type = SF_TOKEN_TYPE_LPAREN;    break;
         case ')': tk.type = SF_TOKEN_TYPE_RPAREN;    break;
 
-        default:  return tk;
+        case '&': tk.type = SF_TOKEN_TYPE_AMPERSAND; break;
+        case '|': tk.type = SF_TOKEN_TYPE_PIPE;      break;
+        case '^': tk.type = SF_TOKEN_TYPE_CARET;     break;
+        case '~': tk.type = SF_TOKEN_TYPE_TILDE;     break;
+
+        case '<': {
+            if (input[*i + 1] == '<') {
+                tk.type = SF_TOKEN_TYPE_LEFT_SHIFT;
+                tk.value[0] = '<';
+                tk.value[1] = '<';
+                tk.value[2] = '\0';
+                tk.span.len = 2;
+
+                (*i) += 2;
+                (*col) += 2;
+                return tk;
+            }
+
+            break;
+        }
+
+        case '>': {
+            if (input[*i + 1] == '>') {
+                tk.type = SF_TOKEN_TYPE_RIGHT_SHIFT;
+                tk.value[0] = '>';
+                tk.value[1] = '>';
+                tk.value[2] = '\0';
+                tk.span.len = 2;
+
+                (*i) += 2;
+                (*col) += 2;
+                return tk;
+            }
+
+            break;
+        }
+
+        default: return tk;
     }
 
     tk.value[0] = c;
