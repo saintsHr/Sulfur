@@ -18,15 +18,16 @@ static bool is_ident(sf_token token);
 static bool is_block(sf_token token);
 
 static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const char* filename);
-static sf_ast_node* parse_expression(sf_token_list list, size_t* current, const char* filename);
-static sf_ast_node* parse_unary(sf_token_list list, size_t* current, const char* filename);
-static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const char* filename);
-static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, const char* filename);
-static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* filename);
-static sf_ast_node* parse_bitwise(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_assign(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_block(sf_token_list list, size_t* current, const char* filename);
+
+static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const char* filename);
+static sf_ast_node* parse_unary(sf_token_list list, size_t* current, const char* filename);
+static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* filename);
+static sf_ast_node* parse_bitwise(sf_token_list list, size_t* current, const char* filename);
+static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, const char* filename);
+static sf_ast_node* parse_additive(sf_token_list list, size_t* current, const char* filename);
 
 sf_program_node* sf_parse(sf_token_list list, const char* filename) {
     sf_program_node* program = sf_new_program();
@@ -183,7 +184,7 @@ static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const cha
     if (current == NULL) return NULL;
 
     if (match(list, current, SF_TOKEN_TYPE_LPAREN)) {
-        sf_ast_node* expr = parse_expression(list, current, filename);
+        sf_ast_node* expr = parse_additive(list, current, filename);
         if (expr == NULL) return NULL;
 
         if (!expect(list, current, SF_TOKEN_TYPE_RPAREN, filename)) {
@@ -253,7 +254,7 @@ static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, co
     return left;
 }
 
-static sf_ast_node* parse_expression(sf_token_list list, size_t* current, const char* filename) {
+static sf_ast_node* parse_additive(sf_token_list list, size_t* current, const char* filename) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
