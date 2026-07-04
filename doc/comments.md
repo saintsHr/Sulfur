@@ -6,7 +6,7 @@ Comments are ignored by the compiler and are used to document code or leave note
 
 Single-line comments start with `//` and continue until the end of the line.
 
-```sulfur
+```
 // This is a comment.
 
 i32 x = 10; // Comments can also appear after code.

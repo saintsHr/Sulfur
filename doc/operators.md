@@ -49,10 +49,17 @@ Unary operators operate on a single operand.
 |----------|---------------------|
 | `-`      | Arithmetic negation |
 
+## Bitwise
+
+| Operator | Description    |
+|----------|----------------|
+| `~`      | Bitwise NOT    |
+
 ### Example
 
 ```
 i32 x_normal = 10;
 
 i32 x_negative = -x;
+i32 x_reversed = ~x;
 ```
