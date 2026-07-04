@@ -1,0 +1,10 @@
+u8 x = 93 as u8;
+i8 y = 23 as i8;
+
+u64 var1 = x as u64;
+u32 var2 = x as u32;
+u16 var3 = x as u16;
+
+i64 var4 = y as i64;
+i32 var5 = y as i32;
+i16 var6 = y as i16;

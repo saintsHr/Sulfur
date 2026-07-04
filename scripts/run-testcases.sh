@@ -32,7 +32,8 @@ cat << "EOF"
 EOF
 }
 
-files=("$CASES_DIR"/*.slfr)
+mapfile -t files < <(find "$CASES_DIR" -type f -name "*.slfr" | sort)
+
 if [[ ${#files[@]} -eq 0 ]]; then
     echo "No test cases found in $CASES_DIR."
     exit 1
@@ -88,9 +89,8 @@ for file in "${files[@]}"; do
     fi
 done
 
-echo ""
-
 if [[ ${#failed_names[@]} -ne 0 ]]; then
+    echo ""
     echo "Failed Tests:"
     printf ' - %s\n' "${failed_names[@]}"
 fi

@@ -1,0 +1,31 @@
+i8 var1 = 56 as i8;
+var1 = 43 as i8;
+var1 = 54 as i8;
+
+i16 var2 = 86 as i16;
+var2 = 23 as i16;
+var2 = 74 as i16;
+
+i32 var3 = 73 as i32;
+var3 = 13 as i32;
+var3 = 86 as i32;
+
+i64 var4 = 12 as i64;
+var4 = 53 as i64;
+var4 = 92 as i64;
+
+u8 var5 = 56 as u8;
+var5 = 43 as u8;
+var5 = 54 as u8;
+
+u16 var6 = 86 as u16;
+var6 = 23 as u16;
+var6 = 74 as u16;
+
+u32 var7 = 73 as u32;
+var7 = 13 as u32;
+var7 = 86 as u32;
+
+u64 var8 = 12 as u64;
+var8 = 53 as u64;
+var8 = 92 as u64;

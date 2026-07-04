@@ -14,15 +14,6 @@ u64 x = 4837;
 i16 y = x as i16;
 ```
 
-The table below lists all supported casts.
+# Integers
 
-| From | To  | Implicit | Explicit | Safe |       Notes        |
-|------|-----|----------|----------|------|--------------------|
-| u8   | i8  | No       | Yes      | No   | May overflow       |
-| u16  | i16 | No       | Yes      | No   | May overflow       |
-| u32  | i32 | No       | Yes      | No   | May overflow       |
-| u64  | i64 | No       | Yes      | No   | May overflow       |
-| i8   | u8  | No       | Yes      | No   | May change value   |
-| i16  | u16 | No       | Yes      | No   | May change value   |
-| i32  | u32 | No       | Yes      | No   | May change value   |
-| i64  | u64 | No       | Yes      | No   | May change value   |
+Any explicit cast between integers are allowed, even if it is not safe, while implicit cast is only allowed when the conversion is safe. 
