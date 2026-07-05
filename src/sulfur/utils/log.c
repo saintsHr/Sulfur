@@ -1,4 +1,4 @@
-#include "sulfur/util/log.h"
+#include "sulfur/utils/log.h"
 
 #include <stddef.h>
 #include <stdint.h>

@@ -1,0 +1,114 @@
+#include "sulfur/utils/type_utils.h"
+
+const char* type_value_name(sf_value_type type) {
+    switch (type) {
+        case SF_VAL_TYPE_I8:  return "i8";
+        case SF_VAL_TYPE_I16: return "i16";
+        case SF_VAL_TYPE_I32: return "i32";
+        case SF_VAL_TYPE_I64: return "i64";
+        case SF_VAL_TYPE_U8:  return "u8";
+        case SF_VAL_TYPE_U16: return "u16";
+        case SF_VAL_TYPE_U32: return "u32";
+        case SF_VAL_TYPE_U64: return "u64";
+
+        default: return "?";
+    }
+}
+
+const char* type_operation_name(sf_operation_type op) {
+    switch(op) {
+        case SF_OP_TYPE_ADD:    return "+";
+        case SF_OP_TYPE_SUB:    return "-";
+        case SF_OP_TYPE_MUL:    return "*";
+        case SF_OP_TYPE_DIV:    return "/";
+        case SF_OP_TYPE_NEGATE: return "-";
+
+        case SF_OP_TYPE_BITWISE_AND:    return "&";
+        case SF_OP_TYPE_BITWISE_OR:     return "|";
+        case SF_OP_TYPE_BITWISE_XOR:    return "^";
+        case SF_OP_TYPE_BITWISE_RSHIFT: return ">>";
+        case SF_OP_TYPE_BITWISE_LSHIFT: return "<<";    
+        case SF_OP_TYPE_BITWISE_NOT:    return "~";
+
+        default: return "?";
+    }
+}
+
+bool type_value_is_unsigned(sf_value_type type) {
+    switch (type) {
+        case SF_VAL_TYPE_U8:
+        case SF_VAL_TYPE_U16:
+        case SF_VAL_TYPE_U32:
+        case SF_VAL_TYPE_U64:
+            return true;
+
+        default:
+        	return false;
+    }
+}
+
+bool type_value_is_signed(sf_value_type type) {
+    switch (type) {
+        case SF_VAL_TYPE_I8:
+        case SF_VAL_TYPE_I16:
+        case SF_VAL_TYPE_I32:
+        case SF_VAL_TYPE_I64:
+            return true;
+
+        default:
+        	return false;
+    }
+}
+
+bool type_value_is_same_group(sf_value_type a, sf_value_type b) {
+    if (type_value_is_unsigned(a) && type_value_is_unsigned(b)) return true;
+    if (type_value_is_signed(a) && type_value_is_signed(b)) return true;
+
+    return false;
+}
+
+bool type_value_is_castable(sf_value_type from, sf_value_type to) {
+	return true;
+}
+
+uint8_t type_value_width_bits(sf_value_type type) {
+    switch (type) {
+        case SF_VAL_TYPE_I8:  case SF_VAL_TYPE_U8:  return 8;
+        case SF_VAL_TYPE_I16: case SF_VAL_TYPE_U16: return 16;
+        case SF_VAL_TYPE_I32: case SF_VAL_TYPE_U32: return 32;
+        case SF_VAL_TYPE_I64: case SF_VAL_TYPE_U64: return 64;
+        default: return 0;
+    }
+}
+
+uint8_t type_value_width_bytes(sf_value_type type) {
+    return type_value_width_bits(type) / 8;
+}
+
+sf_value_type type_value_promote(sf_value_type a, sf_value_type b) {
+    return type_value_width_bits(a) >= type_value_width_bits(b) ? a : b;
+}
+
+sf_opcode type_operation_to_opcode(sf_operation_type type) {
+    sf_opcode op;
+
+    switch (type) {
+        case SF_OP_TYPE_ADD: op = SF_OPCODE_ADD;  break;
+        case SF_OP_TYPE_SUB: op = SF_OPCODE_SUB;  break;
+        case SF_OP_TYPE_MUL: op = SF_OPCODE_MULT; break;
+        case SF_OP_TYPE_DIV: op = SF_OPCODE_DIV;  break;
+
+        case SF_OP_TYPE_NEGATE: op = SF_OPCODE_NEGATE; break;
+
+        case SF_OP_TYPE_BITWISE_AND:    op = SF_OPCODE_BITWISE_AND;    break;
+        case SF_OP_TYPE_BITWISE_OR:     op = SF_OPCODE_BITWISE_OR;     break;
+        case SF_OP_TYPE_BITWISE_XOR:    op = SF_OPCODE_BITWISE_XOR;    break;
+        case SF_OP_TYPE_BITWISE_RSHIFT: op = SF_OPCODE_BITWISE_RSHIFT; break;
+        case SF_OP_TYPE_BITWISE_LSHIFT: op = SF_OPCODE_BITWISE_LSHIFT; break;
+        case SF_OP_TYPE_BITWISE_NOT:    op = SF_OPCODE_BITWISE_NOT;    break;
+
+        default: break;
+    }
+
+    return op;
+}

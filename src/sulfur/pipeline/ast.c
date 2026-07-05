@@ -1,5 +1,6 @@
 #include "sulfur/pipeline/ast.h"
-#include "sulfur/util/log.h"
+#include "sulfur/utils/log.h"
+#include "sulfur/utils/type_utils.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -7,9 +8,6 @@
 
 static void print_indent(int indent);
 static void print_ast_node(sf_ast_node* node, int indent);
-
-static const char* op_to_string(sf_operation_type op);
-static const char* type_to_string(sf_value_type type);
 
 static void free_var_assign(sf_ast_node* node);
 static void free_var_decl(sf_ast_node* node);
@@ -220,41 +218,6 @@ static void print_indent(int indent) {
     for (int i = 0; i < indent; i++) printf("  ");
 }
 
-static const char* op_to_string(sf_operation_type op) {
-    switch(op) {
-        case SF_OP_TYPE_ADD: return "+";
-        case SF_OP_TYPE_SUB: return "-";
-        case SF_OP_TYPE_MUL: return "*";
-        case SF_OP_TYPE_DIV: return "/";
-        case SF_OP_TYPE_NEGATE: return "-";
-
-        case SF_OP_TYPE_BITWISE_AND: return "&";
-        case SF_OP_TYPE_BITWISE_OR: return "|";
-        case SF_OP_TYPE_BITWISE_XOR: return "^";
-        case SF_OP_TYPE_BITWISE_RSHIFT: return ">>";
-        case SF_OP_TYPE_BITWISE_LSHIFT: return "<<";    
-        case SF_OP_TYPE_BITWISE_NOT: return "~";
-
-        default: return "?";
-    }
-}
-
-static const char* type_to_string(sf_value_type type) {
-    switch(type) {
-        case SF_VAL_TYPE_I8:  return "i8";
-        case SF_VAL_TYPE_I16: return "i16";
-        case SF_VAL_TYPE_I32: return "i32";
-        case SF_VAL_TYPE_I64: return "i64";
-
-        case SF_VAL_TYPE_U8:  return "u8";
-        case SF_VAL_TYPE_U16: return "u16";
-        case SF_VAL_TYPE_U32: return "u32";
-        case SF_VAL_TYPE_U64: return "u64";
-
-        default: return "?";
-    }
-}
-
 static void print_ast_node(sf_ast_node* node, int indent) {
     if (!node) return;
 
@@ -359,7 +322,7 @@ static void print_var_decl(const sf_ast_node* node, int indent) {
     sf_var_decl_node* var = (sf_var_decl_node*)node;
 
     print_indent(indent);
-    printf("VarDecl %s : %s\n", var->name, type_to_string(var->var_type));
+    printf("VarDecl %s : %s\n", var->name, type_value_name(var->var_type));
 
     print_ast_node(var->value, indent + 1);
 }
@@ -393,7 +356,7 @@ static void print_binary_expr(const sf_ast_node* node, int indent) {
     sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
 
     print_indent(indent);
-    printf("Binary %s\n", op_to_string(bin->op));
+    printf("Binary %s\n", type_operation_name(bin->op));
 
     print_ast_node(bin->left, indent + 1);
     print_ast_node(bin->right, indent + 1);
@@ -403,7 +366,7 @@ static void print_unary_expr(const sf_ast_node* node, int indent) {
     sf_unary_expr_node* un = (sf_unary_expr_node*)node;
 
     print_indent(indent);
-    printf("Unary %s\n", op_to_string(un->op));
+    printf("Unary %s\n", type_operation_name(un->op));
 
     print_ast_node(un->operand, indent + 1);
 }
@@ -423,7 +386,7 @@ static void print_cast_expr(const sf_ast_node* node, int indent) {
     sf_cast_expr_node* cast = (sf_cast_expr_node*)node;
 
     print_indent(indent);
-    printf("Cast to %s\n", type_to_string(cast->target_type));
+    printf("Cast to %s\n", type_value_name(cast->target_type));
 
     print_ast_node(cast->operand, indent + 1);
 }

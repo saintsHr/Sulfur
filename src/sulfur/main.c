@@ -1,4 +1,4 @@
-#include "sulfur/util/log.h"
+#include "sulfur/utils/log.h"
 #include "sulfur/pipeline/codegen.h"
 #include "sulfur/pipeline/semantic.h"
 #include "sulfur/pipeline/preprocessor.h"

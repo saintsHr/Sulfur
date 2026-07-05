@@ -22,7 +22,11 @@ include_directories(
 
 set(SOURCES
 	src/sulfur/main.c
-	src/sulfur/util/log.c
+	
+	src/sulfur/utils/log.c
+	src/sulfur/utils/type_utils.c
+	src/sulfur/utils/token_utils.c
+
 	src/sulfur/pipeline/ast.c
 	src/sulfur/pipeline/lexer.c
 	src/sulfur/pipeline/parser.c

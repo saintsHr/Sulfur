@@ -1,7 +1,8 @@
 #include "sulfur/pipeline/parser.h"
 #include "sulfur/pipeline/ast.h"
 #include "sulfur/pipeline/lexer.h"
-#include "sulfur/util/log.h"
+#include "sulfur/utils/log.h"
+#include "sulfur/utils/token_utils.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -12,10 +13,6 @@ static void recover_expression(sf_token_list list, size_t* current);
 static sf_token advance(sf_token_list list, size_t* current);
 static bool match(sf_token_list list, size_t* current, sf_token_type type);
 static bool expect(sf_token_list list, size_t* current, sf_token_type type, const char* filename);
-
-static bool is_type(sf_token token);
-static bool is_ident(sf_token token);
-static bool is_block(sf_token token);
 
 static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const char* filename);
 static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const char* filename);
@@ -139,28 +136,6 @@ static void recover_statement(sf_token_list list, size_t* current) {
                 break;
         }
     }
-}
-
-static bool is_type(sf_token token) {
-    if (token.type == SF_TOKEN_TYPE_KW_I8)  return true;
-    if (token.type == SF_TOKEN_TYPE_KW_I16) return true;
-    if (token.type == SF_TOKEN_TYPE_KW_I32) return true;
-    if (token.type == SF_TOKEN_TYPE_KW_I64) return true;
-
-    if (token.type == SF_TOKEN_TYPE_KW_U8)  return true;
-    if (token.type == SF_TOKEN_TYPE_KW_U16) return true;
-    if (token.type == SF_TOKEN_TYPE_KW_U32) return true;
-    if (token.type == SF_TOKEN_TYPE_KW_U64) return true;
-
-    return false;
-}
-
-static bool is_ident(sf_token token) {
-    return (token.type == SF_TOKEN_TYPE_IDENTIFIER);
-}
-
-static bool is_block(sf_token token) {
-    return (token.type == SF_TOKEN_TYPE_LBRACE);
 }
 
 static sf_ast_node* parse_unary(sf_token_list list, size_t* current, const char* filename) {
@@ -424,15 +399,15 @@ static sf_ast_node* parse_statement(sf_token_list list, size_t* current, const c
 
     sf_token token = list.tokens[*current];
 
-    if (is_type(token)) {
+    if (token_is_type(token)) {
         return parse_declaration(list, current, filename);
     }
 
-    if (is_ident(token)) {
+    if (token_is_ident(token)) {
         return parse_assign(list, current, filename);
     }
 
-    if (is_block(token)) {
+    if (token_is_block(token)) {
         return parse_block(list, current, filename);
     }
 

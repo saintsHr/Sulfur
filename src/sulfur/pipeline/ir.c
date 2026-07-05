@@ -1,5 +1,6 @@
 #include "sulfur/pipeline/ast.h"
 #include "sulfur/pipeline/ir.h"
+#include "sulfur/utils/type_utils.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -7,11 +8,12 @@
 #include <string.h>
 
 static void push(sf_ir_program* program, sf_operation operation);
+
 static sf_operand new_temporary(sf_ir_program* program, sf_value_type type);
-static sf_opcode optype_to_opcode(sf_operation_type type);
+
 static void generate_statement(sf_ir_program* program, sf_ast_node* node, uint32_t depth);
 static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node, uint32_t depth);
-static const char* value_type_name(sf_value_type type);
+
 static void print_operand(sf_operand op);
 
 sf_ir_program sf_generate_ir(const sf_program_node* program){
@@ -171,30 +173,6 @@ static sf_operand new_temporary(sf_ir_program* program, sf_value_type type) {
     return op;
 }
 
-static sf_opcode optype_to_opcode(sf_operation_type type) {
-	sf_opcode op;
-
-	switch (type) {
-	    case SF_OP_TYPE_ADD: op = SF_OPCODE_ADD;  break;
-	    case SF_OP_TYPE_SUB: op = SF_OPCODE_SUB;  break;
-	    case SF_OP_TYPE_MUL: op = SF_OPCODE_MULT; break;
-        case SF_OP_TYPE_DIV: op = SF_OPCODE_DIV;  break;
-
-        case SF_OP_TYPE_NEGATE: op = SF_OPCODE_NEGATE; break;
-
-        case SF_OP_TYPE_BITWISE_AND:    op = SF_OPCODE_BITWISE_AND;    break;
-        case SF_OP_TYPE_BITWISE_OR:     op = SF_OPCODE_BITWISE_OR;     break;
-        case SF_OP_TYPE_BITWISE_XOR:    op = SF_OPCODE_BITWISE_XOR;    break;
-        case SF_OP_TYPE_BITWISE_RSHIFT: op = SF_OPCODE_BITWISE_RSHIFT; break;
-        case SF_OP_TYPE_BITWISE_LSHIFT: op = SF_OPCODE_BITWISE_LSHIFT; break;
-	    case SF_OP_TYPE_BITWISE_NOT:    op = SF_OPCODE_BITWISE_NOT;    break;
-
-	    default: break;
-	}
-
-	return op;
-}
-
 static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node, uint32_t depth) {
 	sf_operand operand;
 
@@ -212,7 +190,7 @@ static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node,
         	push(
         		program,
         		(sf_operation){
-        			.opcode = optype_to_opcode(ex->op),
+        			.opcode = type_operation_to_opcode(ex->op),
         			.destiny = dst,
         			.source1 = left,
         			.source2 = right
@@ -233,7 +211,7 @@ static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node,
             push(
                 program,
                 (sf_operation){
-                    .opcode = optype_to_opcode(un->op),
+                    .opcode = type_operation_to_opcode(un->op),
                     .destiny = dst,
                     .source1 = src,
                     .source2 = {0}
@@ -367,26 +345,10 @@ static void generate_statement(sf_ir_program* program, sf_ast_node* node, uint32
     }
 }
 
-static const char* value_type_name(sf_value_type type) {
-    switch (type) {
-        case SF_VAL_TYPE_I8:  return "i8";
-        case SF_VAL_TYPE_I16: return "i16";
-        case SF_VAL_TYPE_I32: return "i32";
-        case SF_VAL_TYPE_I64: return "i64";
-
-        case SF_VAL_TYPE_U8:  return "u8";
-        case SF_VAL_TYPE_U16: return "u16";
-        case SF_VAL_TYPE_U32: return "u32";
-        case SF_VAL_TYPE_U64: return "u64";
-
-        default:              return "unknown";
-    }
-}
-
 static void print_operand(sf_operand op) {
     switch (op.type) {
-        case SF_OPERAND_TYPE_TEMPORARY: printf("t%u:%s", op.temporary_id, value_type_name(op.value_type)); break;
-        case SF_OPERAND_TYPE_VARIABLE: printf("%s:%s", op.variable_name, value_type_name(op.value_type)); break;
-        case SF_OPERAND_TYPE_IMMEDIATE: printf("%s:%s", op.immediate_value, value_type_name(op.value_type)); break;
+        case SF_OPERAND_TYPE_TEMPORARY: printf("t%u:%s", op.temporary_id, type_value_name(op.value_type)); break;
+        case SF_OPERAND_TYPE_VARIABLE: printf("%s:%s", op.variable_name, type_value_name(op.value_type)); break;
+        case SF_OPERAND_TYPE_IMMEDIATE: printf("%s:%s", op.immediate_value, type_value_name(op.value_type)); break;
     }
 }

@@ -1,5 +1,5 @@
 #include "sulfur/pipeline/lexer.h"
-#include "sulfur/util/log.h"
+#include "sulfur/utils/log.h"
 
 #include <ctype.h>
 #include <stdint.h>

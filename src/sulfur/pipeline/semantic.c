@@ -1,23 +1,12 @@
 #include "sulfur/pipeline/ast.h"
 #include "sulfur/pipeline/lexer.h"
 #include "sulfur/pipeline/semantic.h"
-#include "sulfur/util/log.h"
-
+#include "sulfur/utils/log.h"
+#include "sulfur/utils/type_utils.h"
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-static const char* value_type_name(sf_value_type type);
-static uint8_t type_width(sf_value_type type);
-static sf_value_type type_promote(sf_value_type a, sf_value_type b);
-
-static uint32_t levenshtein_distance(const char* a, const char* b);
-
-static bool is_type_unsigned(sf_value_type type);
-static bool is_type_signed(sf_value_type type);
-static bool is_types_same_group(sf_value_type a, sf_value_type b);
-static bool is_castable(sf_value_type from, sf_value_type to);
 
 static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* scope, const char* filename);
 static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* filename);
@@ -35,6 +24,8 @@ static void scope_insert(sf_scope* scope, sf_symbol symbol, const char* filename
 static void scope_free(sf_scope* scope);
 static const char* scope_find_closest(sf_scope* scope, const char* name);
 
+static uint32_t levenshtein_distance(const char* a, const char* b);
+
 void sf_analyze(sf_program_node* program, const char* filename) {
 	sf_scope scope;
 
@@ -49,78 +40,11 @@ void sf_analyze(sf_program_node* program, const char* filename) {
 	scope_free(&scope);
 }
 
-static const char* value_type_name(sf_value_type type) {
-    switch (type) {
-        case SF_VAL_TYPE_I8:  return "i8";
-        case SF_VAL_TYPE_I16: return "i16";
-        case SF_VAL_TYPE_I32: return "i32";
-        case SF_VAL_TYPE_I64: return "i64";
-        case SF_VAL_TYPE_U8:  return "u8";
-        case SF_VAL_TYPE_U16: return "u16";
-        case SF_VAL_TYPE_U32: return "u32";
-        case SF_VAL_TYPE_U64: return "u64";
-
-        default:              return "unknown";
-    }
-}
-
-static bool is_type_unsigned(sf_value_type type) {
-    switch (type) {
-        case SF_VAL_TYPE_U8:
-        case SF_VAL_TYPE_U16:
-        case SF_VAL_TYPE_U32:
-        case SF_VAL_TYPE_U64:
-            return true;
-
-        default:
-        	return false;
-    }
-}
-
-static bool is_type_signed(sf_value_type type) {
-    switch (type) {
-        case SF_VAL_TYPE_I8:
-        case SF_VAL_TYPE_I16:
-        case SF_VAL_TYPE_I32:
-        case SF_VAL_TYPE_I64:
-            return true;
-
-        default:
-        	return false;
-    }
-}
-
-static bool is_types_same_group(sf_value_type a, sf_value_type b) {
-    if (is_type_unsigned(a) && is_type_unsigned(b)) return true;
-    if (is_type_signed(a) && is_type_signed(b)) return true;
-
-    return false;
-}
-
-static bool is_castable(sf_value_type from, sf_value_type to) {
-	return true;
-}
-
-static uint8_t type_width(sf_value_type type) {
-    switch (type) {
-        case SF_VAL_TYPE_I8:  case SF_VAL_TYPE_U8:  return 8;
-        case SF_VAL_TYPE_I16: case SF_VAL_TYPE_U16: return 16;
-        case SF_VAL_TYPE_I32: case SF_VAL_TYPE_U32: return 32;
-        case SF_VAL_TYPE_I64: case SF_VAL_TYPE_U64: return 64;
-        default: return 0;
-    }
-}
-
-static sf_value_type type_promote(sf_value_type a, sf_value_type b) {
-    return type_width(a) >= type_width(b) ? a : b;
-}
-
 static uint32_t levenshtein_distance(const char* a, const char* b) {
 	uint32_t a_len = strlen(a);
 	uint32_t b_len = strlen(b);
 	uint32_t dp[a_len + 1][b_len + 1];
 
-	// fills the firsts lines and columns (distance to empty string)
 	for (uint32_t i = 0; i <= b_len; i++) {
 		dp[0][i] = i;
 	}
@@ -128,7 +52,6 @@ static uint32_t levenshtein_distance(const char* a, const char* b) {
 		dp[i][0] = i;
 	}
 
-	// fills distance in the remaining grid cells
 	for (uint32_t i = 1; i <= a_len; i++) {
 		for (uint32_t j = 1; j <= b_len; j++) {
 			if (a[i - 1] == b[j - 1]) {
@@ -182,7 +105,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		        return true;
 		    }
 
-		    if (!is_types_same_group(ltype, rtype)) {
+		    if (!type_value_is_same_group(ltype, rtype)) {
 		        sf_log(
 		            "type mismatch",
 		            "cannot mix '%s' and '%s' in the same expression",
@@ -191,13 +114,13 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		            SF_SEMANTIC_TYPE_MISMATCH,
 		            node->span,
 		            SF_SEV_ERROR,
-		            value_type_name(ltype),
-		            value_type_name(rtype)
+		            type_value_name(ltype),
+		            type_value_name(rtype)
 		        );
 		        return false;
 		    }
 
-		    node->resolved = type_promote(ltype, rtype);
+		    node->resolved = type_value_promote(ltype, rtype);
 		    return true;
 		}
 
@@ -228,7 +151,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 
 		    if (from_type == SF_VAL_TYPE_UNRESOLVED) return false;
 
-		    if (is_castable(from_type, to_type)) {
+		    if (type_value_is_castable(from_type, to_type)) {
 		    	node->resolved = cast->target_type;
 		    } else {
 		    	sf_log(
@@ -239,8 +162,8 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 				    SF_SEMANTIC_INVALID_EXPLICIT_CAST,
 				    node->span,
 				    SF_SEV_ERROR,
-				    value_type_name(from_type),
-				    value_type_name(to_type)
+				    type_value_name(from_type),
+				    type_value_name(to_type)
 				);
 
 		        return false;
@@ -342,7 +265,7 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 			    sf_value_type resolved = var->value->resolved;
 
 			    if (resolved != SF_VAL_TYPE_UNRESOLVED) {
-			        if (!is_types_same_group(resolved, var->var_type)) {
+			        if (!type_value_is_same_group(resolved, var->var_type)) {
 			            sf_log(
 						    "type mismatch",
 						    "cannot assign '%s' to a variable of type '%s'",
@@ -351,14 +274,14 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 						    SF_SEMANTIC_TYPE_MISMATCH,
 						    var->base.span,
 						    SF_SEV_ERROR,
-						    value_type_name(resolved),
-						    value_type_name(var->var_type)
+						    type_value_name(resolved),
+						    type_value_name(var->var_type)
 						);
 
 			            break;
 			        }
 
-			        if (type_width(resolved) > type_width(var->var_type)) {
+			        if (type_value_width_bits(resolved) > type_value_width_bits(var->var_type)) {
 			            sf_log(
 						    "narrowing conversion",
 						    "cannot implicitly narrow '%s' to '%s'",
@@ -367,8 +290,8 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 						    SF_SEMANTIC_INVALID_IMPLICIT_CAST,
 						    var->base.span,
 						    SF_SEV_ERROR,
-						    value_type_name(resolved),
-						    value_type_name(var->var_type)
+						    type_value_name(resolved),
+						    type_value_name(var->var_type)
 						);
 
 			            break;
@@ -426,7 +349,7 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
         	sf_value_type resolved = asg->value->resolved;
 
         	if (resolved != SF_VAL_TYPE_UNRESOLVED) {
-        	    if (!is_types_same_group(resolved, sym->type)) {
+        	    if (!type_value_is_same_group(resolved, sym->type)) {
         	        sf_log(
 					    "type mismatch",
 					    "cannot assign '%s' to a variable of type '%s'",
@@ -435,14 +358,14 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 					    SF_SEMANTIC_TYPE_MISMATCH,
 					    asg->base.span,
 					    SF_SEV_ERROR,
-					    value_type_name(resolved),
-					    value_type_name(sym->type)
+					    type_value_name(resolved),
+					    type_value_name(sym->type)
 					);
 
         	        break;
         	    }
 
-        	    if (type_width(resolved) > type_width(sym->type)) {
+        	    if (type_value_width_bits(resolved) > type_value_width_bits(sym->type)) {
         	        sf_log(
 					    "narrowing conversion",
 					    "cannot implicitly narrow '%s' to '%s'",
@@ -451,8 +374,8 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 					    SF_SEMANTIC_TYPE_MISMATCH,
 					    asg->base.span,
 					    SF_SEV_ERROR,
-					    value_type_name(resolved),
-					    value_type_name(sym->type)
+					    type_value_name(resolved),
+					    type_value_name(sym->type)
 					);
 					
         	        break;

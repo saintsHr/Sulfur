@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
-#include "sulfur/util/span.h"
+#include "sulfur/utils/span.h"
 
 #define SF_COLOR_BLACK    "\x1b[30m"
 #define SF_COLOR_RED      "\x1b[31m"
