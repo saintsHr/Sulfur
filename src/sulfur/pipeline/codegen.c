@@ -1,6 +1,6 @@
-#include "sulfur/codegen.h"
-#include "sulfur/ast.h"
-#include "sulfur/ir.h"
+#include "sulfur/pipeline/codegen.h"
+#include "sulfur/pipeline/ast.h"
+#include "sulfur/pipeline/ir.h"
 
 #include <stdint.h>
 #include <stdio.h>

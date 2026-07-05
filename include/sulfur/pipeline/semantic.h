@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "sulfur/ast.h"
+#include "sulfur/pipeline/ast.h"
 
 typedef struct {
     char* name;

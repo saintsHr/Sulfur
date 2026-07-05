@@ -1,7 +1,8 @@
-#include "sulfur/ast.h"
-#include "sulfur/lexer.h"
+#include "sulfur/pipeline/ast.h"
+#include "sulfur/pipeline/lexer.h"
+#include "sulfur/pipeline/semantic.h"
 #include "sulfur/util/log.h"
-#include "sulfur/semantic.h"
+
 
 #include <stdint.h>
 #include <stdlib.h>

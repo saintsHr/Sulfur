@@ -1,6 +1,6 @@
-#include "sulfur/parser.h"
-#include "sulfur/ast.h"
-#include "sulfur/lexer.h"
+#include "sulfur/pipeline/parser.h"
+#include "sulfur/pipeline/ast.h"
+#include "sulfur/pipeline/lexer.h"
 #include "sulfur/util/log.h"
 
 #include <stdbool.h>

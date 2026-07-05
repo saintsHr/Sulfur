@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sulfur/ast.h"
+#include "sulfur/pipeline/ast.h"
 #include <stdint.h>
 
 typedef enum {

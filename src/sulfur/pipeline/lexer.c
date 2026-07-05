@@ -1,4 +1,4 @@
-#include "sulfur/lexer.h"
+#include "sulfur/pipeline/lexer.h"
 #include "sulfur/util/log.h"
 
 #include <ctype.h>

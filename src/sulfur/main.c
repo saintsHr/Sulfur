@@ -1,17 +1,15 @@
+#include "sulfur/util/log.h"
+#include "sulfur/pipeline/codegen.h"
+#include "sulfur/pipeline/semantic.h"
+#include "sulfur/pipeline/preprocessor.h"
+#include "sulfur/pipeline/lexer.h"
+#include "sulfur/pipeline/ast.h"
+#include "sulfur/pipeline/parser.h"
+#include "sulfur/pipeline/ir.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "sulfur/codegen.h"
-#include "sulfur/ir.h"
-#include "sulfur/semantic.h"
-#include "sulfur/util/log.h"
-#include "sulfur/preprocessor.h"
-#include "sulfur/lexer.h"
-#include "sulfur/ast.h"
-#include "sulfur/parser.h"
-#include "sulfur/ir.h"
 
 typedef struct {
     char* output_file;

@@ -1,4 +1,4 @@
-#include "sulfur/ast.h"
+#include "sulfur/pipeline/ast.h"
 #include "sulfur/util/log.h"
 
 #include <stdint.h>

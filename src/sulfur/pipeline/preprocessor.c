@@ -1,6 +1,5 @@
-#include "sulfur/preprocessor.h"
+#include "sulfur/pipeline/preprocessor.h"
 #include "sulfur/util/log.h"
-
 #include <string.h>
 #include <stdlib.h>
 

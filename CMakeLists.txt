@@ -21,15 +21,15 @@ include_directories(
 )
 
 set(SOURCES
-	src/sulfur/util/log.c
-	src/sulfur/ast.c
-	src/sulfur/lexer.c
 	src/sulfur/main.c
-	src/sulfur/parser.c
-	src/sulfur/preprocessor.c
-	src/sulfur/semantic.c
-	src/sulfur/ir.c
-	src/sulfur/codegen.c
+	src/sulfur/util/log.c
+	src/sulfur/pipeline/ast.c
+	src/sulfur/pipeline/lexer.c
+	src/sulfur/pipeline/parser.c
+	src/sulfur/pipeline/preprocessor.c
+	src/sulfur/pipeline/semantic.c
+	src/sulfur/pipeline/ir.c
+	src/sulfur/pipeline/codegen.c
 )
 
 add_executable(sulfur ${SOURCES})
