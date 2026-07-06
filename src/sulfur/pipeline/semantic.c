@@ -127,6 +127,31 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 
 		    node->resolved = type_value_promote(ltype, rtype);
 
+		    if (bin->op == SF_OP_TYPE_DIV) {
+			    uint64_t u;
+			    int64_t s;
+
+			    bool zero =
+			    	(type_value_is_signed(node->resolved) &&
+			         try_eval_const_int(bin->right, &s) && s == 0) ||
+			        (!type_value_is_signed(node->resolved) &&
+			         try_eval_const_uint(bin->right, &u) && u == 0);
+
+			    if (zero) {
+			        sf_log(
+			            "division by zero",
+			            "constant expression divides by zero",
+			            "ensure the divisor is non-zero",
+			            filename,
+			            SF_SEMANTIC_DIVISION_BY_ZERO,
+			            node->span,
+			            SF_SEV_ERROR
+			        );
+
+			        return false;
+			    }
+			}
+
 			if (!analyze_constant_overflow(node, node->resolved, filename)) {
 			    return false;
 			}
@@ -648,18 +673,26 @@ static bool try_eval_const_uint(sf_ast_node* node, uint64_t* out_value) {
         if (!try_eval_const_uint(bin->right, &r)) return false;
 
         switch (bin->op) {
-            case SF_OP_TYPE_ADD:
+            case SF_OP_TYPE_ADD: 
                 if (r > UINT64_MAX - l) return false;
                 *out_value = l + r;
                 return true;
-            case SF_OP_TYPE_SUB:
+            case SF_OP_TYPE_SUB: {
                 if (l < r) return false;
                 *out_value = l - r;
                 return true;
-            case SF_OP_TYPE_MUL:
+            }
+            case SF_OP_TYPE_MUL: {
                 if (l != 0 && r > UINT64_MAX / l) return false;
                 *out_value = l * r;
                 return true;
+            }
+            case SF_OP_TYPE_DIV: {
+			    if (r == 0) return false;
+			    
+			    *out_value = l / r;
+			    return true;
+			}
             case SF_OP_TYPE_BITWISE_LSHIFT:
                 if (r >= 64) return false;
                 *out_value = l << r;
@@ -721,15 +754,19 @@ static bool try_eval_const_int(sf_ast_node* node, int64_t* out_value) {
         }
 
         int64_t child;
+
         if (!try_eval_const_int(un->operand, &child)) return false;
         if (child == INT64_MIN) return false;
+
         *out_value = -child;
         return true;
     }
 
     if (node->type == SF_NODE_BINARY_EXPR) {
         sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
+
         int64_t l, r;
+
         if (!try_eval_const_int(bin->left, &l)) return false;
         if (!try_eval_const_int(bin->right, &r)) return false;
 
@@ -737,12 +774,14 @@ static bool try_eval_const_int(sf_ast_node* node, int64_t* out_value) {
             case SF_OP_TYPE_ADD: {
                 if (r > 0 && l > INT64_MAX - r) return false;
                 if (r < 0 && l < INT64_MIN - r) return false;
+
                 *out_value = l + r;
                 return true;
             }
             case SF_OP_TYPE_SUB: {
                 if (r < 0 && l > INT64_MAX + r) return false;
                 if (r > 0 && l < INT64_MIN + r) return false;
+
                 *out_value = l - r;
                 return true;
             }
@@ -756,12 +795,21 @@ static bool try_eval_const_int(sf_ast_node* node, int64_t* out_value) {
                 }
                 return true;
             }
+        	case SF_OP_TYPE_DIV: {
+			    if (r == 0) return false;
+			    if (l == INT64_MIN && r == -1) return false;
+
+			    *out_value = l / r;
+			    return true;
+			}
             case SF_OP_TYPE_BITWISE_LSHIFT:
                 if (r < 0 || r >= 64) return false;
+
                 *out_value = l << r;
                 return true;
             case SF_OP_TYPE_BITWISE_RSHIFT:
                 if (r < 0 || r >= 64) return false;
+
                 *out_value = l >> r;
                 return true;
             case SF_OP_TYPE_BITWISE_AND:
