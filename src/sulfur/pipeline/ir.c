@@ -13,8 +13,11 @@ static sf_operand new_temporary(sf_ir_program* program, sf_value_type type);
 
 static void generate_statement(sf_ir_program* program, sf_ast_node* node, uint32_t depth);
 static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node, uint32_t depth);
+static sf_operand generate_expression_into(sf_ir_program* program, sf_ast_node* node, uint32_t depth, sf_operand* hint);
 
 static void print_operand(sf_operand op);
+
+static bool try_fold_constants(sf_operand left, sf_operand right, sf_opcode opcode, sf_value_type result_type, sf_operand* out);
 
 sf_ir_program sf_generate_ir(const sf_program_node* program){
     sf_ir_program ir = {
@@ -183,6 +186,20 @@ static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node,
         	sf_operand left  = generate_expression(program, ex->left, depth);
         	sf_operand right = generate_expression(program, ex->right, depth);
 
+            sf_operand folded;
+            if (
+                try_fold_constants(
+                    left,
+                    right,
+                    type_operation_to_opcode(ex->op),
+                    node->resolved,
+                    &folded
+                )
+            ) {
+                operand = folded;
+                break;
+            }
+
         	sf_operand dst = new_temporary(program, node->resolved);
 
         	operand = dst;
@@ -281,57 +298,141 @@ static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node,
     return operand;
 }
 
+static sf_operand generate_expression_into(sf_ir_program* program, sf_ast_node* node, uint32_t depth, sf_operand* hint) {
+    switch (node->type) {
+        case SF_NODE_BINARY_EXPR: {
+            sf_binary_expr_node* ex = (sf_binary_expr_node*)node;
+
+            sf_operand left  = generate_expression(program, ex->left, depth);
+            sf_operand right = generate_expression(program, ex->right, depth);
+
+            sf_opcode opcode = type_operation_to_opcode(ex->op);
+
+            sf_operand folded;
+            if (try_fold_constants(left, right, opcode, node->resolved, &folded)) {
+                return folded;
+            }
+
+            sf_operand dst = hint ? *hint : new_temporary(program, node->resolved);
+
+            push(
+                program,
+                (sf_operation){
+                    .opcode = opcode,
+                    .destiny = dst,
+                    .source1 = left,
+                    .source2 = right
+                }
+            );
+
+            return dst;
+        }
+
+        case SF_NODE_UNARY_EXPR: {
+            sf_unary_expr_node* un = (sf_unary_expr_node*)node;
+
+            sf_operand src = generate_expression(program, un->operand, depth);
+            sf_operand dst = hint ? *hint : new_temporary(program, node->resolved);
+
+            push(
+                program,
+                (sf_operation){
+                    .opcode = type_operation_to_opcode(un->op),
+                    .destiny = dst,
+                    .source1 = src,
+                    .source2 = {0}
+                }
+            );
+
+            return dst;
+        }
+
+        case SF_NODE_CAST_EXPR: {
+            sf_cast_expr_node* cast = (sf_cast_expr_node*)node;
+
+            sf_operand src = generate_expression(program, cast->operand, depth);
+            sf_operand dst = hint ? *hint : new_temporary(program, node->resolved);
+
+            push(
+                program,
+                (sf_operation){
+                    .opcode  = SF_OPCODE_CAST,
+                    .destiny = dst,
+                    .source1 = src,
+                    .source2 = {0}
+                }
+            );
+
+            return dst;
+        }
+
+        default: return generate_expression(program, node, depth);
+    }
+}
+
 static void generate_statement(sf_ir_program* program, sf_ast_node* node, uint32_t depth) {
     switch (node->type) {
         case SF_NODE_VAR_DECL: {
-        	sf_var_decl_node* dcl = (sf_var_decl_node*)node;
-
-        	if (dcl->value == NULL) break;
-
-        	sf_operand src = generate_expression(program, dcl->value, depth);
+            sf_var_decl_node* dcl = (sf_var_decl_node*)node;
+            if (dcl->value == NULL) break;
 
             char* mangled = malloc(strlen(dcl->name) + 32);
             sprintf(mangled, "%s@%u", dcl->name, dcl->id);
 
-        	sf_operand dst = {
-        		.type = SF_OPERAND_TYPE_VARIABLE,
-        		.value_type = dcl->var_type,
-        		.variable_name = mangled,
-        	};
+            sf_operand dst = {
+                .type = SF_OPERAND_TYPE_VARIABLE,
+                .value_type = dcl->var_type,
+                .variable_name = mangled,
+            };
 
-        	sf_operation op = {
-        		.opcode = SF_OPCODE_ASSIGN,
-        		.destiny = dst,
-        		.source1 = src,
-                .source2 = {0},
-        	};
+            sf_operand src = generate_expression_into(program, dcl->value, depth, &dst);
 
-        	push(program, op);
+            bool wrote_directly =
+                src.type == SF_OPERAND_TYPE_VARIABLE &&
+                strcmp(src.variable_name, dst.variable_name) == 0;
+
+            if (!wrote_directly) {
+                sf_operation op = {
+                    .opcode = SF_OPCODE_ASSIGN,
+                    .destiny = dst,
+                    .source1 = src,
+                    .source2 = {0},
+                };
+
+                push(program, op);
+            }
+
             break;
         }
 
         case SF_NODE_VAR_ASSIGN: {
-        	sf_var_assign_node* as = (sf_var_assign_node*)node;
-
-        	sf_operand src = generate_expression(program, as->value, depth);
+            sf_var_assign_node* as = (sf_var_assign_node*)node;
 
             char* mangled = malloc(strlen(as->name) + 32);
             sprintf(mangled, "%s@%u", as->name, as->id);
 
-        	sf_operand dst = {
-        		.type = SF_OPERAND_TYPE_VARIABLE,
-        		.value_type = node->resolved,
-        		.variable_name = mangled,
-        	};
+            sf_operand dst = {
+                .type = SF_OPERAND_TYPE_VARIABLE,
+                .value_type = node->resolved,
+                .variable_name = mangled,
+            };
 
-        	sf_operation op = {
-        		.opcode = SF_OPCODE_ASSIGN,
-        		.destiny = dst,
-        		.source1 = src,
-                .source2 = {0},
-        	};
+            sf_operand src = generate_expression_into(program, as->value, depth, &dst);
 
-        	push(program, op);
+            bool wrote_directly =
+                src.type == SF_OPERAND_TYPE_VARIABLE &&
+                strcmp(src.variable_name, dst.variable_name) == 0;
+
+            if (!wrote_directly) {
+                sf_operation op = {
+                    .opcode = SF_OPCODE_ASSIGN,
+                    .destiny = dst,
+                    .source1 = src,
+                    .source2 = {0},
+                };
+
+                push(program, op);
+            }
 
             break;
         }
@@ -357,5 +458,70 @@ static void print_operand(sf_operand op) {
         case SF_OPERAND_TYPE_TEMPORARY: printf("t%u:%s", op.temporary_id, type_value_name(op.value_type)); break;
         case SF_OPERAND_TYPE_VARIABLE: printf("%s:%s", op.variable_name, type_value_name(op.value_type)); break;
         case SF_OPERAND_TYPE_IMMEDIATE: printf("%s:%s", op.immediate_value, type_value_name(op.value_type)); break;
+    }
+}
+
+
+static bool try_fold_constants(sf_operand left, sf_operand right, sf_opcode opcode, sf_value_type result_type, sf_operand* out) {
+    if (left.type != SF_OPERAND_TYPE_IMMEDIATE || right.type != SF_OPERAND_TYPE_IMMEDIATE) {
+        return false;
+    }
+
+    if (opcode != SF_OPCODE_ADD &&
+        opcode != SF_OPCODE_SUB &&
+        opcode != SF_OPCODE_MULT &&
+        opcode != SF_OPCODE_DIV
+    ) {
+        return false;
+    }
+
+    bool is_signed = type_value_is_signed(result_type);
+
+    if (is_signed) {
+        int64_t l = strtoll(left.immediate_value, NULL, 10);
+        int64_t r = strtoll(right.immediate_value, NULL, 10);
+        int64_t result;
+
+        switch (opcode) {
+            case SF_OPCODE_ADD:  result = l + r; break;
+            case SF_OPCODE_SUB:  result = l - r; break;
+            case SF_OPCODE_MULT: result = l * r; break;
+            case SF_OPCODE_DIV:
+                if (r == 0) return false;
+                result = l / r;
+                break;
+            default: return false;
+        }
+
+        char* buf = malloc(32);
+        snprintf(buf, 32, "%lld", (long long)result);
+
+        out->type = SF_OPERAND_TYPE_IMMEDIATE;
+        out->value_type = result_type;
+        out->immediate_value = buf;
+        return true;
+    } else {
+        uint64_t l = strtoull(left.immediate_value, NULL, 10);
+        uint64_t r = strtoull(right.immediate_value, NULL, 10);
+        uint64_t result;
+
+        switch (opcode) {
+            case SF_OPCODE_ADD:  result = l + r; break;
+            case SF_OPCODE_SUB:  result = l - r; break;
+            case SF_OPCODE_MULT: result = l * r; break;
+            case SF_OPCODE_DIV:
+                if (r == 0) return false;
+                result = l / r;
+                break;
+            default: return false;
+        }
+
+        char* buf = malloc(32);
+        snprintf(buf, 32, "%llu", (unsigned long long)result);
+
+        out->type = SF_OPERAND_TYPE_IMMEDIATE;
+        out->value_type = result_type;
+        out->immediate_value = buf;
+        return true;
     }
 }

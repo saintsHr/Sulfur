@@ -8,6 +8,6 @@ Higher precedence binds more tightly. All binary operators are left-associative 
 | Primary        | literals, identifiers, `(expr)` |
 | Unary          | `-expr`                         |
 | Casts          | `expr as Type`                  |
-| Bitwise        | `<< >> & ^ \|`                  |
 | Multiplicative | `* /`                           |
 | Additive       | `+ -`                           |
+| Bitwise        | `<< >> & ^ \|`                  |

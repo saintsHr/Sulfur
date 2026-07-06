@@ -174,7 +174,7 @@ static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const cha
     if (current == NULL) return NULL;
 
     if (match(list, current, SF_TOKEN_TYPE_LPAREN)) {
-        sf_ast_node* expr = parse_additive(list, current, filename);
+        sf_ast_node* expr = parse_bitwise(list, current, filename);
         if (expr == NULL) return NULL;
 
         if (!expect(list, current, SF_TOKEN_TYPE_RPAREN, filename)) {
@@ -225,7 +225,7 @@ static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, co
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
-    sf_ast_node* left = parse_bitwise(list, current, filename);
+    sf_ast_node* left = parse_cast(list, current, filename);
     if (left == NULL) return NULL;
 
     while (
@@ -234,7 +234,7 @@ static sf_ast_node* parse_multiplicative(sf_token_list list, size_t* current, co
     ) {
         sf_token op = advance(list, current);
 
-        sf_ast_node* right = parse_bitwise(list, current, filename);
+        sf_ast_node* right = parse_cast(list, current, filename);
         if (right == NULL) return NULL;
 
         sf_operation_type op_type = (op.type == SF_TOKEN_TYPE_MULT)
@@ -493,7 +493,7 @@ static sf_ast_node* parse_bitwise(sf_token_list list, size_t* current, const cha
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
-    sf_ast_node* left = parse_cast(list, current, filename);
+    sf_ast_node* left = parse_additive(list, current, filename);
     if (left == NULL) return NULL;
 
     while (
@@ -505,7 +505,7 @@ static sf_ast_node* parse_bitwise(sf_token_list list, size_t* current, const cha
     ) {
         sf_token op = advance(list, current);
 
-        sf_ast_node* right = parse_cast(list, current, filename);
+        sf_ast_node* right = parse_additive(list, current, filename);
         if (right == NULL) return NULL;
 
         sf_operation_type op_type;

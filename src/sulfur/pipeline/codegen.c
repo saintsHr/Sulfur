@@ -293,6 +293,8 @@ static void emit_assign(char** buff, size_t* len, size_t* capacity, sf_operation
     format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
 
+    if (strcmp(src1_fmt, dst_fmt) == 0) return;
+
     uint8_t src1_size = type_value_width_bytes(op.source1.value_type);
     uint8_t dst_size = type_value_width_bytes(op.destiny.value_type);
 
@@ -330,6 +332,15 @@ static void emit_add(char** buff, size_t* len, size_t* capacity, sf_operation op
     format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
 
+    if (
+        strcmp(dst_fmt, src1_fmt) == 0 &&
+        op.source2.type != SF_OPERAND_TYPE_VARIABLE &&
+        op.source2.type != SF_OPERAND_TYPE_TEMPORARY
+    ) {
+        emitf(buff, len, capacity, "\tadd %s, %s\n", dst_fmt, src2_fmt);
+        return;
+    }
+
     uint8_t size = type_value_width_bytes(op.destiny.value_type);
     const char* reg_str = register_to_string(register_from_size(size));
 
@@ -346,6 +357,15 @@ static void emit_sub(char** buff, size_t* len, size_t* capacity, sf_operation op
     format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
     format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    if (
+        strcmp(dst_fmt, src1_fmt) == 0 &&
+        op.source2.type != SF_OPERAND_TYPE_VARIABLE &&
+        op.source2.type != SF_OPERAND_TYPE_TEMPORARY
+    ) {
+        emitf(buff, len, capacity, "\tsub %s, %s\n", dst_fmt, src2_fmt);
+        return;
+    }
 
     uint8_t size = type_value_width_bytes(op.destiny.value_type);
     const char* reg_str = register_to_string(register_from_size(size));
@@ -432,6 +452,11 @@ static void emit_neg(char** buff, size_t* len, size_t* capacity, sf_operation op
     format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
 
+    if (strcmp(dst_fmt, src1_fmt) == 0) {
+        emitf(buff, len, capacity, "\tneg %s\n", dst_fmt);
+        return;
+    }
+
     uint8_t size = type_value_width_bytes(op.destiny.value_type);
     const char* reg_str = register_to_string(register_from_size(size));
 
@@ -484,6 +509,15 @@ static void emit_bitwise_and(char** buff, size_t* len, size_t* capacity, sf_oper
     format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
 
+    if (
+        strcmp(dst_fmt, src1_fmt) == 0 &&
+        op.source2.type != SF_OPERAND_TYPE_VARIABLE &&
+        op.source2.type != SF_OPERAND_TYPE_TEMPORARY
+    ) {
+        emitf(buff, len, capacity, "\tand %s, %s\n", dst_fmt, src2_fmt);
+        return;
+    }
+
     uint8_t size = type_value_width_bytes(op.destiny.value_type);
     const char* reg_str = register_to_string(register_from_size(size));
 
@@ -501,6 +535,15 @@ static void emit_bitwise_or(char** buff, size_t* len, size_t* capacity, sf_opera
     format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
 
+    if (
+        strcmp(dst_fmt, src1_fmt) == 0 &&
+        op.source2.type != SF_OPERAND_TYPE_VARIABLE &&
+        op.source2.type != SF_OPERAND_TYPE_TEMPORARY
+    ) {
+        emitf(buff, len, capacity, "\tor %s, %s\n", dst_fmt, src2_fmt);
+        return;
+    }
+
     uint8_t size = type_value_width_bytes(op.destiny.value_type);
     const char* reg_str = register_to_string(register_from_size(size));
 
@@ -517,6 +560,15 @@ static void emit_bitwise_xor(char** buff, size_t* len, size_t* capacity, sf_oper
     format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
     format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    if (
+        strcmp(dst_fmt, src1_fmt) == 0 &&
+        op.source2.type != SF_OPERAND_TYPE_VARIABLE &&
+        op.source2.type != SF_OPERAND_TYPE_TEMPORARY
+    ) {
+        emitf(buff, len, capacity, "\txor %s, %s\n", dst_fmt, src2_fmt);
+        return;
+    }
 
     uint8_t size = type_value_width_bytes(op.destiny.value_type);
     const char* reg_str = register_to_string(register_from_size(size));
@@ -589,6 +641,11 @@ static void emit_bitwise_not(char** buff, size_t* len, size_t* capacity, sf_oper
 
     format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    if (strcmp(dst_fmt, src1_fmt) == 0) {
+        emitf(buff, len, capacity, "\tneg %s\n", dst_fmt);
+        return;
+    }
 
     uint8_t size = type_value_width_bytes(op.destiny.value_type);
     const char* reg_str = register_to_string(register_from_size(size));
