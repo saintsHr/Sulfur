@@ -1,6 +1,30 @@
 #include "sulfur/utils/type_utils.h"
 #include "sulfur/pipeline/ast.h"
 
+bool type_value_uint_literal_fits(sf_value_type type, uint64_t value) {
+    switch (type) {
+        case SF_VAL_TYPE_I8:  return value <= (uint64_t)INT8_MAX;
+        case SF_VAL_TYPE_I16: return value <= (uint64_t)INT16_MAX;
+        case SF_VAL_TYPE_I32: return value <= (uint64_t)INT32_MAX;
+        case SF_VAL_TYPE_I64: return value <= (uint64_t)INT64_MAX;
+        case SF_VAL_TYPE_U8:  return value <= UINT8_MAX;
+        case SF_VAL_TYPE_U16: return value <= UINT16_MAX;
+        case SF_VAL_TYPE_U32: return value <= UINT32_MAX;
+        case SF_VAL_TYPE_U64: return true;
+        default: return false;
+    }
+}
+
+bool type_value_signed_literal_fits_negated(sf_value_type type, uint64_t magnitude) {
+    switch (type) {
+        case SF_VAL_TYPE_I8:  return magnitude <= (uint64_t)INT8_MAX  + 1;
+        case SF_VAL_TYPE_I16: return magnitude <= (uint64_t)INT16_MAX + 1;
+        case SF_VAL_TYPE_I32: return magnitude <= (uint64_t)INT32_MAX + 1;
+        case SF_VAL_TYPE_I64: return magnitude <= (uint64_t)INT64_MAX + 1;
+        default: return false;
+    }
+}
+
 const char* type_value_name(sf_value_type type) {
     switch (type) {
         case SF_VAL_TYPE_I8:  return "i8";
@@ -61,6 +85,23 @@ bool type_value_is_signed(sf_value_type type) {
 
         default:
         	return false;
+    }
+}
+
+bool type_value_is_integer(sf_value_type type) {
+    switch (type) {
+        case SF_VAL_TYPE_U8:
+        case SF_VAL_TYPE_U16:
+        case SF_VAL_TYPE_U32:
+        case SF_VAL_TYPE_U64:
+        case SF_VAL_TYPE_I8:
+        case SF_VAL_TYPE_I16:
+        case SF_VAL_TYPE_I32:
+        case SF_VAL_TYPE_I64:
+            return true;
+
+        default:
+            return false;
     }
 }
 

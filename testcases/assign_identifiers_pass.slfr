@@ -1,29 +1,35 @@
-u64 x = 3853;
-bool y = true;
-
 i8 var1;
-var1 = x as i8;
+var1 = 34;
+var1 = 48;
 
 i16 var2;
-var2 = x as i16;
+var2 = 75;
+var2 = 10;
 
 i32 var3;
-var3 = x as i32;
+var3 = 192;
+var3 = 128;
 
 i64 var4;
-var4 = x as i64;
+var4 = 38;
+var4 = 29;
 
 u8 var5;
-var5 = 43 as u8;
+var5 = 102;
+var5 = 2;
 
 u16 var6;
-var6 = x as u16;
+var6 = 10;
+var6 = 29;
 
 u32 var7;
-var7 = x as u32;
+var7 = 92;
+var7 = 75;
 
 u64 var8;
-var8 = x as u64;
+var8 = 49;
+var8 = 54;
 
 bool var9;
-var9 = y as bool;
+var9 = true;
+var9 = false;

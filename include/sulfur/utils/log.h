@@ -66,6 +66,7 @@ typedef enum {
     SF_SEMANTIC_TYPE_MISMATCH         = 0x5003,
     SF_SEMANTIC_INVALID_EXPLICIT_CAST = 0x5004,
     SF_SEMANTIC_INVALID_IMPLICIT_CAST = 0x5005,
+    SF_SEMANTIC_LITERAL_OVERFLOW      = 0x5006,
 } sf_error_code;
 
 void sf_log_set_source(const char* filename, const char* content);

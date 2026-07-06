@@ -4,6 +4,10 @@
 #include "sulfur/pipeline/ir.h"
 #include <stdbool.h>
 
+bool type_value_uint_literal_fits(sf_value_type type, uint64_t value);
+bool type_value_signed_literal_fits_negated(sf_value_type type, uint64_t magnitude);
+
+bool type_value_is_integer(sf_value_type type);
 bool type_value_is_unsigned(sf_value_type type);
 bool type_value_is_signed(sf_value_type type);
 bool type_value_is_same_group(sf_value_type a, sf_value_type b);
