@@ -16,4 +16,9 @@ i16 y = x as i16;
 
 # Integers
 
-Any explicit cast between integers are allowed, even if it is not safe, while implicit cast is only allowed when the conversion is safe. 
+Explicit casts between integers are always allowed, even when unsafe. Implicit casts are only allowed when the conversion is guaranteed to be safe (i.e. no loss of information).
+
+# Booleans
+
+Booleans (bool) represent one of two values: true or false.
+Unlike integers, bools are never convertible to or from any other type — neither implicitly nor explicitly. There is no cast, safe or unsafe, between bool and any numeric type. A bool is always a bool.

@@ -21,7 +21,7 @@ i32 age = 18;
 u64 score = 1000;
 
 i16 counter;
-u8 flags;
+bool flag;
 ```
 
 ## Initialization

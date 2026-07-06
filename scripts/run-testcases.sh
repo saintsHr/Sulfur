@@ -34,6 +34,8 @@ EOF
 
 mapfile -t files < <(find "$CASES_DIR" -type f -name "*.slfr" | sort)
 
+echo ""
+
 if [[ ${#files[@]} -eq 0 ]]; then
     echo "No test cases found in $CASES_DIR."
     exit 1

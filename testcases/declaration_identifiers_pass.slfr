@@ -1,5 +1,6 @@
 u64 x = 8423 as u64;
 i64 y = 5473 as i64;
+bool z = true as bool;
 
 i8  var1 = y as i8;
 i16 var2 = y as i16;
@@ -10,3 +11,5 @@ u8  var5 = x as u8;
 u16 var6 = x as u16;
 u32 var7 = x as u32;
 u64 var8 = x as u64;
+
+bool var9 = z as bool;

@@ -12,4 +12,11 @@ i16 negative = -15;
 u64 zero = 0;
 ```
 
-The type of an integer literal depends on the context in which it is used.
+## Boolean Literals
+
+Boolean literals represent two possible states, true or false.
+
+```
+bool is_walking = true;
+bool is_jumping = false;
+```

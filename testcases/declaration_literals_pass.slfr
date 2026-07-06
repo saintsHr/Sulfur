@@ -7,3 +7,5 @@ u8  var5 = 54 as u8;
 u16 var6 = 34 as u16;
 u32 var7 = 92 as u32;
 u64 var8 = 81 as u64;
+
+bool var9 = true as bool;
