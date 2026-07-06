@@ -1,4 +1,5 @@
 #include "sulfur/utils/type_utils.h"
+#include "sulfur/pipeline/ast.h"
 
 const char* type_value_name(sf_value_type type) {
     switch (type) {
@@ -11,6 +12,8 @@ const char* type_value_name(sf_value_type type) {
         case SF_VAL_TYPE_U16: return "u16";
         case SF_VAL_TYPE_U32: return "u32";
         case SF_VAL_TYPE_U64: return "u64";
+
+        case SF_VAL_TYPE_BOOL: return "bool";
 
         default: return "?";
     }
@@ -64,20 +67,31 @@ bool type_value_is_signed(sf_value_type type) {
 bool type_value_is_same_group(sf_value_type a, sf_value_type b) {
     if (type_value_is_unsigned(a) && type_value_is_unsigned(b)) return true;
     if (type_value_is_signed(a) && type_value_is_signed(b)) return true;
+    if (a == SF_VAL_TYPE_BOOL && b == SF_VAL_TYPE_BOOL) return true;
 
     return false;
 }
 
 bool type_value_is_castable(sf_value_type from, sf_value_type to) {
-	return true;
+	if ((from == SF_VAL_TYPE_BOOL) != (to == SF_VAL_TYPE_BOOL)) return false;
+
+    return true;
 }
 
 uint8_t type_value_width_bits(sf_value_type type) {
     switch (type) {
-        case SF_VAL_TYPE_I8:  case SF_VAL_TYPE_U8:  return 8;
-        case SF_VAL_TYPE_I16: case SF_VAL_TYPE_U16: return 16;
-        case SF_VAL_TYPE_I32: case SF_VAL_TYPE_U32: return 32;
-        case SF_VAL_TYPE_I64: case SF_VAL_TYPE_U64: return 64;
+        case SF_VAL_TYPE_I8:  return 8;
+        case SF_VAL_TYPE_I16: return 16;
+        case SF_VAL_TYPE_I32: return 32;
+        case SF_VAL_TYPE_I64: return 64;
+
+        case SF_VAL_TYPE_U8:  return 8;
+        case SF_VAL_TYPE_U16: return 16;
+        case SF_VAL_TYPE_U32: return 32;
+        case SF_VAL_TYPE_U64: return 64;
+
+        case SF_VAL_TYPE_BOOL: return 8;
+
         default: return 64;
     }
 }

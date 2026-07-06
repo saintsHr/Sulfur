@@ -99,31 +99,44 @@ void sf_print_tokens(const sf_token_list* list) {
 const char* sf_token_type_name(sf_token_type type) {
     switch (type) {
         case SF_TOKEN_TYPE_IDENTIFIER: return "an identifier";
-        case SF_TOKEN_TYPE_INTEGER:    return "a number";
+        case SF_TOKEN_TYPE_INTEGER:    return "a integer";
 
-        case SF_TOKEN_TYPE_PLUS:       return "'+'";
-        case SF_TOKEN_TYPE_MINUS:      return "'-'";
-        case SF_TOKEN_TYPE_MULT:       return "'*'";
-        case SF_TOKEN_TYPE_DIV:        return "'/'";
-        case SF_TOKEN_TYPE_EQUALS:     return "'='";
-        case SF_TOKEN_TYPE_SEMICOLON:  return "';'";
-        case SF_TOKEN_TYPE_LBRACE:     return "'{'";
-        case SF_TOKEN_TYPE_RBRACE:     return "'}'";
-        case SF_TOKEN_TYPE_LPAREN:     return "'('";
-        case SF_TOKEN_TYPE_RPAREN:     return "')'";
+        case SF_TOKEN_TYPE_PLUS:      return "'+'";
+        case SF_TOKEN_TYPE_MINUS:     return "'-'";
+        case SF_TOKEN_TYPE_MULT:      return "'*'";
+        case SF_TOKEN_TYPE_DIV:       return "'/'";
+        case SF_TOKEN_TYPE_EQUALS:    return "'='";
+        case SF_TOKEN_TYPE_SEMICOLON: return "';'";
+        case SF_TOKEN_TYPE_LBRACE:    return "'{'";
+        case SF_TOKEN_TYPE_RBRACE:    return "'}'";
+        case SF_TOKEN_TYPE_LPAREN:    return "'('";
+        case SF_TOKEN_TYPE_RPAREN:    return "')'";
 
-        case SF_TOKEN_TYPE_KW_I8:      return "'i8'";
-        case SF_TOKEN_TYPE_KW_I16:     return "'i16'";
-        case SF_TOKEN_TYPE_KW_I32:     return "'i32'";
-        case SF_TOKEN_TYPE_KW_I64:     return "'i64'";
-        case SF_TOKEN_TYPE_KW_U8:      return "'u8'";
-        case SF_TOKEN_TYPE_KW_U16:     return "'u16'";
-        case SF_TOKEN_TYPE_KW_U32:     return "'u32'";
-        case SF_TOKEN_TYPE_KW_U64:     return "'u64'";
-        case SF_TOKEN_TYPE_KW_AS:      return "'as'";
+        case SF_TOKEN_TYPE_AMPERSAND:   return "'&'";
+        case SF_TOKEN_TYPE_CARET:       return "'^'";
+        case SF_TOKEN_TYPE_PIPE:        return "'|'";
+        case SF_TOKEN_TYPE_TILDE:       return "'~'";
+        case SF_TOKEN_TYPE_LEFT_SHIFT:  return "'<<'";
+        case SF_TOKEN_TYPE_RIGHT_SHIFT: return "'>>'";
 
-        case SF_TOKEN_TYPE_UNDEFINED:  return "an undefined token";
-        case SF_TOKEN_TYPE_EOF:        return "end of file";
+        case SF_TOKEN_TYPE_KW_I8:  return "'i8'";
+        case SF_TOKEN_TYPE_KW_I16: return "'i16'";
+        case SF_TOKEN_TYPE_KW_I32: return "'i32'";
+        case SF_TOKEN_TYPE_KW_I64: return "'i64'";
+
+        case SF_TOKEN_TYPE_KW_U8:  return "'u8'";
+        case SF_TOKEN_TYPE_KW_U16: return "'u16'";
+        case SF_TOKEN_TYPE_KW_U32: return "'u32'";
+        case SF_TOKEN_TYPE_KW_U64: return "'u64'";
+
+        case SF_TOKEN_TYPE_KW_BOOL:  return "'bool'";
+        case SF_TOKEN_TYPE_KW_TRUE:  return "'true'";
+        case SF_TOKEN_TYPE_KW_FALSE: return "'false'";
+
+        case SF_TOKEN_TYPE_KW_AS: return "'as'";
+
+        case SF_TOKEN_TYPE_UNDEFINED: return "an undefined token";
+        case SF_TOKEN_TYPE_EOF:       return "end of file";
 
         default: return "a token";
     }
@@ -276,6 +289,10 @@ static sf_token_type resolve_keyword(const char* value) {
     if (strcmp(value, "u16") == 0) return SF_TOKEN_TYPE_KW_U16;
     if (strcmp(value, "u32") == 0) return SF_TOKEN_TYPE_KW_U32;
     if (strcmp(value, "u64") == 0) return SF_TOKEN_TYPE_KW_U64;
+
+    if (strcmp(value, "bool") == 0)  return SF_TOKEN_TYPE_KW_BOOL;
+    if (strcmp(value, "true") == 0)  return SF_TOKEN_TYPE_KW_TRUE;
+    if (strcmp(value, "false") == 0) return SF_TOKEN_TYPE_KW_FALSE;
 
     if (strcmp(value, "as") == 0) return SF_TOKEN_TYPE_KW_AS;
 

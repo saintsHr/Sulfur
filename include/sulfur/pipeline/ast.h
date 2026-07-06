@@ -23,10 +23,14 @@ typedef enum {
     SF_VAL_TYPE_I16,
     SF_VAL_TYPE_I32,
     SF_VAL_TYPE_I64,
+
     SF_VAL_TYPE_U8,
     SF_VAL_TYPE_U16,
     SF_VAL_TYPE_U32,
     SF_VAL_TYPE_U64,
+
+    SF_VAL_TYPE_BOOL,
+
     SF_VAL_TYPE_UNRESOLVED,
 } sf_value_type;
 

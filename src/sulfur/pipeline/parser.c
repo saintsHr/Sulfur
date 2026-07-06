@@ -187,7 +187,11 @@ static sf_ast_node* parse_primary(sf_token_list list, size_t* current, const cha
 
     sf_token token = advance(list, current);
 
-    if (token.type == SF_TOKEN_TYPE_INTEGER) {
+    if (
+        token.type == SF_TOKEN_TYPE_INTEGER ||
+        token.type == SF_TOKEN_TYPE_KW_TRUE ||
+        token.type == SF_TOKEN_TYPE_KW_FALSE
+    ) {
         sf_ast_node* lit = (sf_ast_node*)sf_new_literal(token.value, token.type, token.span);
         if (lit == NULL) return NULL;
 
@@ -276,34 +280,23 @@ static sf_ast_node* parse_declaration(sf_token_list list, size_t* current, const
     if (current == NULL) return NULL;
 
     sf_token type_token = advance(list, current);
-    sf_value_type type;
+    sf_value_type type = token_to_type(type_token);
 
-    switch (type_token.type) {
-        case SF_TOKEN_TYPE_KW_I8:     type = SF_VAL_TYPE_I8;     break;
-        case SF_TOKEN_TYPE_KW_I16:    type = SF_VAL_TYPE_I16;    break;
-        case SF_TOKEN_TYPE_KW_I32:    type = SF_VAL_TYPE_I32;    break;
-        case SF_TOKEN_TYPE_KW_I64:    type = SF_VAL_TYPE_I64;    break;
-            
-        case SF_TOKEN_TYPE_KW_U8:     type = SF_VAL_TYPE_U8;     break;
-        case SF_TOKEN_TYPE_KW_U16:    type = SF_VAL_TYPE_U16;    break;
-        case SF_TOKEN_TYPE_KW_U32:    type = SF_VAL_TYPE_U32;    break;
-        case SF_TOKEN_TYPE_KW_U64:    type = SF_VAL_TYPE_U64;    break;
-            
-        default: 
-            sf_log(
-                "unexpected token",
-                "expected a type keyword but found '%s'",
-                "use any type keyword",
-                filename,
-                SF_PARSER_UNEXPECTED_TOKEN,
-                type_token.span,
-                SF_SEV_ERROR,
-                type_token.value
-            );
+   if (type == SF_VAL_TYPE_UNRESOLVED) {
+        sf_log(
+            "unexpected token",
+            "expected a type keyword but found '%s'",
+            "use any type keyword",
+            filename,
+            SF_PARSER_UNEXPECTED_TOKEN,
+            type_token.span,
+            SF_SEV_ERROR,
+            type_token.value
+        );
 
-            recover_statement(list, current);
+        recover_statement(list, current);
 
-            return NULL;
+        return NULL;
     }
 
     sf_token name_token = advance(list, current);
@@ -470,34 +463,23 @@ static sf_ast_node* parse_cast(sf_token_list list, size_t* current, const char* 
         if (!match(list, current, SF_TOKEN_TYPE_KW_AS)) break;
 
         sf_token type_token = advance(list, current);
-        sf_value_type target_type;
+        sf_value_type target_type = token_to_type(type_token);
 
-        switch (type_token.type) {
-            case SF_TOKEN_TYPE_KW_I8:  target_type = SF_VAL_TYPE_I8;     break;
-            case SF_TOKEN_TYPE_KW_I16: target_type = SF_VAL_TYPE_I16;    break;
-            case SF_TOKEN_TYPE_KW_I32: target_type = SF_VAL_TYPE_I32;    break;
-            case SF_TOKEN_TYPE_KW_I64: target_type = SF_VAL_TYPE_I64;    break;
-                
-            case SF_TOKEN_TYPE_KW_U8:  target_type = SF_VAL_TYPE_U8;     break;
-            case SF_TOKEN_TYPE_KW_U16: target_type = SF_VAL_TYPE_U16;    break;
-            case SF_TOKEN_TYPE_KW_U32: target_type = SF_VAL_TYPE_U32;    break;
-            case SF_TOKEN_TYPE_KW_U64: target_type = SF_VAL_TYPE_U64;    break;
-                
-            default: 
-                sf_log(
-                    "unexpected token",
-                    "expected a type keyword after 'as' but found '%s'",
-                    "use any type keyword",
-                    filename,
-                    SF_PARSER_UNEXPECTED_TOKEN,
-                    type_token.span,
-                    SF_SEV_ERROR,
-                    type_token.value
-                );
+        if (target_type == SF_VAL_TYPE_UNRESOLVED) {
+            sf_log(
+                "unexpected token",
+                "expected a type keyword after 'as' but found '%s'",
+                "use any type keyword",
+                filename,
+                SF_PARSER_UNEXPECTED_TOKEN,
+                type_token.span,
+                SF_SEV_ERROR,
+                type_token.value
+            );
 
-                recover_expression(list, current);
+            recover_expression(list, current);
 
-                return NULL;
+            return NULL;
         }
 
         expr = (sf_ast_node*)sf_new_cast_expr(expr, target_type, as_span);

@@ -185,6 +185,14 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		        return true;
 		    }
 
+		    if (
+		    	lit->token_type == SF_TOKEN_TYPE_KW_TRUE ||
+		    	lit->token_type == SF_TOKEN_TYPE_KW_FALSE
+		    ) {
+			    node->resolved = SF_VAL_TYPE_BOOL;
+			    return true;
+			}
+
 		    return true;
 		}
 

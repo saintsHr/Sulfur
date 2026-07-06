@@ -222,13 +222,20 @@ static sf_operand generate_expression(sf_ir_program* program, sf_ast_node* node,
         }
 
         case SF_NODE_LITERAL: {
-        	sf_literal_node* lt = (sf_literal_node*)node;
+            sf_literal_node* lt = (sf_literal_node*)node;
 
-        	operand.type = SF_OPERAND_TYPE_IMMEDIATE;
-        	operand.value_type = lt->base.resolved;
-        	operand.immediate_value = lt->value;
+            operand.type = SF_OPERAND_TYPE_IMMEDIATE;
+            operand.value_type = lt->base.resolved;
 
-        	break;
+            if (lt->token_type == SF_TOKEN_TYPE_KW_TRUE) {
+                operand.immediate_value = "1";
+            } else if (lt->token_type == SF_TOKEN_TYPE_KW_FALSE) {
+                operand.immediate_value = "0";
+            } else {
+                operand.immediate_value = lt->value;
+            }
+
+            break;
         }
 
         case SF_NODE_IDENTIFIER: {
