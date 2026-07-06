@@ -620,7 +620,7 @@ static const char* register_to_string(sf_register reg) {
         case SF_REGISTER_AX:  return "ax";
         case SF_REGISTER_EAX: return "eax";
         case SF_REGISTER_RAX: return "rax";
-        default:              return "rax";
+        default: return "rax";
     }
 }
 
@@ -630,11 +630,13 @@ static const char* prefix_to_string(sf_size_prefix prefix) {
         case SF_PREFIX_WORD:  return "WORD";
         case SF_PREFIX_DWORD: return "DWORD";
         case SF_PREFIX_QWORD: return "QWORD";
-        default:              return "QWORD";
+        default: return "QWORD";
     }
 }
 
 static sf_stack_offset_size_t next_aligned_offset(sf_stack_offset_size_t current, uint8_t size) {
+    if (size == 0) return 0;
+
     uint64_t pos = (uint64_t)(-current) + size;
     pos = (pos + size - 1) / size * size;
     return -(sf_stack_offset_size_t)pos;

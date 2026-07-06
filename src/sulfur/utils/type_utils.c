@@ -6,6 +6,7 @@ const char* type_value_name(sf_value_type type) {
         case SF_VAL_TYPE_I16: return "i16";
         case SF_VAL_TYPE_I32: return "i32";
         case SF_VAL_TYPE_I64: return "i64";
+
         case SF_VAL_TYPE_U8:  return "u8";
         case SF_VAL_TYPE_U16: return "u16";
         case SF_VAL_TYPE_U32: return "u32";
@@ -77,7 +78,7 @@ uint8_t type_value_width_bits(sf_value_type type) {
         case SF_VAL_TYPE_I16: case SF_VAL_TYPE_U16: return 16;
         case SF_VAL_TYPE_I32: case SF_VAL_TYPE_U32: return 32;
         case SF_VAL_TYPE_I64: case SF_VAL_TYPE_U64: return 64;
-        default: return 0;
+        default: return 64;
     }
 }
 
