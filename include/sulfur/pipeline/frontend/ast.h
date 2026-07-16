@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sulfur/pipeline/lexer.h"
+#include "sulfur/pipeline/frontend/lexer.h"
 #include "sulfur/utils/span.h"
 
 #include <stdlib.h>

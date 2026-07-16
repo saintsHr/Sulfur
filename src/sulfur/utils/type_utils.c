@@ -1,5 +1,5 @@
 #include "sulfur/utils/type_utils.h"
-#include "sulfur/pipeline/ast.h"
+#include "sulfur/pipeline/frontend/ast.h"
 
 bool type_value_uint_literal_fits(sf_value_type type, uint64_t value) {
     switch (type) {

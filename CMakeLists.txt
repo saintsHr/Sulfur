@@ -27,13 +27,17 @@ set(SOURCES
 	src/sulfur/utils/type_utils.c
 	src/sulfur/utils/token_utils.c
 
-	src/sulfur/pipeline/ast.c
-	src/sulfur/pipeline/lexer.c
-	src/sulfur/pipeline/parser.c
-	src/sulfur/pipeline/preprocessor.c
-	src/sulfur/pipeline/semantic.c
-	src/sulfur/pipeline/ir.c
-	src/sulfur/pipeline/codegen.c
+	src/sulfur/pipeline/frontend/ast.c
+	src/sulfur/pipeline/frontend/lexer.c
+	src/sulfur/pipeline/frontend/parser.c
+	src/sulfur/pipeline/frontend/preprocessor.c
+	
+	src/sulfur/pipeline/frontend/semantic/semantic.c
+	src/sulfur/pipeline/frontend/semantic/scope.c
+	src/sulfur/pipeline/frontend/semantic/symbol.c
+
+	src/sulfur/pipeline/backend/ir.c
+	src/sulfur/pipeline/backend/codegen.c
 )
 
 add_executable(sulfur ${SOURCES})

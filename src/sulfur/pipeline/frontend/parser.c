@@ -1,6 +1,6 @@
-#include "sulfur/pipeline/parser.h"
-#include "sulfur/pipeline/ast.h"
-#include "sulfur/pipeline/lexer.h"
+#include "sulfur/pipeline/frontend/parser.h"
+#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/lexer.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/token_utils.h"
 

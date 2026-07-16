@@ -1,4 +1,4 @@
-#include "sulfur/pipeline/ast.h"
+#include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/type_utils.h"
 

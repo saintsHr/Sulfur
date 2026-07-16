@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sulfur/pipeline/ir.h"
+#include "sulfur/pipeline/backend/ir.h"
 #include <stdint.h>
 
 typedef int64_t sf_stack_offset_size_t;

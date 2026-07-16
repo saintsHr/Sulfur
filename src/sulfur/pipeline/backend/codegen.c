@@ -1,5 +1,5 @@
-#include "sulfur/pipeline/codegen.h"
-#include "sulfur/pipeline/ir.h"
+#include "sulfur/pipeline/backend/codegen.h"
+#include "sulfur/pipeline/backend/ir.h"
 #include "sulfur/utils/type_utils.h"
 
 #include <stdint.h>

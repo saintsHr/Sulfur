@@ -4,7 +4,9 @@ Literals are fixed values written directly in the source code.
 
 ## Integer Literals
 
-Integer literals represent whole numbers, the always try to fit the type required by the context, otherwise, implicitly casts to i64
+Integer literals represent whole numbers, they always
+try to fit the type required by the context, otherwise,
+implicitly casts to i64
 
 ```
 i32 positive = 42;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "sulfur/pipeline/ast.h"
-#include "sulfur/pipeline/ir.h"
+#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/backend/ir.h"
 #include <stdbool.h>
 
 bool type_value_uint_literal_fits(sf_value_type type, uint64_t value);

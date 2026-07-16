@@ -1,5 +1,5 @@
-#include "sulfur/pipeline/ast.h"
-#include "sulfur/pipeline/ir.h"
+#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/backend/ir.h"
 #include "sulfur/utils/type_utils.h"
 
 #include <stdint.h>

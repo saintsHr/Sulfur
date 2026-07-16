@@ -1,7 +1,7 @@
 #pragma once
 
-#include "sulfur/pipeline/ast.h"
-#include "sulfur/pipeline/lexer.h"
+#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/lexer.h"
 #include <stdbool.h>
 
 bool token_is_type(sf_token token);
