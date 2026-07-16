@@ -15,7 +15,11 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 
 static bool try_eval_const_uint(sf_ast_node* node, uint64_t* out_value);
 static bool try_eval_const_int(sf_ast_node* node, int64_t* out_value);
-static bool analyze_constant_overflow(sf_ast_node* node, sf_value_type resolved, const char* filename);
+static bool analyze_const_overflow(sf_ast_node* node, sf_value_type resolved, const char* filename);
+
+static void report_undeclared(const char* name, sf_scope* scope, sf_span span, const char* filename);
+
+static bool check_assignment_type(sf_value_type resolved, sf_value_type target, sf_span span, const char* filename);
 
 void sf_analyze(sf_program_node* program, const char* filename) {
 	sf_scope scope;
@@ -36,11 +40,8 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
         case SF_NODE_BINARY_EXPR: {
 		    sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
 
-		    bool ok = true;
-		    ok &= analyze_expr(bin->left,  expected, scope, filename);
-		    ok &= analyze_expr(bin->right, expected, scope, filename);
-
-		    if (!ok) return false;
+		    if (!analyze_expr(bin->left, expected, scope, filename)) return false;
+			if (!analyze_expr(bin->right, expected, scope, filename)) return false;
 
 		    sf_value_type ltype = bin->left->resolved;
 		    sf_value_type rtype = bin->right->resolved;
@@ -50,12 +51,6 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 		    bool is_shift = (
 		    	bin->op == SF_OP_TYPE_BITWISE_LSHIFT ||
 		    	bin->op == SF_OP_TYPE_BITWISE_RSHIFT
-		    );
-
-		    bool is_bitwise_logical = (
-		    	bin->op == SF_OP_TYPE_BITWISE_AND || 
-		        bin->op == SF_OP_TYPE_BITWISE_OR  || 
-		        bin->op == SF_OP_TYPE_BITWISE_XOR
 		    );
 
 		    if (is_shift) {
@@ -105,7 +100,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
 			    }
 			}
 
-			if (!analyze_constant_overflow(node, node->resolved, filename)) {
+			if (!analyze_const_overflow(node, node->resolved, filename)) {
 			    return false;
 			}
 
@@ -272,33 +267,7 @@ static bool analyze_expr(sf_ast_node* node, sf_value_type expected, sf_scope* sc
         	sf_symbol* sym = scope_lookup(scope, id->name);
 
 			if (sym == NULL) {
-				const char* closest = scope_find_closest(scope, id->name);
-
-				if (closest != NULL) {
-					sf_log(
-					    "undeclared symbol",
-					    "'%s' is not declared in this scope",
-					    "did u mean '%s'?",
-					    filename,
-					    SF_SEMANTIC_UNDECLARED,
-					    node->span,
-					    SF_SEV_ERROR,
-					    id->name,
-					    closest
-					);
-				} else {
-					sf_log(
-					    "undeclared symbol",
-					    "'%s' is not declared in this scope",
-					    "check for typos, or declare the variable before using it",
-					    filename,
-					    SF_SEMANTIC_UNDECLARED,
-					    node->span,
-					    SF_SEV_ERROR,
-					    id->name
-					);
-				}
-
+				report_undeclared(id->name, scope, node->span, filename);
 			    return false;
 			}
 
@@ -340,42 +309,7 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
 
 			if (var->value != NULL) {
 			    if (!analyze_expr(var->value, var->var_type, scope, filename)) break;
-
-			    sf_value_type resolved = var->value->resolved;
-
-			    if (resolved != SF_VAL_TYPE_UNRESOLVED) {
-			        if (!type_value_is_same_group(resolved, var->var_type)) {
-			            sf_log(
-						    "type mismatch",
-						    "cannot assign '%s' to a variable of type '%s'",
-						    "make sure the expression type matches the variable type, or cast it",
-						    filename,
-						    SF_SEMANTIC_TYPE_MISMATCH,
-						    var->base.span,
-						    SF_SEV_ERROR,
-						    type_value_name(resolved),
-						    type_value_name(var->var_type)
-						);
-
-			            break;
-			        }
-
-			        if (type_value_width_bits(resolved) > type_value_width_bits(var->var_type)) {
-			            sf_log(
-						    "narrowing conversion",
-						    "cannot implicitly narrow '%s' to '%s'",
-						    "cast the value explicitly, or use a wider variable type",
-						    filename,
-						    SF_SEMANTIC_INVALID_IMPLICIT_CAST,
-						    var->base.span,
-						    SF_SEV_ERROR,
-						    type_value_name(resolved),
-						    type_value_name(var->var_type)
-						);
-
-			            break;
-			        }
-			    }
+			    if (!check_assignment_type(var->value->resolved, var->var_type, var->base.span, filename)) break;
 			}
 
 			scope_insert(scope, sym, filename);
@@ -386,86 +320,25 @@ static void analyze_statement(sf_ast_node* node, sf_scope* scope, const char* fi
         }
 
         case SF_NODE_VAR_ASSIGN: {
-        	sf_var_assign_node* asg = (sf_var_assign_node*)node;
+		    sf_var_assign_node* asg = (sf_var_assign_node*)node;
 
-        	sf_symbol* sym = scope_lookup(scope, asg->name);
+		    sf_symbol* sym = scope_lookup(scope, asg->name);
 
-        	if (sym == NULL) {
-        		const char* closest = scope_find_closest(scope, asg->name);
+		    if (sym == NULL) {
+		        report_undeclared(asg->name, scope, node->span, filename);
+		        break;
+		    }
 
-				if (closest != NULL) {
-					sf_log(
-					    "undeclared symbol",
-					    "'%s' is not declared in this scope",
-					    "did u mean '%s'?",
-					    filename,
-					    SF_SEMANTIC_UNDECLARED,
-					    node->span,
-					    SF_SEV_ERROR,
-					    asg->name,
-					    closest
-					);
-				} else {
-					sf_log(
-					    "undeclared symbol",
-					    "'%s' is not declared in this scope",
-					    "check for typos, or declare the variable before assigning it",
-					    filename,
-					    SF_SEMANTIC_UNDECLARED,
-					    node->span,
-					    SF_SEV_ERROR,
-					    asg->name
-					);
-				}
+		    asg->id = sym->id;
 
-			    break;
-        	}
+		    if (!analyze_expr(asg->value, sym->type, scope, filename)) break;
+		    if (!check_assignment_type(asg->value->resolved, sym->type, asg->base.span, filename)) break;
 
-        	asg->id = sym->id;
+		    sym->initialized = true;
+		    asg->base.resolved = sym->type;
 
-        	if (!analyze_expr(asg->value, sym->type, scope, filename)) break;
-
-        	sf_value_type resolved = asg->value->resolved;
-
-        	if (resolved != SF_VAL_TYPE_UNRESOLVED) {
-        	    if (!type_value_is_same_group(resolved, sym->type)) {
-        	        sf_log(
-					    "type mismatch",
-					    "cannot assign '%s' to a variable of type '%s'",
-					    "make sure the expression type matches the variable type, or cast it",
-					    filename,
-					    SF_SEMANTIC_TYPE_MISMATCH,
-					    asg->base.span,
-					    SF_SEV_ERROR,
-					    type_value_name(resolved),
-					    type_value_name(sym->type)
-					);
-
-        	        break;
-        	    }
-
-        	    if (type_value_width_bits(resolved) > type_value_width_bits(sym->type)) {
-        	        sf_log(
-					    "narrowing conversion",
-					    "cannot implicitly narrow '%s' to '%s'",
-					    "cast the value explicitly, or use a wider variable type",
-					    filename,
-					    SF_SEMANTIC_TYPE_MISMATCH,
-					    asg->base.span,
-					    SF_SEV_ERROR,
-					    type_value_name(resolved),
-					    type_value_name(sym->type)
-					);
-					
-        	        break;
-        	    }
-        	}
-
-        	sym->initialized = true;
-        	asg->base.resolved = sym->type;
-        	
-        	break;
-        }
+		    break;
+		}
 
     	case SF_NODE_BLOCK: {
     		scope_push(scope);
@@ -661,7 +534,7 @@ static bool try_eval_const_int(sf_ast_node* node, int64_t* out_value) {
     return false;
 }
 
-static bool analyze_constant_overflow(sf_ast_node* node, sf_value_type resolved, const char* filename) {
+static bool analyze_const_overflow(sf_ast_node* node, sf_value_type resolved, const char* filename) {
     if (type_value_is_signed(resolved)) {
         int64_t value;
         if (!try_eval_const_int(node, &value)) return true;
@@ -734,4 +607,69 @@ static bool analyze_constant_overflow(sf_ast_node* node, sf_value_type resolved,
 
         return true;
     }
+}
+
+static void report_undeclared(const char* name, sf_scope* scope, sf_span span, const char* filename) {
+    const char* closest = scope_find_closest(scope, name);
+
+    if (closest != NULL) {
+        sf_log(
+        	"undeclared symbol",
+        	"'%s' is not declared in this scope",
+            "did u mean '%s'?",
+            filename,
+            SF_SEMANTIC_UNDECLARED,
+            span,
+            SF_SEV_ERROR,
+            name,
+            closest
+        );
+    } else {
+        sf_log(
+        	"undeclared symbol",
+        	"'%s' is not declared in this scope",
+            "check for typos, or declare the variable before using it",
+            filename,
+            SF_SEMANTIC_UNDECLARED,
+            span,
+            SF_SEV_ERROR,
+            name
+        );
+    }
+}
+
+static bool check_assignment_type(sf_value_type resolved, sf_value_type target, sf_span span, const char* filename) {
+    if (resolved == SF_VAL_TYPE_UNRESOLVED) return true;
+
+    if (!type_value_is_same_group(resolved, target)) {
+        sf_log(
+        	"type mismatch",
+        	"cannot assign '%s' to a variable of type '%s'",
+            "make sure the expression type matches the variable type, or cast it",
+            filename,
+            SF_SEMANTIC_TYPE_MISMATCH,
+            span,
+            SF_SEV_ERROR,
+            type_value_name(resolved),
+            type_value_name(target)
+        );
+        return false;
+    }
+
+    if (type_value_width_bits(resolved) > type_value_width_bits(target)) {
+        sf_log(
+        	"narrowing conversion",
+        	"cannot implicitly narrow '%s' to '%s'",
+            "cast the value explicitly, or use a wider variable type",
+            filename,
+            SF_SEMANTIC_INVALID_IMPLICIT_CAST,
+            span,
+            SF_SEV_ERROR,
+            type_value_name(resolved),
+            type_value_name(target)
+        );
+        return false;
+    }
+
+    return true;
 }
