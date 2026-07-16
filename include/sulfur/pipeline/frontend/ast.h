@@ -1,10 +1,10 @@
 #pragma once
 
+#include <stdint.h>
+#include <stdlib.h>
+
 #include "sulfur/pipeline/frontend/lexer.h"
 #include "sulfur/utils/span.h"
-
-#include <stdlib.h>
-#include <stdint.h>
 
 typedef enum {
     SF_NODE_PROGRAM,
@@ -124,13 +124,25 @@ sf_program_node* sf_new_program();
 void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt);
 void sf_block_add_statement(sf_block_node* block, sf_ast_node* stmt);
 
-sf_literal_node* sf_new_literal(const char* value, sf_token_type tokenType, sf_span span);
+sf_literal_node* sf_new_literal(
+    const char* value, sf_token_type tokenType, sf_span span
+);
 sf_identifier_node* sf_new_identifier(const char* name, sf_span span);
-sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, sf_operation_type op, sf_span span);
-sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value, sf_span span);
-sf_var_assign_node* sf_new_var_assign(const char* name, sf_ast_node* value, sf_span span);
+sf_binary_expr_node* sf_new_binary_expr(
+    sf_ast_node* left, sf_ast_node* right, sf_operation_type op, sf_span span
+);
+sf_var_decl_node* sf_new_var_decl(
+    const char* name, sf_value_type type, sf_ast_node* value, sf_span span
+);
+sf_var_assign_node* sf_new_var_assign(
+    const char* name, sf_ast_node* value, sf_span span
+);
 sf_block_node* sf_new_block(sf_span span);
-sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op, sf_span span);
-sf_cast_expr_node* sf_new_cast_expr(sf_ast_node* operand, sf_value_type target_type, sf_span span);
+sf_unary_expr_node* sf_new_unary_expr(
+    sf_ast_node* operand, sf_operation_type op, sf_span span
+);
+sf_cast_expr_node* sf_new_cast_expr(
+    sf_ast_node* operand, sf_value_type target_type, sf_span span
+);
 
 void sf_free_ast(sf_ast_node* node);

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "sulfur/pipeline/frontend/ast.h"
 #include <stdbool.h>
+
+#include "sulfur/pipeline/frontend/ast.h"
 
 typedef struct {
     char* name;
@@ -21,4 +22,6 @@ typedef struct {
 void symbol_table_init(sf_symbol_table* table);
 sf_symbol* symbol_table_lookup(sf_symbol_table* table, const char* name);
 void symbol_table_free(sf_symbol_table* table);
-void symbol_table_insert(sf_symbol_table* table, sf_symbol symbol, const char* filename);
+void symbol_table_insert(
+    sf_symbol_table* table, sf_symbol symbol, const char* filename
+);

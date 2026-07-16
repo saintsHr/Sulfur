@@ -1,7 +1,8 @@
 #pragma once
 
-#include "sulfur/pipeline/backend/ir.h"
 #include <stdint.h>
+
+#include "sulfur/pipeline/backend/ir.h"
 
 typedef int64_t sf_stack_offset_size_t;
 typedef uint32_t sf_stack_map_size_t;

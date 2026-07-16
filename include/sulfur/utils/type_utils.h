@@ -1,11 +1,14 @@
 #pragma once
 
-#include "sulfur/pipeline/frontend/ast.h"
-#include "sulfur/pipeline/backend/ir.h"
 #include <stdbool.h>
 
+#include "sulfur/pipeline/backend/ir.h"
+#include "sulfur/pipeline/frontend/ast.h"
+
 bool type_value_uint_literal_fits(sf_value_type type, uint64_t value);
-bool type_value_signed_literal_fits_negated(sf_value_type type, uint64_t magnitude);
+bool type_value_signed_literal_fits_negated(
+    sf_value_type type, uint64_t magnitude
+);
 
 bool type_value_is_integer(sf_value_type type);
 bool type_value_is_unsigned(sf_value_type type);

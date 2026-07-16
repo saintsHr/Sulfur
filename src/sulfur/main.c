@@ -1,15 +1,16 @@
-#include "sulfur/utils/log.h"
-#include "sulfur/pipeline/backend/codegen.h"
-#include "sulfur/pipeline/frontend/semantic/semantic.h"
-#include "sulfur/pipeline/frontend/preprocessor.h"
-#include "sulfur/pipeline/frontend/lexer.h"
-#include "sulfur/pipeline/frontend/ast.h"
-#include "sulfur/pipeline/frontend/parser.h"
-#include "sulfur/pipeline/backend/ir.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "sulfur/pipeline/backend/codegen.h"
+#include "sulfur/pipeline/backend/ir.h"
+#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/pipeline/frontend/parser.h"
+#include "sulfur/pipeline/frontend/preprocessor.h"
+#include "sulfur/pipeline/frontend/semantic/semantic.h"
+#include "sulfur/utils/log.h"
 
 typedef struct {
     char* output_file;
@@ -22,8 +23,8 @@ static void write_file(const char* filename, const char* content);
 
 int main(int argc, char* argv[]) {
     sf_compiler_options options = {
-        .input_file         = "input.slfr",
-        .output_file        = "output.asm",
+        .input_file = "input.slfr",
+        .output_file = "output.asm",
     };
 
     parse_flags(argc, argv, &options);
@@ -41,7 +42,7 @@ int main(int argc, char* argv[]) {
     sf_program_node* ast = NULL;
     sf_ir_program ir = {0};
     char* assembly = NULL;
-    
+
     // compilation pipeline
     output = sf_preprocess(input, inputSize, options.input_file);
     if (sf_log_had_fatal()) return EXIT_FAILURE;
@@ -82,7 +83,7 @@ int main(int argc, char* argv[]) {
     sf_free_ir(&ir);
     free(output);
     free(input);
-    
+
     return 0;
 }
 
@@ -139,7 +140,6 @@ static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {
     }
 }
 
-
 static char* read_file(const char* filename, uint32_t* out_size) {
     FILE* file = fopen(filename, "rb");
 
@@ -165,7 +165,7 @@ static char* read_file(const char* filename, uint32_t* out_size) {
 
     if (content == NULL) {
         fclose(file);
-        
+
         sf_log(
             "memory allocation failed",
             "failed to allocate buffer to read file '%s'",
@@ -180,7 +180,7 @@ static char* read_file(const char* filename, uint32_t* out_size) {
 
     fread(content, sizeof(char), size, file);
     content[size] = '\0';
-    
+
     fclose(file);
     return content;
 }

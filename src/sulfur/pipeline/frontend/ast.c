@@ -1,10 +1,11 @@
 #include "sulfur/pipeline/frontend/ast.h"
-#include "sulfur/utils/log.h"
-#include "sulfur/utils/type_utils.h"
 
 #include <stdint.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
+
+#include "sulfur/utils/log.h"
+#include "sulfur/utils/type_utils.h"
 
 static void print_indent(int indent);
 static void print_ast_node(sf_ast_node* node, int indent);
@@ -55,8 +56,10 @@ sf_block_node* sf_new_block(sf_span span) {
 
 void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt) {
     if (program->statement_count >= program->statement_capacity) {
-        program->statement_capacity = program->statement_capacity == 0 ? 8 : program->statement_capacity * 2;
-        
+        program->statement_capacity = program->statement_capacity == 0
+            ? 8
+            : program->statement_capacity * 2;
+
         sf_ast_node** new_statements = realloc(
             program->statements,
             program->statement_capacity * sizeof(sf_ast_node*)
@@ -83,11 +86,11 @@ void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt) {
 
 void sf_block_add_statement(sf_block_node* block, sf_ast_node* stmt) {
     if (block->statement_count >= block->statement_capacity) {
-        block->statement_capacity = block->statement_capacity == 0 ? 8 : block->statement_capacity * 2;
-        
+        block->statement_capacity =
+            block->statement_capacity == 0 ? 8 : block->statement_capacity * 2;
+
         sf_ast_node** new_statements = realloc(
-            block->statements,
-            block->statement_capacity * sizeof(sf_ast_node*)
+            block->statements, block->statement_capacity * sizeof(sf_ast_node*)
         );
 
         if (!new_statements) {
@@ -120,7 +123,9 @@ sf_identifier_node* sf_new_identifier(const char* name, sf_span span) {
     return node;
 }
 
-sf_literal_node* sf_new_literal(const char* value, sf_token_type token_type, sf_span span) {
+sf_literal_node* sf_new_literal(
+    const char* value, sf_token_type token_type, sf_span span
+) {
     sf_literal_node* node = malloc(sizeof(sf_literal_node));
 
     node->base.type = SF_NODE_LITERAL;
@@ -132,7 +137,9 @@ sf_literal_node* sf_new_literal(const char* value, sf_token_type token_type, sf_
     return node;
 }
 
-sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, sf_operation_type op, sf_span span) {
+sf_binary_expr_node* sf_new_binary_expr(
+    sf_ast_node* left, sf_ast_node* right, sf_operation_type op, sf_span span
+) {
     sf_binary_expr_node* node = malloc(sizeof(sf_binary_expr_node));
 
     node->base.type = SF_NODE_BINARY_EXPR;
@@ -145,7 +152,9 @@ sf_binary_expr_node* sf_new_binary_expr(sf_ast_node* left, sf_ast_node* right, s
     return node;
 }
 
-sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op, sf_span span) {
+sf_unary_expr_node* sf_new_unary_expr(
+    sf_ast_node* operand, sf_operation_type op, sf_span span
+) {
     sf_unary_expr_node* node = malloc(sizeof(sf_unary_expr_node));
 
     node->base.type = SF_NODE_UNARY_EXPR;
@@ -157,7 +166,9 @@ sf_unary_expr_node* sf_new_unary_expr(sf_ast_node* operand, sf_operation_type op
     return node;
 }
 
-sf_cast_expr_node* sf_new_cast_expr(sf_ast_node* operand, sf_value_type target_type, sf_span span) {
+sf_cast_expr_node* sf_new_cast_expr(
+    sf_ast_node* operand, sf_value_type target_type, sf_span span
+) {
     sf_cast_expr_node* node = malloc(sizeof(sf_cast_expr_node));
 
     node->base.type = SF_NODE_CAST_EXPR;
@@ -169,7 +180,9 @@ sf_cast_expr_node* sf_new_cast_expr(sf_ast_node* operand, sf_value_type target_t
     return node;
 }
 
-sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_node* value, sf_span span) {
+sf_var_decl_node* sf_new_var_decl(
+    const char* name, sf_value_type type, sf_ast_node* value, sf_span span
+) {
     sf_var_decl_node* node = malloc(sizeof(sf_var_decl_node));
 
     node->base.type = SF_NODE_VAR_DECL;
@@ -182,7 +195,9 @@ sf_var_decl_node* sf_new_var_decl(const char* name, sf_value_type type, sf_ast_n
     return node;
 }
 
-sf_var_assign_node* sf_new_var_assign(const char* name, sf_ast_node* value, sf_span span) {
+sf_var_assign_node* sf_new_var_assign(
+    const char* name, sf_ast_node* value, sf_span span
+) {
     sf_var_assign_node* node = malloc(sizeof(sf_var_assign_node));
 
     node->base.type = SF_NODE_VAR_ASSIGN;
@@ -198,21 +213,37 @@ void sf_free_ast(sf_ast_node* node) {
     if (!node) return;
 
     switch (node->type) {
-        case SF_NODE_LITERAL: free_literal(node); break;
-        case SF_NODE_IDENTIFIER: free_ident(node); break;
-        case SF_NODE_BINARY_EXPR: free_binary_expr(node); break;
-        case SF_NODE_UNARY_EXPR: free_unary_expr(node); break;
-        case SF_NODE_VAR_DECL: free_var_decl(node); break;
-        case SF_NODE_VAR_ASSIGN: free_var_assign(node); break;
-        case SF_NODE_PROGRAM: free_program(node); break;
-        case SF_NODE_BLOCK: free_block(node); break;
-        case SF_NODE_CAST_EXPR: free_cast_expr(node); break;
+        case SF_NODE_LITERAL:
+            free_literal(node);
+            break;
+        case SF_NODE_IDENTIFIER:
+            free_ident(node);
+            break;
+        case SF_NODE_BINARY_EXPR:
+            free_binary_expr(node);
+            break;
+        case SF_NODE_UNARY_EXPR:
+            free_unary_expr(node);
+            break;
+        case SF_NODE_VAR_DECL:
+            free_var_decl(node);
+            break;
+        case SF_NODE_VAR_ASSIGN:
+            free_var_assign(node);
+            break;
+        case SF_NODE_PROGRAM:
+            free_program(node);
+            break;
+        case SF_NODE_BLOCK:
+            free_block(node);
+            break;
+        case SF_NODE_CAST_EXPR:
+            free_cast_expr(node);
+            break;
     }
 }
 
-void sf_print_ast(sf_ast_node* root) {
-    print_ast_node(root, 0);
-}
+void sf_print_ast(sf_ast_node* root) { print_ast_node(root, 0); }
 
 static void print_indent(int indent) {
     for (int i = 0; i < indent; i++) printf("  ");
@@ -222,15 +253,33 @@ static void print_ast_node(sf_ast_node* node, int indent) {
     if (!node) return;
 
     switch (node->type) {
-        case SF_NODE_PROGRAM: print_program(node, indent); break;
-        case SF_NODE_VAR_DECL: print_var_decl(node, indent); break;
-        case SF_NODE_VAR_ASSIGN: print_var_assign(node, indent); break;
-        case SF_NODE_BINARY_EXPR: print_binary_expr(node, indent); break;
-        case SF_NODE_UNARY_EXPR: print_unary_expr(node, indent); break;
-        case SF_NODE_IDENTIFIER: print_ident(node, indent); break;
-        case SF_NODE_LITERAL: print_literal(node, indent); break;
-        case SF_NODE_BLOCK: print_block(node, indent); break;
-        case SF_NODE_CAST_EXPR: print_cast_expr(node, indent); break;
+        case SF_NODE_PROGRAM:
+            print_program(node, indent);
+            break;
+        case SF_NODE_VAR_DECL:
+            print_var_decl(node, indent);
+            break;
+        case SF_NODE_VAR_ASSIGN:
+            print_var_assign(node, indent);
+            break;
+        case SF_NODE_BINARY_EXPR:
+            print_binary_expr(node, indent);
+            break;
+        case SF_NODE_UNARY_EXPR:
+            print_unary_expr(node, indent);
+            break;
+        case SF_NODE_IDENTIFIER:
+            print_ident(node, indent);
+            break;
+        case SF_NODE_LITERAL:
+            print_literal(node, indent);
+            break;
+        case SF_NODE_BLOCK:
+            print_block(node, indent);
+            break;
+        case SF_NODE_CAST_EXPR:
+            print_cast_expr(node, indent);
+            break;
     }
 }
 

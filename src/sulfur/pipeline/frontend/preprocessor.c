@@ -1,14 +1,14 @@
 #include "sulfur/pipeline/frontend/preprocessor.h"
-#include "sulfur/utils/log.h"
-#include <string.h>
+
 #include <stdlib.h>
+#include <string.h>
+
+#include "sulfur/utils/log.h"
 
 static void remove_carriage_return(char* str);
 static void remove_comments(char* str);
 
 char* sf_preprocess(const char* src, long src_size, const char* filename) {
-    sf_preprocessor_context ctx = {0};
-
     char* out = malloc(src_size + 1);
     if (!out) {
         sf_log(
@@ -44,7 +44,7 @@ static void remove_carriage_return(char* str) {
 }
 
 static void remove_comments(char* str) {
-    char* read  = str;
+    char* read = str;
     char* write = str;
 
     while (*read) {

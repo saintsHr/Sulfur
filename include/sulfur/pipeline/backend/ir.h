@@ -1,48 +1,49 @@
 #pragma once
 
-#include "sulfur/pipeline/frontend/ast.h"
 #include <stdint.h>
 
+#include "sulfur/pipeline/frontend/ast.h"
+
 typedef enum {
-	SF_OPERAND_TYPE_TEMPORARY,
-	SF_OPERAND_TYPE_VARIABLE,
-	SF_OPERAND_TYPE_IMMEDIATE,
+    SF_OPERAND_TYPE_TEMPORARY,
+    SF_OPERAND_TYPE_VARIABLE,
+    SF_OPERAND_TYPE_IMMEDIATE,
 } sf_operand_type;
 
 typedef enum {
-	SF_OPCODE_ADD,
-	SF_OPCODE_SUB,
-	SF_OPCODE_DIV,
-	SF_OPCODE_MULT,
-	SF_OPCODE_NEGATE,
+    SF_OPCODE_ADD,
+    SF_OPCODE_SUB,
+    SF_OPCODE_DIV,
+    SF_OPCODE_MULT,
+    SF_OPCODE_NEGATE,
 
-	SF_OPCODE_BITWISE_AND,
-	SF_OPCODE_BITWISE_OR,
-	SF_OPCODE_BITWISE_XOR,
-	SF_OPCODE_BITWISE_RSHIFT,
-	SF_OPCODE_BITWISE_LSHIFT,
-	SF_OPCODE_BITWISE_NOT,
+    SF_OPCODE_BITWISE_AND,
+    SF_OPCODE_BITWISE_OR,
+    SF_OPCODE_BITWISE_XOR,
+    SF_OPCODE_BITWISE_RSHIFT,
+    SF_OPCODE_BITWISE_LSHIFT,
+    SF_OPCODE_BITWISE_NOT,
 
-	SF_OPCODE_ASSIGN,
-	SF_OPCODE_CAST,
+    SF_OPCODE_ASSIGN,
+    SF_OPCODE_CAST,
 } sf_opcode;
 
 typedef struct {
-	sf_operand_type type;
-	sf_value_type value_type;
+    sf_operand_type type;
+    sf_value_type value_type;
 
-	union {
-		uint32_t temporary_id;
-		char* variable_name;
-		char* immediate_value;
-	};
+    union {
+        uint32_t temporary_id;
+        char* variable_name;
+        char* immediate_value;
+    };
 } sf_operand;
 
 typedef struct {
-	sf_opcode opcode;
-	sf_operand destiny;
-	sf_operand source1;
-	sf_operand source2;
+    sf_opcode opcode;
+    sf_operand destiny;
+    sf_operand source1;
+    sf_operand source2;
 } sf_operation;
 
 typedef struct {

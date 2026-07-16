@@ -1,7 +1,8 @@
 #pragma once
 
-#include "sulfur/utils/span.h"
 #include <stddef.h>
+
+#include "sulfur/utils/span.h"
 
 #define SF_MAX_TOKEN_VALUE_SIZE 255
 
