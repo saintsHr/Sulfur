@@ -14,6 +14,17 @@ char* sf_strdup(const char* str) {
     return copy;
 }
 
+char* sf_strdup_arena(sf_arena* arena, const char* s) {
+    size_t len = strlen(s) + 1;
+
+    char* copy = sf_arena_alloc(arena, len);
+    if (!copy) return NULL;
+
+    memcpy(copy, s, len);
+
+    return copy;
+}
+
 void sf_strpush(
     const char* src, char** dst, uint64_t* len, uint64_t* capacity
 ) {

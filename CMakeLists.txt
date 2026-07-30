@@ -21,6 +21,7 @@ set(SOURCES
 	src/sulfur/utils/type_utils.c
 	src/sulfur/utils/token_utils.c
 	src/sulfur/utils/string.c
+	src/sulfur/utils/arena.c
 
 	src/sulfur/pipeline/frontend/ast.c
 	src/sulfur/pipeline/frontend/lexer.c

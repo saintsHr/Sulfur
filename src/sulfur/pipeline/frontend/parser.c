@@ -21,45 +21,55 @@ static bool expect(
 );
 
 static sf_ast_node* parse_statement(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 );
+
 static sf_ast_node* parse_declaration(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 );
+
 static sf_ast_node* parse_assign(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 );
+
 static sf_ast_node* parse_block(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 );
 
 static sf_ast_node* parse_primary(
-    sf_token_list list, size_t* current, const char* filename
-);
-static sf_ast_node* parse_unary(
-    sf_token_list list, size_t* current, const char* filename
-);
-static sf_ast_node* parse_cast(
-    sf_token_list list, size_t* current, const char* filename
-);
-static sf_ast_node* parse_bitwise(
-    sf_token_list list, size_t* current, const char* filename
-);
-static sf_ast_node* parse_multiplicative(
-    sf_token_list list, size_t* current, const char* filename
-);
-static sf_ast_node* parse_additive(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 );
 
-sf_program_node* sf_parse(sf_token_list list, const char* filename) {
-    sf_program_node* program = sf_new_program();
+static sf_ast_node* parse_unary(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+);
+
+static sf_ast_node* parse_cast(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+);
+
+static sf_ast_node* parse_bitwise(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+);
+
+static sf_ast_node* parse_multiplicative(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+);
+
+static sf_ast_node* parse_additive(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+);
+
+sf_program_node* sf_parse(
+    sf_arena* arena, sf_token_list list, const char* filename
+) {
+    sf_program_node* program = sf_new_program(arena);
 
     size_t current = 0;
 
     while (list.tokens[current].type != SF_TOKEN_TYPE_EOF) {
-        sf_ast_node* stmt = parse_statement(list, &current, filename);
-        if (stmt) sf_program_add_statement(program, stmt);
+        sf_ast_node* stmt = parse_statement(arena, list, &current, filename);
+        if (stmt) sf_program_add_statement(arena, program, stmt);
     }
 
     return program;
@@ -170,7 +180,7 @@ static void recover_statement(sf_token_list list, size_t* current) {
 }
 
 static sf_ast_node* parse_unary(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
@@ -178,34 +188,34 @@ static sf_ast_node* parse_unary(
     sf_span span = list.tokens[*current].span;
 
     if (match(list, current, SF_TOKEN_TYPE_MINUS)) {
-        sf_ast_node* operand = parse_unary(list, current, filename);
+        sf_ast_node* operand = parse_unary(arena, list, current, filename);
         if (operand == NULL) return NULL;
 
         return (sf_ast_node*)sf_new_unary_expr(
-            operand, SF_OP_TYPE_NEGATE, span
+            arena, operand, SF_OP_TYPE_NEGATE, span
         );
     }
 
     if (match(list, current, SF_TOKEN_TYPE_TILDE)) {
-        sf_ast_node* operand = parse_unary(list, current, filename);
+        sf_ast_node* operand = parse_unary(arena, list, current, filename);
         if (operand == NULL) return NULL;
 
         return (sf_ast_node*)sf_new_unary_expr(
-            operand, SF_OP_TYPE_BITWISE_NOT, span
+            arena, operand, SF_OP_TYPE_BITWISE_NOT, span
         );
     }
 
-    return parse_primary(list, current, filename);
+    return parse_primary(arena, list, current, filename);
 }
 
 static sf_ast_node* parse_primary(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
     if (match(list, current, SF_TOKEN_TYPE_LPAREN)) {
-        sf_ast_node* expr = parse_bitwise(list, current, filename);
+        sf_ast_node* expr = parse_bitwise(arena, list, current, filename);
         if (expr == NULL) return NULL;
 
         if (!expect(list, current, SF_TOKEN_TYPE_RPAREN, filename)) {
@@ -221,8 +231,9 @@ static sf_ast_node* parse_primary(
     if (token.type == SF_TOKEN_TYPE_INTEGER ||
         token.type == SF_TOKEN_TYPE_KW_TRUE ||
         token.type == SF_TOKEN_TYPE_KW_FALSE) {
-        sf_ast_node* lit =
-            (sf_ast_node*)sf_new_literal(token.value, token.type, token.span);
+        sf_ast_node* lit = (sf_ast_node*)sf_new_literal(
+            arena, token.value, token.type, token.span
+        );
         if (lit == NULL) return NULL;
 
         return lit;
@@ -230,7 +241,7 @@ static sf_ast_node* parse_primary(
 
     if (token.type == SF_TOKEN_TYPE_IDENTIFIER) {
         sf_ast_node* id =
-            (sf_ast_node*)sf_new_identifier(token.value, token.span);
+            (sf_ast_node*)sf_new_identifier(arena, token.value, token.span);
         if (id == NULL) return NULL;
 
         return id;
@@ -253,25 +264,27 @@ static sf_ast_node* parse_primary(
 }
 
 static sf_ast_node* parse_multiplicative(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
-    sf_ast_node* left = parse_cast(list, current, filename);
+    sf_ast_node* left = parse_cast(arena, list, current, filename);
     if (left == NULL) return NULL;
 
     while (list.tokens[*current].type == SF_TOKEN_TYPE_MULT ||
            list.tokens[*current].type == SF_TOKEN_TYPE_DIV) {
         sf_token op = advance(list, current);
 
-        sf_ast_node* right = parse_cast(list, current, filename);
+        sf_ast_node* right = parse_cast(arena, list, current, filename);
         if (right == NULL) return NULL;
 
         sf_operation_type op_type =
             (op.type == SF_TOKEN_TYPE_MULT) ? SF_OP_TYPE_MUL : SF_OP_TYPE_DIV;
 
-        left = (sf_ast_node*)sf_new_binary_expr(left, right, op_type, op.span);
+        left = (sf_ast_node*)sf_new_binary_expr(
+            arena, left, right, op_type, op.span
+        );
         if (left == NULL) return NULL;
     }
 
@@ -279,25 +292,28 @@ static sf_ast_node* parse_multiplicative(
 }
 
 static sf_ast_node* parse_additive(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
-    sf_ast_node* left = parse_multiplicative(list, current, filename);
+    sf_ast_node* left = parse_multiplicative(arena, list, current, filename);
     if (left == NULL) return NULL;
 
     while (list.tokens[*current].type == SF_TOKEN_TYPE_PLUS ||
            list.tokens[*current].type == SF_TOKEN_TYPE_MINUS) {
         sf_token op = advance(list, current);
 
-        sf_ast_node* right = parse_multiplicative(list, current, filename);
+        sf_ast_node* right =
+            parse_multiplicative(arena, list, current, filename);
         if (right == NULL) return NULL;
 
         sf_operation_type op_type =
             (op.type == SF_TOKEN_TYPE_PLUS) ? SF_OP_TYPE_ADD : SF_OP_TYPE_SUB;
 
-        left = (sf_ast_node*)sf_new_binary_expr(left, right, op_type, op.span);
+        left = (sf_ast_node*)sf_new_binary_expr(
+            arena, left, right, op_type, op.span
+        );
         if (left == NULL) return NULL;
     }
 
@@ -305,7 +321,7 @@ static sf_ast_node* parse_additive(
 }
 
 static sf_ast_node* parse_declaration(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
@@ -352,7 +368,7 @@ static sf_ast_node* parse_declaration(
     sf_ast_node* val = NULL;
 
     if (match(list, current, SF_TOKEN_TYPE_EQUALS)) {
-        val = parse_bitwise(list, current, filename);
+        val = parse_bitwise(arena, list, current, filename);
         if (val == NULL) {
             recover_statement(list, current);
             return NULL;
@@ -365,14 +381,14 @@ static sf_ast_node* parse_declaration(
     }
 
     sf_ast_node* dcl =
-        (sf_ast_node*)sf_new_var_decl(name, type, val, name_token.span);
+        (sf_ast_node*)sf_new_var_decl(arena, name, type, val, name_token.span);
     if (dcl == NULL) return NULL;
 
     return dcl;
 }
 
 static sf_ast_node* parse_assign(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
@@ -402,7 +418,7 @@ static sf_ast_node* parse_assign(
         return NULL;
     }
 
-    sf_ast_node* val = parse_bitwise(list, current, filename);
+    sf_ast_node* val = parse_bitwise(arena, list, current, filename);
 
     if (val == NULL) {
         recover_statement(list, current);
@@ -415,14 +431,14 @@ static sf_ast_node* parse_assign(
     }
 
     sf_ast_node* as =
-        (sf_ast_node*)sf_new_var_assign(name, val, name_token.span);
+        (sf_ast_node*)sf_new_var_assign(arena, name, val, name_token.span);
     if (as == NULL) return NULL;
 
     return as;
 }
 
 static sf_ast_node* parse_statement(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
@@ -430,15 +446,15 @@ static sf_ast_node* parse_statement(
     sf_token token = list.tokens[*current];
 
     if (token_is_type(token)) {
-        return parse_declaration(list, current, filename);
+        return parse_declaration(arena, list, current, filename);
     }
 
     if (token_is_ident(token)) {
-        return parse_assign(list, current, filename);
+        return parse_assign(arena, list, current, filename);
     }
 
     if (token_is_block(token)) {
-        return parse_block(list, current, filename);
+        return parse_block(arena, list, current, filename);
     }
 
     sf_log(
@@ -458,13 +474,13 @@ static sf_ast_node* parse_statement(
 }
 
 static sf_ast_node* parse_block(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
     sf_span block_span = list.tokens[*current].span;
-    sf_block_node* block = sf_new_block(block_span);
+    sf_block_node* block = sf_new_block(arena, block_span);
 
     if (block == NULL) return NULL;
 
@@ -475,8 +491,8 @@ static sf_ast_node* parse_block(
 
     while (list.tokens[*current].type != SF_TOKEN_TYPE_RBRACE &&
            list.tokens[*current].type != SF_TOKEN_TYPE_EOF) {
-        sf_ast_node* stmt = parse_statement(list, current, filename);
-        if (stmt) sf_block_add_statement(block, stmt);
+        sf_ast_node* stmt = parse_statement(arena, list, current, filename);
+        if (stmt) sf_block_add_statement(arena, block, stmt);
     };
 
     if (!expect(list, current, SF_TOKEN_TYPE_RBRACE, filename)) {
@@ -489,12 +505,12 @@ static sf_ast_node* parse_block(
 }
 
 static sf_ast_node* parse_cast(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
-    sf_ast_node* expr = parse_unary(list, current, filename);
+    sf_ast_node* expr = parse_unary(arena, list, current, filename);
     if (expr == NULL) return NULL;
 
     while (true) {
@@ -521,7 +537,8 @@ static sf_ast_node* parse_cast(
             return NULL;
         }
 
-        expr = (sf_ast_node*)sf_new_cast_expr(expr, target_type, as_span);
+        expr =
+            (sf_ast_node*)sf_new_cast_expr(arena, expr, target_type, as_span);
         if (expr == NULL) return NULL;
     }
 
@@ -529,12 +546,12 @@ static sf_ast_node* parse_cast(
 }
 
 static sf_ast_node* parse_bitwise(
-    sf_token_list list, size_t* current, const char* filename
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 ) {
     if (filename == NULL) return NULL;
     if (current == NULL) return NULL;
 
-    sf_ast_node* left = parse_additive(list, current, filename);
+    sf_ast_node* left = parse_additive(arena, list, current, filename);
     if (left == NULL) return NULL;
 
     while (list.tokens[*current].type == SF_TOKEN_TYPE_AMPERSAND ||
@@ -544,7 +561,7 @@ static sf_ast_node* parse_bitwise(
            list.tokens[*current].type == SF_TOKEN_TYPE_LEFT_SHIFT) {
         sf_token op = advance(list, current);
 
-        sf_ast_node* right = parse_additive(list, current, filename);
+        sf_ast_node* right = parse_additive(arena, list, current, filename);
         if (right == NULL) return NULL;
 
         sf_operation_type op_type;
@@ -574,7 +591,9 @@ static sf_ast_node* parse_bitwise(
                 return NULL;
         }
 
-        left = (sf_ast_node*)sf_new_binary_expr(left, right, op_type, op.span);
+        left = (sf_ast_node*)sf_new_binary_expr(
+            arena, left, right, op_type, op.span
+        );
 
         if (left == NULL) return NULL;
     }

@@ -10,6 +10,7 @@
 #include "sulfur/pipeline/frontend/parser.h"
 #include "sulfur/pipeline/frontend/preprocessor.h"
 #include "sulfur/pipeline/frontend/semantic/semantic.h"
+#include "sulfur/utils/arena.h"
 #include "sulfur/utils/log.h"
 
 typedef struct {
@@ -37,14 +38,17 @@ int main(int argc, char* argv[]) {
     sf_log_set_source(options.input_file, input);
     sf_log_init();
 
-    // stages
+    // stage resources
     char* preprocessed = NULL;
     sf_token_list tokens = {0};
+    sf_arena arena = {0};
     sf_program_node* ast = NULL;
     sf_ir_program ir = {0};
     char* assembly = NULL;
 
     // compilation pipeline
+    sf_arena_init(&arena, 32);
+
     preprocessed = sf_preprocess(input, inputSize, options.input_file);
     if (sf_log_had_fatal()) {
         status = EXIT_FAILURE;
@@ -57,7 +61,7 @@ int main(int argc, char* argv[]) {
         goto cleanup;
     }
 
-    ast = sf_parse(tokens, options.input_file);
+    ast = sf_parse(&arena, tokens, options.input_file);
     if (sf_log_had_fatal()) {
         status = EXIT_FAILURE;
         goto cleanup;
@@ -81,7 +85,7 @@ int main(int argc, char* argv[]) {
         goto cleanup;
     }
 
-    bool debug = false;
+    bool debug = true;
     if (debug) {
         printf("%s", input);
         printf("\n\n");
@@ -102,15 +106,13 @@ int main(int argc, char* argv[]) {
     // writes to output
     write_file(options.output_file, assembly);
 
-cleanup: {
-    sf_free_ast((sf_ast_node*)ast);
+cleanup:
+    free(assembly);
     sf_free_ir(&ir);
     sf_free_tokens(&tokens);
-
-    free(assembly);
     free(preprocessed);
+    sf_free_arena(&arena);
     free(input);
-}
 
     return status;
 }
