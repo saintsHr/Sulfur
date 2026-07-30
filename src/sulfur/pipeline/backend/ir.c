@@ -8,23 +8,25 @@
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/utils/type_utils.h"
 
-static void push(sf_ir_program* program, sf_operation operation);
-
-static sf_operand new_temporary(sf_ir_program* program, sf_value_type type);
+static void push(
+    sf_arena* arena, sf_ir_program* program, sf_operation operation
+);
 
 static void generate_statement(
-    sf_ir_program* program, sf_ast_node* node, uint32_t depth
+    sf_arena* arena, sf_ir_program* program, sf_ast_node* node, uint32_t depth
 );
 static sf_operand generate_expression(
-    sf_ir_program* program, sf_ast_node* node, uint32_t depth
+    sf_arena* arena, sf_ir_program* program, sf_ast_node* node, uint32_t depth
 );
 static sf_operand generate_expression_into(
-    sf_ir_program* program, sf_ast_node* node, uint32_t depth, sf_operand* hint
+    sf_arena* arena,
+    sf_ir_program* program,
+    sf_ast_node* node,
+    uint32_t depth,
+    sf_operand* hint
 );
-
-static void print_operand(sf_operand op);
-
 static bool try_fold_constants(
+    sf_arena* arena,
     sf_operand left,
     sf_operand right,
     sf_opcode opcode,
@@ -32,7 +34,9 @@ static bool try_fold_constants(
     sf_operand* out
 );
 
-sf_ir_program sf_generate_ir(const sf_program_node* program) {
+static void print_operand(sf_operand op);
+
+sf_ir_program sf_generate_ir(sf_arena* arena, const sf_program_node* program) {
     sf_ir_program ir = {
         .capacity = 0,
         .count = 0,
@@ -41,7 +45,7 @@ sf_ir_program sf_generate_ir(const sf_program_node* program) {
     };
 
     for (uint64_t i = 0; i < program->statement_count; i++) {
-        generate_statement(&ir, program->statements[i], 0);
+        generate_statement(arena, &ir, program->statements[i], 0);
     }
 
     return ir;
@@ -147,46 +151,26 @@ void sf_print_ir(const sf_ir_program* program) {
     }
 }
 
-void sf_free_ir(sf_ir_program* program) {
-    for (uint32_t i = 0; i < program->count; i++) {
-        sf_operation* op = &program->operations[i];
-
-        if (op->destiny.type == SF_OPERAND_TYPE_VARIABLE) {
-            free(op->destiny.variable_name);
-        }
-
-        if (op->source1.type == SF_OPERAND_TYPE_VARIABLE) {
-            free(op->source1.variable_name);
-        }
-
-        if (op->opcode != SF_OPCODE_ASSIGN && op->opcode != SF_OPCODE_NEGATE &&
-            op->opcode != SF_OPCODE_CAST &&
-            op->source2.type == SF_OPERAND_TYPE_VARIABLE) {
-            free(op->source2.variable_name);
-        }
-    }
-
-    free(program->operations);
-
-    program->operations = NULL;
-    program->count = 0;
-    program->capacity = 0;
-}
-
-static void push(sf_ir_program* program, sf_operation operation) {
+static void push(
+    sf_arena* arena, sf_ir_program* program, sf_operation operation
+) {
     if (program->capacity <= 0) {
-        program->operations =
-            realloc(program->operations, 8 * sizeof(sf_operation));
-
+        program->operations = sf_arena_grow_array(
+            arena, program->operations, 0, 8, sizeof(sf_operation)
+        );
         program->capacity = 8;
     }
 
     if (program->count >= program->capacity) {
-        program->operations = realloc(
-            program->operations, program->capacity * 2 * sizeof(sf_operation)
+        size_t new_capacity = program->capacity * 2;
+        program->operations = sf_arena_grow_array(
+            arena,
+            program->operations,
+            program->capacity,
+            new_capacity,
+            sizeof(sf_operation)
         );
-
-        program->capacity *= 2;
+        program->capacity = new_capacity;
     }
 
     program->operations[program->count++] = operation;
@@ -202,7 +186,7 @@ static sf_operand new_temporary(sf_ir_program* program, sf_value_type type) {
 }
 
 static sf_operand generate_expression(
-    sf_ir_program* program, sf_ast_node* node, uint32_t depth
+    sf_arena* arena, sf_ir_program* program, sf_ast_node* node, uint32_t depth
 ) {
     sf_operand operand;
 
@@ -210,11 +194,14 @@ static sf_operand generate_expression(
         case SF_NODE_BINARY_EXPR: {
             sf_binary_expr_node* ex = (sf_binary_expr_node*)node;
 
-            sf_operand left = generate_expression(program, ex->left, depth);
-            sf_operand right = generate_expression(program, ex->right, depth);
+            sf_operand left =
+                generate_expression(arena, program, ex->left, depth);
+            sf_operand right =
+                generate_expression(arena, program, ex->right, depth);
 
             sf_operand folded;
             if (try_fold_constants(
+                    arena,
                     left,
                     right,
                     type_operation_to_opcode(ex->op),
@@ -230,6 +217,7 @@ static sf_operand generate_expression(
             operand = dst;
 
             push(
+                arena,
                 program,
                 (sf_operation){
                     .opcode = type_operation_to_opcode(ex->op),
@@ -245,12 +233,14 @@ static sf_operand generate_expression(
         case SF_NODE_UNARY_EXPR: {
             sf_unary_expr_node* un = (sf_unary_expr_node*)node;
 
-            sf_operand src = generate_expression(program, un->operand, depth);
+            sf_operand src =
+                generate_expression(arena, program, un->operand, depth);
             sf_operand dst = new_temporary(program, node->resolved);
 
             operand = dst;
 
             push(
+                arena,
                 program,
                 (sf_operation){
                     .opcode = type_operation_to_opcode(un->op),
@@ -286,8 +276,9 @@ static sf_operand generate_expression(
             operand.type = SF_OPERAND_TYPE_VARIABLE;
             operand.value_type = id->base.resolved;
 
-            char* mangled = malloc(strlen(id->name) + 32);
-            sprintf(mangled, "%s@%u", id->name, id->id);
+            size_t mangled_len = strlen(id->name) + 32;
+            char* mangled = sf_arena_alloc(arena, mangled_len);
+            snprintf(mangled, mangled_len, "%s@%u", id->name, id->id);
 
             operand.variable_name = mangled;
 
@@ -297,12 +288,14 @@ static sf_operand generate_expression(
         case SF_NODE_CAST_EXPR: {
             sf_cast_expr_node* cast = (sf_cast_expr_node*)node;
 
-            sf_operand src = generate_expression(program, cast->operand, depth);
+            sf_operand src =
+                generate_expression(arena, program, cast->operand, depth);
             sf_operand dst = new_temporary(program, node->resolved);
 
             operand = dst;
 
             push(
+                arena,
                 program,
                 (sf_operation){
                     .opcode = SF_OPCODE_CAST,
@@ -324,20 +317,26 @@ static sf_operand generate_expression(
 }
 
 static sf_operand generate_expression_into(
-    sf_ir_program* program, sf_ast_node* node, uint32_t depth, sf_operand* hint
+    sf_arena* arena,
+    sf_ir_program* program,
+    sf_ast_node* node,
+    uint32_t depth,
+    sf_operand* hint
 ) {
     switch (node->type) {
         case SF_NODE_BINARY_EXPR: {
             sf_binary_expr_node* ex = (sf_binary_expr_node*)node;
 
-            sf_operand left = generate_expression(program, ex->left, depth);
-            sf_operand right = generate_expression(program, ex->right, depth);
+            sf_operand left =
+                generate_expression(arena, program, ex->left, depth);
+            sf_operand right =
+                generate_expression(arena, program, ex->right, depth);
 
             sf_opcode opcode = type_operation_to_opcode(ex->op);
 
             sf_operand folded;
             if (try_fold_constants(
-                    left, right, opcode, node->resolved, &folded
+                    arena, left, right, opcode, node->resolved, &folded
                 )) {
                 return folded;
             }
@@ -346,6 +345,7 @@ static sf_operand generate_expression_into(
                 hint ? *hint : new_temporary(program, node->resolved);
 
             push(
+                arena,
                 program,
                 (sf_operation){
                     .opcode = opcode,
@@ -361,11 +361,13 @@ static sf_operand generate_expression_into(
         case SF_NODE_UNARY_EXPR: {
             sf_unary_expr_node* un = (sf_unary_expr_node*)node;
 
-            sf_operand src = generate_expression(program, un->operand, depth);
+            sf_operand src =
+                generate_expression(arena, program, un->operand, depth);
             sf_operand dst =
                 hint ? *hint : new_temporary(program, node->resolved);
 
             push(
+                arena,
                 program,
                 (sf_operation){
                     .opcode = type_operation_to_opcode(un->op),
@@ -381,11 +383,13 @@ static sf_operand generate_expression_into(
         case SF_NODE_CAST_EXPR: {
             sf_cast_expr_node* cast = (sf_cast_expr_node*)node;
 
-            sf_operand src = generate_expression(program, cast->operand, depth);
+            sf_operand src =
+                generate_expression(arena, program, cast->operand, depth);
             sf_operand dst =
                 hint ? *hint : new_temporary(program, node->resolved);
 
             push(
+                arena,
                 program,
                 (sf_operation){
                     .opcode = SF_OPCODE_CAST,
@@ -399,20 +403,21 @@ static sf_operand generate_expression_into(
         }
 
         default:
-            return generate_expression(program, node, depth);
+            return generate_expression(arena, program, node, depth);
     }
 }
 
 static void generate_statement(
-    sf_ir_program* program, sf_ast_node* node, uint32_t depth
+    sf_arena* arena, sf_ir_program* program, sf_ast_node* node, uint32_t depth
 ) {
     switch (node->type) {
         case SF_NODE_VAR_DECL: {
             sf_var_decl_node* dcl = (sf_var_decl_node*)node;
             if (dcl->value == NULL) break;
 
-            char* mangled = malloc(strlen(dcl->name) + 32);
-            sprintf(mangled, "%s@%u", dcl->name, dcl->id);
+            size_t mangled_len = strlen(dcl->name) + 32;
+            char* mangled = sf_arena_alloc(arena, mangled_len);
+            snprintf(mangled, mangled_len, "%s@%u", dcl->name, dcl->id);
 
             sf_operand dst = {
                 .type = SF_OPERAND_TYPE_VARIABLE,
@@ -420,8 +425,9 @@ static void generate_statement(
                 .variable_name = mangled,
             };
 
-            sf_operand src =
-                generate_expression_into(program, dcl->value, depth, &dst);
+            sf_operand src = generate_expression_into(
+                arena, program, dcl->value, depth, &dst
+            );
 
             bool wrote_directly = src.type == SF_OPERAND_TYPE_VARIABLE &&
                 strcmp(src.variable_name, dst.variable_name) == 0;
@@ -434,7 +440,7 @@ static void generate_statement(
                     .source2 = {0},
                 };
 
-                push(program, op);
+                push(arena, program, op);
             }
 
             break;
@@ -443,8 +449,9 @@ static void generate_statement(
         case SF_NODE_VAR_ASSIGN: {
             sf_var_assign_node* as = (sf_var_assign_node*)node;
 
-            char* mangled = malloc(strlen(as->name) + 32);
-            sprintf(mangled, "%s@%u", as->name, as->id);
+            size_t mangled_len = strlen(as->name) + 32;
+            char* mangled = sf_arena_alloc(arena, mangled_len);
+            snprintf(mangled, mangled_len, "%s@%u", as->name, as->id);
 
             sf_operand dst = {
                 .type = SF_OPERAND_TYPE_VARIABLE,
@@ -452,8 +459,9 @@ static void generate_statement(
                 .variable_name = mangled,
             };
 
-            sf_operand src =
-                generate_expression_into(program, as->value, depth, &dst);
+            sf_operand src = generate_expression_into(
+                arena, program, as->value, depth, &dst
+            );
 
             bool wrote_directly = src.type == SF_OPERAND_TYPE_VARIABLE &&
                 strcmp(src.variable_name, dst.variable_name) == 0;
@@ -466,7 +474,7 @@ static void generate_statement(
                     .source2 = {0},
                 };
 
-                push(program, op);
+                push(arena, program, op);
             }
 
             break;
@@ -476,7 +484,9 @@ static void generate_statement(
             sf_block_node* block = (sf_block_node*)node;
 
             for (size_t i = 0; i < block->statement_count; i++) {
-                generate_statement(program, block->statements[i], depth + 1);
+                generate_statement(
+                    arena, program, block->statements[i], depth + 1
+                );
             }
 
             break;
@@ -503,6 +513,7 @@ static void print_operand(sf_operand op) {
 }
 
 static bool try_fold_constants(
+    sf_arena* arena,
     sf_operand left,
     sf_operand right,
     sf_opcode opcode,
@@ -544,7 +555,7 @@ static bool try_fold_constants(
                 return false;
         }
 
-        char* buf = malloc(32);
+        char* buf = sf_arena_alloc(arena, 32);
         snprintf(buf, 32, "%lld", (long long)result);
 
         out->type = SF_OPERAND_TYPE_IMMEDIATE;
@@ -574,7 +585,7 @@ static bool try_fold_constants(
                 return false;
         }
 
-        char* buf = malloc(32);
+        char* buf = sf_arena_alloc(arena, 32);
         snprintf(buf, 32, "%llu", (unsigned long long)result);
 
         out->type = SF_OPERAND_TYPE_IMMEDIATE;

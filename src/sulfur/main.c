@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
         goto cleanup;
     }
 
-    ir = sf_generate_ir(ast);
+    ir = sf_generate_ir(&arena, ast);
     if (sf_log_had_fatal()) {
         status = EXIT_FAILURE;
         goto cleanup;
@@ -108,7 +108,6 @@ int main(int argc, char* argv[]) {
 
 cleanup:
     free(assembly);
-    sf_free_ir(&ir);
     sf_free_tokens(&tokens);
     free(preprocessed);
     sf_free_arena(&arena);

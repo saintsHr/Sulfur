@@ -83,7 +83,7 @@ void sf_stack_register_operand(
 
     if (op.type == SF_OPERAND_TYPE_TEMPORARY) {
         char* name = malloc(16 * sizeof(char));
-        sprintf(name, "t%hi", op.temporary_id);
+        sprintf(name, "t%u", op.temporary_id);
 
         int64_t offset = sf_stack_lookup(map, name);
 

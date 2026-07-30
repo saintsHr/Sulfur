@@ -1,6 +1,7 @@
 #include "sulfur/utils/arena.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 static size_t align_up(size_t n, size_t align);
 static sf_arena_chunk* arena_chunk_new(size_t size);
@@ -39,6 +40,22 @@ void* sf_arena_alloc(sf_arena* arena, size_t size) {
     void* ptr = arena->current->data + arena->current->used;
     arena->current->used += aligned;
     return ptr;
+}
+
+void* sf_arena_grow_array(
+    sf_arena* arena,
+    void* old_array,
+    size_t old_count,
+    size_t new_count,
+    size_t elem_size
+) {
+    void* new_array = sf_arena_alloc(arena, new_count * elem_size);
+
+    if (old_array && old_count > 0) {
+        memcpy(new_array, old_array, old_count * elem_size);
+    }
+
+    return new_array;
 }
 
 void sf_free_arena(sf_arena* arena) {

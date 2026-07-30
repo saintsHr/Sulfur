@@ -18,4 +18,11 @@ typedef struct sf_arena {
 
 void sf_arena_init(sf_arena* arena, size_t default_chunk_size);
 void* sf_arena_alloc(sf_arena* arena, size_t size);
+void* sf_arena_grow_array(
+    sf_arena* arena,
+    void* old_array,
+    size_t old_count,
+    size_t new_count,
+    size_t elem_size
+);
 void sf_free_arena(sf_arena* arena);

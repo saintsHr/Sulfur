@@ -53,6 +53,5 @@ typedef struct {
     uint32_t nextTemp;
 } sf_ir_program;
 
-sf_ir_program sf_generate_ir(const sf_program_node* program);
+sf_ir_program sf_generate_ir(sf_arena* arena, const sf_program_node* program);
 void sf_print_ir(const sf_ir_program* program);
-void sf_free_ir(sf_ir_program* program);

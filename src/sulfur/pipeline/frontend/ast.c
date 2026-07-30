@@ -10,14 +10,6 @@
 
 static void print_indent(int indent);
 static void print_ast_node(sf_ast_node* node, int indent);
-static void* arena_grow_array(
-    sf_arena* arena,
-    void* old_array,
-    size_t old_count,
-    size_t new_count,
-    size_t elem_size
-);
-
 static void print_var_assign(const sf_ast_node* node, int indent);
 static void print_var_decl(const sf_ast_node* node, int indent);
 static void print_literal(const sf_ast_node* node, int indent);
@@ -60,7 +52,7 @@ void sf_program_add_statement(
             ? 8
             : program->statement_capacity * 2;
 
-        sf_ast_node** new_statements = arena_grow_array(
+        sf_ast_node** new_statements = sf_arena_grow_array(
             arena,
             program->statements,
             program->statement_count,
@@ -93,7 +85,7 @@ void sf_block_add_statement(
         block->statement_capacity =
             block->statement_capacity == 0 ? 8 : block->statement_capacity * 2;
 
-        sf_ast_node** new_statements = arena_grow_array(
+        sf_ast_node** new_statements = sf_arena_grow_array(
             arena,
             block->statements,
             block->statement_count,
@@ -271,22 +263,6 @@ static void print_ast_node(sf_ast_node* node, int indent) {
             print_cast_expr(node, indent);
             break;
     }
-}
-
-static void* arena_grow_array(
-    sf_arena* arena,
-    void* old_array,
-    size_t old_count,
-    size_t new_count,
-    size_t elem_size
-) {
-    void* new_array = sf_arena_alloc(arena, new_count * elem_size);
-
-    if (old_array && old_count > 0) {
-        memcpy(new_array, old_array, old_count * elem_size);
-    }
-
-    return new_array;
 }
 
 static void print_var_assign(const sf_ast_node* node, int indent) {
