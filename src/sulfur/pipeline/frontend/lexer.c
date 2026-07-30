@@ -97,6 +97,14 @@ void sf_print_tokens(const sf_token_list* list) {
     }
 }
 
+void sf_free_tokens(sf_token_list* list) {
+    free(list->tokens);
+
+    list->tokens = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
 const char* sf_token_type_name(sf_token_type type) {
     switch (type) {
         case SF_TOKEN_TYPE_IDENTIFIER:
@@ -217,7 +225,23 @@ static void undefined(
 static void add_token(sf_token_list* list, sf_token token) {
     if (list->count >= list->capacity) {
         list->capacity = list->capacity == 0 ? 16 : list->capacity * 2;
-        list->tokens = realloc(list->tokens, list->capacity * sizeof(sf_token));
+
+        sf_token* new_tokens =
+            realloc(list->tokens, list->capacity * sizeof(sf_token));
+
+        if (new_tokens == NULL) {
+            sf_log(
+                "Insufficient Memory.",
+                "Cannot allocate memory for compiling.",
+                "Free some memory and try again.",
+                NULL,
+                SF_GENERAL_INSUFFICIENT_MEMORY,
+                (sf_span){0},
+                SF_SEV_FATAL
+            );
+        }
+
+        list->tokens = new_tokens;
     }
 
     list->tokens[list->count++] = token;

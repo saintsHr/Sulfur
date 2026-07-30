@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "sulfur/pipeline/backend/codegen.h"
+#include "sulfur/pipeline/backend/codegen/codegen.h"
 #include "sulfur/pipeline/backend/ir.h"
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/lexer.h"
@@ -27,64 +27,92 @@ int main(int argc, char* argv[]) {
         .output_file = "output.asm",
     };
 
+    int status = EXIT_SUCCESS;
+
     parse_flags(argc, argv, &options);
 
     uint32_t inputSize = 0;
     char* input = read_file(options.input_file, &inputSize);
 
-    char* output = NULL;
-
     sf_log_set_source(options.input_file, input);
     sf_log_init();
 
     // stages
+    char* preprocessed = NULL;
     sf_token_list tokens = {0};
     sf_program_node* ast = NULL;
     sf_ir_program ir = {0};
     char* assembly = NULL;
 
     // compilation pipeline
-    output = sf_preprocess(input, inputSize, options.input_file);
-    if (sf_log_had_fatal()) return EXIT_FAILURE;
+    preprocessed = sf_preprocess(input, inputSize, options.input_file);
+    if (sf_log_had_fatal()) {
+        status = EXIT_FAILURE;
+        goto cleanup;
+    }
 
-    tokens = sf_tokenize(output, options.input_file);
-    if (sf_log_had_fatal()) return EXIT_FAILURE;
+    tokens = sf_tokenize(preprocessed, options.input_file);
+    if (sf_log_had_fatal()) {
+        status = EXIT_FAILURE;
+        goto cleanup;
+    }
 
     ast = sf_parse(tokens, options.input_file);
-    if (sf_log_had_fatal()) return EXIT_FAILURE;
+    if (sf_log_had_fatal()) {
+        status = EXIT_FAILURE;
+        goto cleanup;
+    }
 
     sf_analyze(ast, options.input_file);
-    if (sf_log_had_fatal()) return EXIT_FAILURE;
+    if (sf_log_had_fatal()) {
+        status = EXIT_FAILURE;
+        goto cleanup;
+    }
 
     ir = sf_generate_ir(ast);
-    if (sf_log_had_fatal()) return EXIT_FAILURE;
+    if (sf_log_had_fatal()) {
+        status = EXIT_FAILURE;
+        goto cleanup;
+    }
 
     assembly = sf_generate_assembly(&ir);
-    if (sf_log_had_fatal()) return EXIT_FAILURE;
+    if (sf_log_had_fatal()) {
+        status = EXIT_FAILURE;
+        goto cleanup;
+    }
 
-    // debug
-    printf("%s", input);
-    printf("\n\n");
-    sf_print_tokens(&tokens);
-    printf("\n\n");
-    sf_print_ast((sf_ast_node*)ast);
-    printf("\n\n");
-    sf_print_ir(&ir);
-    printf("\n\n");
-    printf("%s", assembly);
+    bool debug = false;
+    if (debug) {
+        printf("%s", input);
+        printf("\n\n");
+        sf_print_tokens(&tokens);
+        printf("\n\n");
+        sf_print_ast((sf_ast_node*)ast);
+        printf("\n\n");
+        sf_print_ir(&ir);
+        printf("\n\n");
+        printf("%s", assembly);
+    }
 
-    if (sf_log_had_errors()) return EXIT_FAILURE;
+    if (sf_log_had_errors()) {
+        status = EXIT_FAILURE;
+        goto cleanup;
+    }
 
     // writes to output
-    output = assembly;
-    write_file(options.output_file, output);
+    write_file(options.output_file, assembly);
 
+cleanup: {
     sf_free_ast((sf_ast_node*)ast);
     sf_free_ir(&ir);
-    free(output);
-    free(input);
+    sf_free_tokens(&tokens);
 
-    return 0;
+    free(assembly);
+    free(preprocessed);
+    free(input);
+}
+
+    return status;
 }
 
 static void parse_flags(int argc, char* argv[], sf_compiler_options* options) {
@@ -167,14 +195,13 @@ static char* read_file(const char* filename, uint32_t* out_size) {
         fclose(file);
 
         sf_log(
-            "memory allocation failed",
-            "failed to allocate buffer to read file '%s'",
-            "free up memory and try again",
-            filename,
-            SF_MAIN_CANNOT_MALLOC_FILE_BUFFER,
+            "Insufficient Memory.",
+            "Cannot allocate memory for compiling.",
+            "Free some memory and try again.",
+            NULL,
+            SF_GENERAL_INSUFFICIENT_MEMORY,
             (sf_span){0},
-            SF_SEV_FATAL,
-            filename
+            SF_SEV_FATAL
         );
     }
 

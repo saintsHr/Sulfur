@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "sulfur/utils/log.h"
+#include "sulfur/utils/string.h"
 #include "sulfur/utils/type_utils.h"
 
 static void print_indent(int indent);
@@ -67,14 +68,13 @@ void sf_program_add_statement(sf_program_node* program, sf_ast_node* stmt) {
 
         if (!new_statements) {
             sf_log(
-                "Allocation Failed",
-                "AST program memory reallocation failed.",
-                "Make sure you have enough memory and try again.",
+                "Insufficient Memory.",
+                "Cannot allocate memory for compiling.",
+                "Free some memory and try again.",
                 NULL,
-                SF_AST_REALLOC_FAILED,
+                SF_GENERAL_INSUFFICIENT_MEMORY,
                 (sf_span){0},
-                SF_SEV_FATAL,
-                "N/A"
+                SF_SEV_FATAL
             );
         }
 
@@ -95,14 +95,13 @@ void sf_block_add_statement(sf_block_node* block, sf_ast_node* stmt) {
 
         if (!new_statements) {
             sf_log(
-                "Allocation Failed",
-                "AST program memory reallocation failed.",
-                "Make sure you have enough memory and try again.",
+                "Insufficient Memory.",
+                "Cannot allocate memory for compiling.",
+                "Free some memory and try again.",
                 NULL,
-                SF_AST_REALLOC_FAILED,
+                SF_GENERAL_INSUFFICIENT_MEMORY,
                 (sf_span){0},
-                SF_SEV_FATAL,
-                "N/A"
+                SF_SEV_FATAL
             );
         }
 
@@ -118,7 +117,7 @@ sf_identifier_node* sf_new_identifier(const char* name, sf_span span) {
     node->base.type = SF_NODE_IDENTIFIER;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->base.span = span;
-    node->name = strdup(name);
+    node->name = sf_strdup(name);
 
     return node;
 }
@@ -132,7 +131,7 @@ sf_literal_node* sf_new_literal(
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->base.span = span;
     node->token_type = token_type;
-    node->value = strdup(value);
+    node->value = sf_strdup(value);
 
     return node;
 }
@@ -188,7 +187,7 @@ sf_var_decl_node* sf_new_var_decl(
     node->base.type = SF_NODE_VAR_DECL;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->base.span = span;
-    node->name = strdup(name);
+    node->name = sf_strdup(name);
     node->var_type = type;
     node->value = value;
 
@@ -203,7 +202,7 @@ sf_var_assign_node* sf_new_var_assign(
     node->base.type = SF_NODE_VAR_ASSIGN;
     node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
     node->base.span = span;
-    node->name = strdup(name);
+    node->name = sf_strdup(name);
     node->value = value;
 
     return node;

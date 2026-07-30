@@ -67,4 +67,5 @@ typedef struct {
 sf_token_list sf_tokenize(const char* input, const char* filename);
 
 void sf_print_tokens(const sf_token_list* list);
+void sf_free_tokens(sf_token_list* list);
 const char* sf_token_type_name(sf_token_type type);

@@ -12,11 +12,11 @@ char* sf_preprocess(const char* src, long src_size, const char* filename) {
     char* out = malloc(src_size + 1);
     if (!out) {
         sf_log(
-            "memory allocation failed",
-            "failed to allocate memory for preprocessor output",
-            "free up memory and try again",
-            "N/A",
-            SF_PREP_CANNOT_MALLOC_OUTPUT,
+            "Insufficient Memory.",
+            "Cannot allocate memory for compiling.",
+            "Free some memory and try again.",
+            NULL,
+            SF_GENERAL_INSUFFICIENT_MEMORY,
             (sf_span){0},
             SF_SEV_FATAL
         );
