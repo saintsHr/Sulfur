@@ -45,12 +45,12 @@ option(ENABLE_SANITIZERS "Enable Sanitizers" OFF)
 
 if(ENABLE_SANITIZERS)
     target_compile_options(sulfur PRIVATE
-        -fsanitize=address,undefined
+        -fsanitize=address,undefined,leak
         -fno-omit-frame-pointer
     )
 
     target_link_options(sulfur PRIVATE
-        -fsanitize=address,undefined
+        -fsanitize=address,undefined,leak
     )
 endif()
 
