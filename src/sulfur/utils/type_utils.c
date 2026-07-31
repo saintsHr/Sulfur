@@ -1,5 +1,6 @@
 #include "sulfur/utils/type_utils.h"
 
+#include "sulfur/pipeline/backend/ir.h"
 #include "sulfur/pipeline/frontend/ast.h"
 
 bool type_value_uint_literal_fits(sf_value_type type, uint64_t value) {
@@ -207,6 +208,7 @@ sf_opcode type_operation_to_opcode(sf_operation_type type) {
     sf_opcode op;
 
     switch (type) {
+        // arithmetic
         case SF_OP_TYPE_ADD:
             op = SF_OPCODE_ADD;
             break;
@@ -219,11 +221,11 @@ sf_opcode type_operation_to_opcode(sf_operation_type type) {
         case SF_OP_TYPE_DIV:
             op = SF_OPCODE_DIV;
             break;
-
         case SF_OP_TYPE_NEGATE:
             op = SF_OPCODE_NEGATE;
             break;
 
+        // bitwise
         case SF_OP_TYPE_BITWISE_AND:
             op = SF_OPCODE_BITWISE_AND;
             break;
@@ -243,6 +245,15 @@ sf_opcode type_operation_to_opcode(sf_operation_type type) {
             op = SF_OPCODE_BITWISE_NOT;
             break;
 
+        // logical
+        case SF_OP_TYPE_LOGICAL_AND:
+            op = SF_OPCODE_LOGICAL_AND;
+            break;
+        case SF_OP_TYPE_LOGICAL_OR:
+            op = SF_OPCODE_LOGICAL_OR;
+            break;
+
+        // fallback
         default:
             break;
     }

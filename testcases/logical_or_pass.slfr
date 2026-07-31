@@ -1,0 +1,12 @@
+bool x = false;
+bool y = true;
+
+bool var1 = x || y;
+bool var2 = y || x;
+bool var3 = x || x;
+bool var4 = y || y;
+
+bool var5 = false || true;
+bool var6 = true || false;
+bool var7 = true || true;
+bool var8 = false || false;

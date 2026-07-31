@@ -11,12 +11,14 @@ typedef enum {
 } sf_operand_type;
 
 typedef enum {
+    // arithmetic
     SF_OPCODE_ADD,
     SF_OPCODE_SUB,
     SF_OPCODE_DIV,
     SF_OPCODE_MULT,
     SF_OPCODE_NEGATE,
 
+    // bitwise
     SF_OPCODE_BITWISE_AND,
     SF_OPCODE_BITWISE_OR,
     SF_OPCODE_BITWISE_XOR,
@@ -24,6 +26,11 @@ typedef enum {
     SF_OPCODE_BITWISE_LSHIFT,
     SF_OPCODE_BITWISE_NOT,
 
+    // logical
+    SF_OPCODE_LOGICAL_AND,
+    SF_OPCODE_LOGICAL_OR,
+
+    // other
     SF_OPCODE_ASSIGN,
     SF_OPCODE_CAST,
 } sf_opcode;

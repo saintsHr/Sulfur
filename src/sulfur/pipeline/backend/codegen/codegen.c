@@ -114,6 +114,21 @@ static void emit_bitwise_not(
     const sf_stack_map* map
 );
 
+static void emit_logical_and(
+    char** buff,
+    size_t* len,
+    size_t* capacity,
+    sf_operation op,
+    const sf_stack_map* map
+);
+static void emit_logical_or(
+    char** buff,
+    size_t* len,
+    size_t* capacity,
+    sf_operation op,
+    const sf_stack_map* map
+);
+
 static sf_register register_from_size(uint8_t size);
 static sf_size_prefix prefix_from_size(uint8_t size);
 
@@ -166,6 +181,7 @@ char* sf_generate_assembly(const sf_ir_program* program) {
         sf_operation op = program->operations[i];
 
         switch (op.opcode) {
+            // arithmetic
             case SF_OPCODE_ADD:
                 emit_add(&as, &as_len, &as_capacity, op, &map);
                 break;
@@ -182,13 +198,7 @@ char* sf_generate_assembly(const sf_ir_program* program) {
                 emit_neg(&as, &as_len, &as_capacity, op, &map);
                 break;
 
-            case SF_OPCODE_ASSIGN:
-                emit_assign(&as, &as_len, &as_capacity, op, &map);
-                break;
-            case SF_OPCODE_CAST:
-                emit_cast(&as, &as_len, &as_capacity, op, &map);
-                break;
-
+            // bitwise
             case SF_OPCODE_BITWISE_AND:
                 emit_bitwise_and(&as, &as_len, &as_capacity, op, &map);
                 break;
@@ -208,6 +218,23 @@ char* sf_generate_assembly(const sf_ir_program* program) {
                 emit_bitwise_not(&as, &as_len, &as_capacity, op, &map);
                 break;
 
+            // logical
+            case SF_OPCODE_LOGICAL_AND:
+                emit_logical_and(&as, &as_len, &as_capacity, op, &map);
+                break;
+            case SF_OPCODE_LOGICAL_OR:
+                emit_logical_or(&as, &as_len, &as_capacity, op, &map);
+                break;
+
+            // other
+            case SF_OPCODE_ASSIGN:
+                emit_assign(&as, &as_len, &as_capacity, op, &map);
+                break;
+            case SF_OPCODE_CAST:
+                emit_cast(&as, &as_len, &as_capacity, op, &map);
+                break;
+
+            // fallback
             default:
                 break;
         }
@@ -733,6 +760,66 @@ static void emit_bitwise_not(
 
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
     emitf(buff, len, capacity, "\tnot %s\n", reg_str);
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_logical_and(
+    char** buff,
+    size_t* len,
+    size_t* capacity,
+    sf_operation op,
+    const sf_stack_map* map
+) {
+    if (op.opcode != SF_OPCODE_LOGICAL_AND) return;
+
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+
+    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    if (strcmp(dst_fmt, src1_fmt) == 0 &&
+        op.source2.type != SF_OPERAND_TYPE_VARIABLE &&
+        op.source2.type != SF_OPERAND_TYPE_TEMPORARY) {
+        emitf(buff, len, capacity, "\tand %s, %s\n", dst_fmt, src2_fmt);
+        return;
+    }
+
+    uint8_t size = type_value_width_bytes(op.destiny.value_type);
+    const char* reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emitf(buff, len, capacity, "\tand %s, %s\n", reg_str, src2_fmt);
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_logical_or(
+    char** buff,
+    size_t* len,
+    size_t* capacity,
+    sf_operation op,
+    const sf_stack_map* map
+) {
+    if (op.opcode != SF_OPCODE_LOGICAL_OR) return;
+
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+
+    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    if (strcmp(dst_fmt, src1_fmt) == 0 &&
+        op.source2.type != SF_OPERAND_TYPE_VARIABLE &&
+        op.source2.type != SF_OPERAND_TYPE_TEMPORARY) {
+        emitf(buff, len, capacity, "\tor %s, %s\n", dst_fmt, src2_fmt);
+        return;
+    }
+
+    uint8_t size = type_value_width_bytes(op.destiny.value_type);
+    const char* reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emitf(buff, len, capacity, "\tor %s, %s\n", reg_str, src2_fmt);
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
 }
 
