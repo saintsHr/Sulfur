@@ -49,6 +49,9 @@ typedef enum {
     SF_OP_TYPE_BITWISE_NOT,
     SF_OP_TYPE_BITWISE_RSHIFT,
     SF_OP_TYPE_BITWISE_LSHIFT,
+
+    SF_OP_TYPE_LOGICAL_OR,
+    SF_OP_TYPE_LOGICAL_AND,
 } sf_operation_type;
 
 typedef struct {

@@ -48,15 +48,23 @@ static sf_ast_node* parse_cast(
     sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 );
 
-static sf_ast_node* parse_bitwise(
-    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
-);
-
 static sf_ast_node* parse_multiplicative(
     sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 );
 
 static sf_ast_node* parse_additive(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+);
+
+static sf_ast_node* parse_bitwise(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+);
+
+static sf_ast_node* parse_logical_and(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+);
+
+static sf_ast_node* parse_logical_or(
     sf_arena* arena, sf_token_list list, size_t* current, const char* filename
 );
 
@@ -215,7 +223,7 @@ static sf_ast_node* parse_primary(
     if (current == NULL) return NULL;
 
     if (match(list, current, SF_TOKEN_TYPE_LPAREN)) {
-        sf_ast_node* expr = parse_bitwise(arena, list, current, filename);
+        sf_ast_node* expr = parse_logical_or(arena, list, current, filename);
         if (expr == NULL) return NULL;
 
         if (!expect(list, current, SF_TOKEN_TYPE_RPAREN, filename)) {
@@ -272,15 +280,15 @@ static sf_ast_node* parse_multiplicative(
     sf_ast_node* left = parse_cast(arena, list, current, filename);
     if (left == NULL) return NULL;
 
-    while (list.tokens[*current].type == SF_TOKEN_TYPE_MULT ||
-           list.tokens[*current].type == SF_TOKEN_TYPE_DIV) {
+    while (list.tokens[*current].type == SF_TOKEN_TYPE_STAR ||
+           list.tokens[*current].type == SF_TOKEN_TYPE_SLASH) {
         sf_token op = advance(list, current);
 
         sf_ast_node* right = parse_cast(arena, list, current, filename);
         if (right == NULL) return NULL;
 
         sf_operation_type op_type =
-            (op.type == SF_TOKEN_TYPE_MULT) ? SF_OP_TYPE_MUL : SF_OP_TYPE_DIV;
+            (op.type == SF_TOKEN_TYPE_STAR) ? SF_OP_TYPE_MUL : SF_OP_TYPE_DIV;
 
         left = (sf_ast_node*)sf_new_binary_expr(
             arena, left, right, op_type, op.span
@@ -367,8 +375,9 @@ static sf_ast_node* parse_declaration(
     char* name = name_token.value;
     sf_ast_node* val = NULL;
 
-    if (match(list, current, SF_TOKEN_TYPE_EQUALS)) {
-        val = parse_bitwise(arena, list, current, filename);
+    if (match(list, current, SF_TOKEN_TYPE_EQUAL)) {
+        val = parse_logical_or(arena, list, current, filename);
+
         if (val == NULL) {
             recover_statement(list, current);
             return NULL;
@@ -413,12 +422,12 @@ static sf_ast_node* parse_assign(
     char* name = name_token.value;
     if (name == NULL) return NULL;
 
-    if (!expect(list, current, SF_TOKEN_TYPE_EQUALS, filename)) {
+    if (!expect(list, current, SF_TOKEN_TYPE_EQUAL, filename)) {
         recover_statement(list, current);
         return NULL;
     }
 
-    sf_ast_node* val = parse_bitwise(arena, list, current, filename);
+    sf_ast_node* val = parse_logical_or(arena, list, current, filename);
 
     if (val == NULL) {
         recover_statement(list, current);
@@ -554,7 +563,7 @@ static sf_ast_node* parse_bitwise(
     sf_ast_node* left = parse_additive(arena, list, current, filename);
     if (left == NULL) return NULL;
 
-    while (list.tokens[*current].type == SF_TOKEN_TYPE_AMPERSAND ||
+    while (list.tokens[*current].type == SF_TOKEN_TYPE_AMP ||
            list.tokens[*current].type == SF_TOKEN_TYPE_PIPE ||
            list.tokens[*current].type == SF_TOKEN_TYPE_CARET ||
            list.tokens[*current].type == SF_TOKEN_TYPE_RIGHT_SHIFT ||
@@ -567,7 +576,7 @@ static sf_ast_node* parse_bitwise(
         sf_operation_type op_type;
 
         switch (op.type) {
-            case SF_TOKEN_TYPE_AMPERSAND:
+            case SF_TOKEN_TYPE_AMP:
                 op_type = SF_OP_TYPE_BITWISE_AND;
                 break;
 
@@ -595,6 +604,58 @@ static sf_ast_node* parse_bitwise(
             arena, left, right, op_type, op.span
         );
 
+        if (left == NULL) return NULL;
+    }
+
+    return left;
+}
+
+static sf_ast_node* parse_logical_and(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+) {
+    if (filename == NULL) return NULL;
+    if (current == NULL) return NULL;
+
+    sf_ast_node* left = parse_bitwise(arena, list, current, filename);
+    if (left == NULL) return NULL;
+
+    while (list.tokens[*current].type == SF_TOKEN_TYPE_AMP_AMP) {
+        sf_token op = advance(list, current);
+
+        sf_ast_node* right = parse_bitwise(arena, list, current, filename);
+        if (right == NULL) return NULL;
+
+        sf_operation_type op_type = SF_OP_TYPE_LOGICAL_AND;
+
+        left = (sf_ast_node*)sf_new_binary_expr(
+            arena, left, right, op_type, op.span
+        );
+        if (left == NULL) return NULL;
+    }
+
+    return left;
+}
+
+static sf_ast_node* parse_logical_or(
+    sf_arena* arena, sf_token_list list, size_t* current, const char* filename
+) {
+    if (filename == NULL) return NULL;
+    if (current == NULL) return NULL;
+
+    sf_ast_node* left = parse_logical_and(arena, list, current, filename);
+    if (left == NULL) return NULL;
+
+    while (list.tokens[*current].type == SF_TOKEN_TYPE_PIPE_PIPE) {
+        sf_token op = advance(list, current);
+
+        sf_ast_node* right = parse_logical_and(arena, list, current, filename);
+        if (right == NULL) return NULL;
+
+        sf_operation_type op_type = SF_OP_TYPE_LOGICAL_OR;
+
+        left = (sf_ast_node*)sf_new_binary_expr(
+            arena, left, right, op_type, op.span
+        );
         if (left == NULL) return NULL;
     }
 

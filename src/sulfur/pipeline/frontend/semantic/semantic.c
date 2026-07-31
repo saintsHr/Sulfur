@@ -62,9 +62,20 @@ static bool analyze_expr(
         case SF_NODE_BINARY_EXPR: {
             sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
 
-            if (!analyze_expr(bin->left, expected, scope, filename))
+            bool is_logical =
+                (bin->op == SF_OP_TYPE_LOGICAL_AND ||
+                 bin->op == SF_OP_TYPE_LOGICAL_OR);
+
+            bool is_shift =
+                (bin->op == SF_OP_TYPE_BITWISE_LSHIFT ||
+                 bin->op == SF_OP_TYPE_BITWISE_RSHIFT);
+
+            sf_value_type operand_expected = expected;
+            if (is_logical) operand_expected = SF_VAL_TYPE_BOOL;
+
+            if (!analyze_expr(bin->left, operand_expected, scope, filename))
                 return false;
-            if (!analyze_expr(bin->right, expected, scope, filename))
+            if (!analyze_expr(bin->right, operand_expected, scope, filename))
                 return false;
 
             sf_value_type ltype = bin->left->resolved;
@@ -74,9 +85,27 @@ static bool analyze_expr(
                 rtype == SF_VAL_TYPE_UNRESOLVED)
                 return false;
 
-            bool is_shift =
-                (bin->op == SF_OP_TYPE_BITWISE_LSHIFT ||
-                 bin->op == SF_OP_TYPE_BITWISE_RSHIFT);
+            if (is_logical) {
+                if (ltype != SF_VAL_TYPE_BOOL || rtype != SF_VAL_TYPE_BOOL) {
+                    sf_log(
+                        "type mismatch",
+                        "cannot perform a logical operation between %s and %s",
+                        "only use bool type literas/identifiers on logical "
+                        "operations",
+                        filename,
+                        SF_SEMANTIC_TYPE_MISMATCH,
+                        node->span,
+                        SF_SEV_ERROR,
+                        type_value_name(ltype),
+                        type_value_name(rtype)
+                    );
+
+                    return false;
+                }
+
+                node->resolved = SF_VAL_TYPE_BOOL;
+                return true;
+            }
 
             if (is_shift) {
                 node->resolved = ltype;

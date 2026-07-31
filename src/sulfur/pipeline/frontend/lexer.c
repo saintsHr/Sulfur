@@ -116,11 +116,11 @@ const char* sf_token_type_name(sf_token_type type) {
             return "'+'";
         case SF_TOKEN_TYPE_MINUS:
             return "'-'";
-        case SF_TOKEN_TYPE_MULT:
+        case SF_TOKEN_TYPE_STAR:
             return "'*'";
-        case SF_TOKEN_TYPE_DIV:
+        case SF_TOKEN_TYPE_SLASH:
             return "'/'";
-        case SF_TOKEN_TYPE_EQUALS:
+        case SF_TOKEN_TYPE_EQUAL:
             return "'='";
         case SF_TOKEN_TYPE_SEMICOLON:
             return "';'";
@@ -133,7 +133,7 @@ const char* sf_token_type_name(sf_token_type type) {
         case SF_TOKEN_TYPE_RPAREN:
             return "')'";
 
-        case SF_TOKEN_TYPE_AMPERSAND:
+        case SF_TOKEN_TYPE_AMP:
             return "'&'";
         case SF_TOKEN_TYPE_CARET:
             return "'^'";
@@ -379,50 +379,98 @@ static sf_token read_symbol(const char* input, int* i, int* col, int line) {
     );
 
     switch (c) {
-        case '+':
+        case '+': {
             tk.type = SF_TOKEN_TYPE_PLUS;
             break;
-        case '-':
+        }
+
+        case '-': {
             tk.type = SF_TOKEN_TYPE_MINUS;
             break;
-        case '*':
-            tk.type = SF_TOKEN_TYPE_MULT;
+        }
+
+        case '*': {
+            tk.type = SF_TOKEN_TYPE_STAR;
             break;
-        case '/':
-            tk.type = SF_TOKEN_TYPE_DIV;
+        }
+
+        case '/': {
+            tk.type = SF_TOKEN_TYPE_SLASH;
             break;
+        }
+
         case '=':
-            tk.type = SF_TOKEN_TYPE_EQUALS;
+            tk.type = SF_TOKEN_TYPE_EQUAL;
             break;
 
-        case ';':
+        case ';': {
             tk.type = SF_TOKEN_TYPE_SEMICOLON;
             break;
-        case '{':
+        }
+
+        case '{': {
             tk.type = SF_TOKEN_TYPE_LBRACE;
             break;
-        case '}':
+        }
+
+        case '}': {
             tk.type = SF_TOKEN_TYPE_RBRACE;
             break;
-        case '(':
+        }
+
+        case '(': {
             tk.type = SF_TOKEN_TYPE_LPAREN;
             break;
-        case ')':
+        }
+
+        case ')': {
             tk.type = SF_TOKEN_TYPE_RPAREN;
             break;
+        }
 
-        case '&':
-            tk.type = SF_TOKEN_TYPE_AMPERSAND;
+        case '&': {
+            if (input[*i + 1] == '&') {
+                tk.type = SF_TOKEN_TYPE_AMP_AMP;
+                tk.value[0] = '&';
+                tk.value[1] = '&';
+                tk.value[2] = '\0';
+                tk.span.len = 2;
+
+                (*i) += 2;
+                (*col) += 2;
+                return tk;
+            }
+
+            tk.type = SF_TOKEN_TYPE_AMP;
             break;
-        case '|':
+        }
+
+        case '|': {
+            if (input[*i + 1] == '|') {
+                tk.type = SF_TOKEN_TYPE_PIPE_PIPE;
+                tk.value[0] = '|';
+                tk.value[1] = '|';
+                tk.value[2] = '\0';
+                tk.span.len = 2;
+
+                (*i) += 2;
+                (*col) += 2;
+                return tk;
+            }
+
             tk.type = SF_TOKEN_TYPE_PIPE;
             break;
-        case '^':
+        }
+
+        case '^': {
             tk.type = SF_TOKEN_TYPE_CARET;
             break;
-        case '~':
+        }
+
+        case '~': {
             tk.type = SF_TOKEN_TYPE_TILDE;
             break;
+        }
 
         case '<': {
             if (input[*i + 1] == '<') {
@@ -456,8 +504,9 @@ static sf_token read_symbol(const char* input, int* i, int* col, int line) {
             break;
         }
 
-        default:
+        default: {
             return tk;
+        }
     }
 
     tk.value[0] = c;

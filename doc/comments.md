@@ -1,6 +1,7 @@
 # Comments
 
-Comments are ignored by the compiler and are used to document code or leave notes for yourself and other developers.
+Comments are ignored by the compiler and are used to document code or leave
+notes for yourself and other developers.
 
 ## Single-line Comments
 

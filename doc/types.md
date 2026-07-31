@@ -1,6 +1,7 @@
 # Types
 
-Sulfur provides a variety of primitive types. They are the basic building blocks used to represent values throughout the language.
+Sulfur provides a variety of primitive types. They are the basic building blocks used
+to represent values throughout the language.
 
 | Type  | Description           |
 |-------|-----------------------|

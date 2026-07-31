@@ -1,6 +1,8 @@
 # Variables
 
-Variables are used to store values in memory. Every variable must have a type, which is specified when it is declared, and a identifier that must start with an letter or underscore.
+Variables are used to store values in memory. Every variable must have a type,
+which is specified when it is declared, and a identifier that must start with an
+letter or underscore.
 
 ## Declaration
 
@@ -26,7 +28,8 @@ bool flag;
 
 ## Initialization
 
-Variables declared without an initial value are **uninitialized**. You must assign a value before reading from them.
+Variables declared without an initial value are **uninitialized**. You must assign
+a value before reading from them.
 
 ```
 i32 x;

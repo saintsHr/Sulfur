@@ -2,33 +2,44 @@
 
 ---
 
-**Sulfur** is a low-level, systems-oriented programming language designed to provide performance, safety, and predictability while maintaining practical ergonomics.
+**Sulfur** is a low-level, systems-oriented programming language designed to provide
+performance, safety, and predictability while maintaining practical ergonomics.
 
 ## Why Sulfur Exists
 
-Sulfur exists to provide a systems programming language where performance, explicitness, and predictability are first-class design goals. Rather than hiding complexity behind language features or runtime behavior, Sulfur exposes it in a way that is understandable, controllable and verifiable by both the programmer and the compiler.
+Sulfur exists to provide a systems programming language where performance,
+explicitness, and predictability are first-class design goals. Rather than hiding
+complexity behind language features or runtime behavior, Sulfur exposes it in a way
+that is understandable, controllable and verifiable by both the programmer and the
+compiler.
 
 ---
 
 ## Core Principles
 
 - **Transparent execution**
-  The compiler may optimize generated code, but such optimizations must never alter observable semantics or introduce hidden behavior visible to the programmer.
+  The compiler may optimize generated code, but such optimizations must never alter
+  observable semantics or introduce hidden behavior visible to the programmer.
 
 - **Deterministic semantics**
-  Language semantics are deterministic. Observable nondeterminism only arises from explicitly nondeterministic operations (I/O, concurrency, randomness, etc.).
+  Language semantics are deterministic. Observable nondeterminism only arises from
+  explicitly nondeterministic operations (I/O, concurrency, randomness, etc.).
 
 - **No implicit data mutation**
-  Data is immutable by default. Any mutation must be explicitly declared and visible in the code.
+  Data is immutable by default. Any mutation must be explicitly declared and visible
+  in the code.
 
 - **Explicit control over abstraction**
-  Abstractions are allowed only when they are visible, predictable, and do not hide performance or memory behavior.
+  Abstractions are allowed only when they are visible, predictable, and do not hide
+  performance or memory behavior.
 
 - **Clarity over cleverness**
-  Code should prioritize readability and directness over implicit optimizations or syntactic sugar.
+  Code should prioritize readability and directness over implicit optimizations
+  or syntactic sugar.
 
 - **Minimal but explicit boilerplate**
-  The language avoids unnecessary verbosity, but never at the cost of hiding behavior or intent.
+  The language avoids unnecessary verbosity, but never at the cost of hiding
+  behavior or intent.
 
 ---
 
@@ -51,19 +62,24 @@ Sulfur exists to provide a systems programming language where performance, expli
 
 ## Feature Philosophy
 
-Every language feature must solve a real problem while remaining consistent with the language's existing design. Features should be added only when their long-term benefits clearly outweigh their complexity.
+Every language feature must solve a real problem while remaining consistent
+with the language's existing design. Features should be added only when
+their long-term benefits clearly outweigh their complexity.
 
 ## Safety Philosophy
 
-Safety is achieved through **explicitness and compiler guarantees**, not runtime checks or hidden mechanisms.
+Safety is achieved through **explicitness and compiler guarantees**, not runtime
+checks or hidden mechanisms.
 
 ## Error Philosophy
 
-Compiler diagnostics are part of the language design. Error messages should explain why code is invalid and, whenever possible, how to fix it.
+Compiler diagnostics are part of the language design. Error messages should explain
+why code is invalid and, whenever possible, how to fix it.
 
 ## Stability Philosophy
 
-Breaking changes should be rare and only introduced when they significantly improve the language.
+Breaking changes should be rare and only introduced when they significantly improve
+the language.
 
 ## Simplicity Philosophy
 
@@ -75,19 +91,31 @@ Features should compose naturally rather than requiring special rules.
 
 ## Consistency Philosophy
 
-Similar problems should have similar solutions. The language should avoid special cases whenever possible.
+Similar problems should have similar solutions. The language should avoid special
+cases whenever possible.
 
 ## Memory Philosophy
 
-Sulfur gives programmers explicit control over memory allocation and lifetime. The compiler does not manage memory on behalf of the programmer. Instead, it performs static analysis to detect mistakes, highlight inefficiencies, and prevent memory-unsafe behavior whenever it can be proven. When safety cannot be proven, the compiler should clearly communicate the associated risks. The programmer retains control over memory decisions, while the compiler acts as a safeguard rather than an owner.
+Sulfur gives programmers explicit control over memory allocation and lifetime.
+The compiler does not manage memory on behalf of the programmer. Instead,
+it performs static analysis to detect mistakes, highlight inefficiencies,
+and prevent memory-unsafe behavior whenever it can be proven. When safety 
+annot be proven, the compiler should clearly communicate the associated risks.
+The programmer retains control over memory decisions, while the compiler acts
+as a safeguard rather than an owner.
 
 ## Interoperability Philosophy
 
-Sulfur is designed to coexist with existing software ecosystems. Interoperability with established systems languages should be straightforward whenever practical, allowing incremental adoption rather than requiring complete rewrites. Existing ecosystems should be considered first-class citizens rather than obstacles to adoption.
+Sulfur is designed to coexist with existing software ecosystems. Interoperability
+with established systems languages should be straightforward whenever practical,
+allowing incremental adoption rather than requiring complete rewrites. Existing
+ecosystems should be considered first-class citizens rather than obstacles to adoption.
 
 ## Portability Philosophy
 
-The language should remain portable across operating systems, architectures, and execution environments. Platform-specific behavior should be explicit rather than embedded into the language itself.
+The language should remain portable across operating systems, architectures,
+and execution environments. Platform-specific behavior should be explicit rather
+than embedded into the language itself.
 
 ---
 

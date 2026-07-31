@@ -7,47 +7,66 @@
 #define SF_MAX_TOKEN_VALUE_SIZE 255
 
 typedef enum {
-    SF_TOKEN_TYPE_IDENTIFIER,
+    // literals
+    SF_TOKEN_TYPE_IDENTIFIER,  // ident
+    SF_TOKEN_TYPE_INTEGER,     // 123
 
-    SF_TOKEN_TYPE_INTEGER,
+    // arithmetic
+    SF_TOKEN_TYPE_PLUS,   // +
+    SF_TOKEN_TYPE_MINUS,  // -
+    SF_TOKEN_TYPE_STAR,   // *
+    SF_TOKEN_TYPE_SLASH,  // /
 
-    SF_TOKEN_TYPE_PLUS,
-    SF_TOKEN_TYPE_MINUS,
-    SF_TOKEN_TYPE_MULT,
-    SF_TOKEN_TYPE_DIV,
-    SF_TOKEN_TYPE_EQUALS,
+    // assignment & comparison
+    SF_TOKEN_TYPE_EQUAL,          // =
+    SF_TOKEN_TYPE_EQUAL_EQUAL,    // ==
+    SF_TOKEN_TYPE_BANG,           // !
+    SF_TOKEN_TYPE_BANG_EQUAL,     // !=
+    SF_TOKEN_TYPE_LESS,           // <
+    SF_TOKEN_TYPE_LESS_EQUAL,     // <=
+    SF_TOKEN_TYPE_GREATER,        // >
+    SF_TOKEN_TYPE_GREATER_EQUAL,  // >=
 
-    SF_TOKEN_TYPE_AMPERSAND,
-    SF_TOKEN_TYPE_PIPE,
-    SF_TOKEN_TYPE_CARET,
-    SF_TOKEN_TYPE_RIGHT_SHIFT,
-    SF_TOKEN_TYPE_LEFT_SHIFT,
-    SF_TOKEN_TYPE_TILDE,
+    // logical & bitwise
+    SF_TOKEN_TYPE_AMP,          // &
+    SF_TOKEN_TYPE_AMP_AMP,      // &&
+    SF_TOKEN_TYPE_PIPE,         // |
+    SF_TOKEN_TYPE_PIPE_PIPE,    // ||
+    SF_TOKEN_TYPE_CARET,        // ^
+    SF_TOKEN_TYPE_TILDE,        // ~
+    SF_TOKEN_TYPE_LEFT_SHIFT,   // <<
+    SF_TOKEN_TYPE_RIGHT_SHIFT,  // >>
 
-    SF_TOKEN_TYPE_SEMICOLON,
+    // delimiters
+    SF_TOKEN_TYPE_SEMICOLON,  // ;
+    SF_TOKEN_TYPE_COMMA,      // ,
+    SF_TOKEN_TYPE_DOT,        // .
 
-    SF_TOKEN_TYPE_LBRACE,
-    SF_TOKEN_TYPE_RBRACE,
+    SF_TOKEN_TYPE_LPAREN,    // (
+    SF_TOKEN_TYPE_RPAREN,    // )
+    SF_TOKEN_TYPE_LBRACE,    // {
+    SF_TOKEN_TYPE_RBRACE,    // }
+    SF_TOKEN_TYPE_LBRACKET,  // [
+    SF_TOKEN_TYPE_RBRACKET,  // ]
 
-    SF_TOKEN_TYPE_LPAREN,
-    SF_TOKEN_TYPE_RPAREN,
+    // keywords
+    SF_TOKEN_TYPE_KW_I8,   // i8
+    SF_TOKEN_TYPE_KW_I16,  // i16
+    SF_TOKEN_TYPE_KW_I32,  // i32
+    SF_TOKEN_TYPE_KW_I64,  // i64
 
-    SF_TOKEN_TYPE_KW_I8,
-    SF_TOKEN_TYPE_KW_I16,
-    SF_TOKEN_TYPE_KW_I32,
-    SF_TOKEN_TYPE_KW_I64,
+    SF_TOKEN_TYPE_KW_U8,   // u8
+    SF_TOKEN_TYPE_KW_U16,  // u16
+    SF_TOKEN_TYPE_KW_U32,  // u32
+    SF_TOKEN_TYPE_KW_U64,  // u64
 
-    SF_TOKEN_TYPE_KW_U8,
-    SF_TOKEN_TYPE_KW_U16,
-    SF_TOKEN_TYPE_KW_U32,
-    SF_TOKEN_TYPE_KW_U64,
+    SF_TOKEN_TYPE_KW_BOOL,   // bool
+    SF_TOKEN_TYPE_KW_TRUE,   // true
+    SF_TOKEN_TYPE_KW_FALSE,  // false
 
-    SF_TOKEN_TYPE_KW_BOOL,
-    SF_TOKEN_TYPE_KW_TRUE,
-    SF_TOKEN_TYPE_KW_FALSE,
+    SF_TOKEN_TYPE_KW_AS,  // as
 
-    SF_TOKEN_TYPE_KW_AS,
-
+    // special
     SF_TOKEN_TYPE_UNDEFINED,
     SF_TOKEN_TYPE_EOF,
 } sf_token_type;

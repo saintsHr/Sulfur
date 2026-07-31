@@ -16,7 +16,8 @@ u64 zero = 0;
 
 ## Boolean Literals
 
-Boolean literals represent two possible states, true or false, and it always have the bool type.
+Boolean literals represent two possible states, true or false, and it always have
+the bool type.
 
 ```
 bool is_walking = true;

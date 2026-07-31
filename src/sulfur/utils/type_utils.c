@@ -72,6 +72,7 @@ const char* type_value_name(sf_value_type type) {
 
 const char* type_operation_name(sf_operation_type op) {
     switch (op) {
+        // arithmetic
         case SF_OP_TYPE_ADD:
             return "+";
         case SF_OP_TYPE_SUB:
@@ -83,6 +84,7 @@ const char* type_operation_name(sf_operation_type op) {
         case SF_OP_TYPE_NEGATE:
             return "-";
 
+        // bitwise
         case SF_OP_TYPE_BITWISE_AND:
             return "&";
         case SF_OP_TYPE_BITWISE_OR:
@@ -96,6 +98,13 @@ const char* type_operation_name(sf_operation_type op) {
         case SF_OP_TYPE_BITWISE_NOT:
             return "~";
 
+        // logical
+        case SF_OP_TYPE_LOGICAL_AND:
+            return "&&";
+        case SF_OP_TYPE_LOGICAL_OR:
+            return "||";
+
+        // fallback
         default:
             return "?";
     }
