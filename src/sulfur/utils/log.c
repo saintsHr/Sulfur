@@ -157,21 +157,32 @@ static void emit_log(sf_log_info info, va_list args) {
 
     pos = 0;
     if (info.title) {
-        format_into(titleBuffer, sizeof(titleBuffer), &pos, info.title, args);
+        va_list args_copy;
+        va_copy(args_copy, args);
+        format_into(
+            titleBuffer, sizeof(titleBuffer), &pos, info.title, args_copy
+        );
+        va_end(args_copy);
     } else {
         titleBuffer[0] = '\0';
     }
 
     pos = 0;
     if (info.desc) {
-        format_into(descBuffer, sizeof(descBuffer), &pos, info.desc, args);
+        va_list args_copy;
+        va_copy(args_copy, args);
+        format_into(descBuffer, sizeof(descBuffer), &pos, info.desc, args_copy);
+        va_end(args_copy);
     } else {
         descBuffer[0] = '\0';
     }
 
     pos = 0;
     if (info.hint) {
-        format_into(hintBuffer, sizeof(hintBuffer), &pos, info.hint, args);
+        va_list args_copy;
+        va_copy(args_copy, args);
+        format_into(hintBuffer, sizeof(hintBuffer), &pos, info.hint, args_copy);
+        va_end(args_copy);
     } else {
         hintBuffer[0] = '\0';
     }

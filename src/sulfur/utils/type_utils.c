@@ -99,6 +99,20 @@ const char* type_operation_name(sf_operation_type op) {
         case SF_OP_TYPE_BITWISE_NOT:
             return "~";
 
+        // relational
+        case SF_OP_TYPE_RELATIONAL_EQUAL:
+            return "==";
+        case SF_OP_TYPE_RELATIONAL_NOT_EQUAL:
+            return "!=";
+        case SF_OP_TYPE_RELATIONAL_LESS:
+            return "<";
+        case SF_OP_TYPE_RELATIONAL_LESS_EQUAL:
+            return "<=";
+        case SF_OP_TYPE_RELATIONAL_GREATER:
+            return ">";
+        case SF_OP_TYPE_RELATIONAL_GREATER_EQUAL:
+            return ">=";
+
         // logical
         case SF_OP_TYPE_LOGICAL_AND:
             return "&&";
@@ -243,6 +257,26 @@ sf_opcode type_operation_to_opcode(sf_operation_type type) {
             break;
         case SF_OP_TYPE_BITWISE_NOT:
             op = SF_OPCODE_BITWISE_NOT;
+            break;
+
+        // relational
+        case SF_OP_TYPE_RELATIONAL_EQUAL:
+            op = SF_OPCODE_RELATIONAL_EQUAL;
+            break;
+        case SF_OP_TYPE_RELATIONAL_NOT_EQUAL:
+            op = SF_OPCODE_RELATIONAL_NOT_EQUAL;
+            break;
+        case SF_OP_TYPE_RELATIONAL_LESS:
+            op = SF_OPCODE_RELATIONAL_LESS;
+            break;
+        case SF_OP_TYPE_RELATIONAL_LESS_EQUAL:
+            op = SF_OPCODE_RELATIONAL_LESS_EQUAL;
+            break;
+        case SF_OP_TYPE_RELATIONAL_GREATER:
+            op = SF_OPCODE_RELATIONAL_GREATER;
+            break;
+        case SF_OP_TYPE_RELATIONAL_GREATER_EQUAL:
+            op = SF_OPCODE_RELATIONAL_GREATER_EQUAL;
             break;
 
         // logical

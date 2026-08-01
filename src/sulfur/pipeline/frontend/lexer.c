@@ -107,11 +107,19 @@ void sf_free_tokens(sf_token_list* list) {
 
 const char* sf_token_type_name(sf_token_type type) {
     switch (type) {
+        // identifiers
         case SF_TOKEN_TYPE_IDENTIFIER:
             return "an identifier";
+
+        // literals
         case SF_TOKEN_TYPE_INTEGER:
             return "a integer";
+        case SF_TOKEN_TYPE_KW_TRUE:
+            return "'true'";
+        case SF_TOKEN_TYPE_KW_FALSE:
+            return "'false'";
 
+        // arithmetic
         case SF_TOKEN_TYPE_PLUS:
             return "'+'";
         case SF_TOKEN_TYPE_MINUS:
@@ -122,6 +130,8 @@ const char* sf_token_type_name(sf_token_type type) {
             return "'/'";
         case SF_TOKEN_TYPE_EQUAL:
             return "'='";
+
+        // delimiters
         case SF_TOKEN_TYPE_SEMICOLON:
             return "';'";
         case SF_TOKEN_TYPE_LBRACE:
@@ -133,6 +143,13 @@ const char* sf_token_type_name(sf_token_type type) {
         case SF_TOKEN_TYPE_RPAREN:
             return "')'";
 
+        // logical
+        case SF_TOKEN_TYPE_AMP_AMP:
+            return "'&&'";
+        case SF_TOKEN_TYPE_PIPE_PIPE:
+            return "'||'";
+
+        // bitwise
         case SF_TOKEN_TYPE_AMP:
             return "'&'";
         case SF_TOKEN_TYPE_CARET:
@@ -146,6 +163,7 @@ const char* sf_token_type_name(sf_token_type type) {
         case SF_TOKEN_TYPE_RIGHT_SHIFT:
             return "'>>'";
 
+        // keywords
         case SF_TOKEN_TYPE_KW_I8:
             return "'i8'";
         case SF_TOKEN_TYPE_KW_I16:
@@ -166,19 +184,17 @@ const char* sf_token_type_name(sf_token_type type) {
 
         case SF_TOKEN_TYPE_KW_BOOL:
             return "'bool'";
-        case SF_TOKEN_TYPE_KW_TRUE:
-            return "'true'";
-        case SF_TOKEN_TYPE_KW_FALSE:
-            return "'false'";
 
         case SF_TOKEN_TYPE_KW_AS:
             return "'as'";
 
+        // others
         case SF_TOKEN_TYPE_UNDEFINED:
             return "an undefined token";
         case SF_TOKEN_TYPE_EOF:
             return "end of file";
 
+        // fallbacks
         default:
             return "a token";
     }
@@ -217,7 +233,7 @@ static void undefined(
         filename,
         SF_LEXER_UNDEFINED_TOKEN,
         tk.span,
-        SF_SEV_FATAL,
+        SF_SEV_ERROR,
         tk.value
     );
 }
@@ -373,145 +389,242 @@ static sf_token read_identifier(const char* input, int* i, int* col, int line) {
 }
 
 static sf_token read_symbol(const char* input, int* i, int* col, int line) {
-    char c = input[*i];
+    char c1 = input[*i];
+    char c2 = input[*i + 1];
+
     sf_token tk = make_token(
         SF_TOKEN_TYPE_UNDEFINED, (sf_span){.line = line, .col = *col, .len = 0}
     );
 
-    switch (c) {
+    switch (c1) {
         case '+': {
             tk.type = SF_TOKEN_TYPE_PLUS;
+
             break;
         }
 
         case '-': {
             tk.type = SF_TOKEN_TYPE_MINUS;
+
             break;
         }
 
         case '*': {
             tk.type = SF_TOKEN_TYPE_STAR;
+
             break;
         }
 
         case '/': {
             tk.type = SF_TOKEN_TYPE_SLASH;
+
             break;
         }
 
         case '=':
+            if (c2 == '=') {
+                tk.type = SF_TOKEN_TYPE_EQUAL_EQUAL;
+
+                tk.value[0] = '=';
+                tk.value[1] = '=';
+                tk.value[2] = '\0';
+
+                tk.span.len = 2;
+
+                (*i) += 2;
+                (*col) += 2;
+
+                return tk;
+            }
+
             tk.type = SF_TOKEN_TYPE_EQUAL;
+
             break;
 
         case ';': {
             tk.type = SF_TOKEN_TYPE_SEMICOLON;
+
             break;
         }
 
         case '{': {
             tk.type = SF_TOKEN_TYPE_LBRACE;
+
             break;
         }
 
         case '}': {
             tk.type = SF_TOKEN_TYPE_RBRACE;
+
             break;
         }
 
         case '(': {
             tk.type = SF_TOKEN_TYPE_LPAREN;
+
             break;
         }
 
         case ')': {
             tk.type = SF_TOKEN_TYPE_RPAREN;
+
             break;
         }
 
         case '&': {
-            if (input[*i + 1] == '&') {
+            if (c2 == '&') {
                 tk.type = SF_TOKEN_TYPE_AMP_AMP;
+
                 tk.value[0] = '&';
                 tk.value[1] = '&';
                 tk.value[2] = '\0';
+
                 tk.span.len = 2;
 
                 (*i) += 2;
                 (*col) += 2;
+
                 return tk;
             }
 
             tk.type = SF_TOKEN_TYPE_AMP;
+
             break;
         }
 
         case '|': {
-            if (input[*i + 1] == '|') {
+            if (c2 == '|') {
                 tk.type = SF_TOKEN_TYPE_PIPE_PIPE;
+
                 tk.value[0] = '|';
                 tk.value[1] = '|';
                 tk.value[2] = '\0';
+
                 tk.span.len = 2;
 
                 (*i) += 2;
                 (*col) += 2;
+
                 return tk;
             }
 
             tk.type = SF_TOKEN_TYPE_PIPE;
+
             break;
         }
 
         case '^': {
             tk.type = SF_TOKEN_TYPE_CARET;
+
             break;
         }
 
         case '~': {
             tk.type = SF_TOKEN_TYPE_TILDE;
+
             break;
         }
 
         case '<': {
-            if (input[*i + 1] == '<') {
+            if (c2 == '<') {
                 tk.type = SF_TOKEN_TYPE_LEFT_SHIFT;
+
                 tk.value[0] = '<';
                 tk.value[1] = '<';
                 tk.value[2] = '\0';
+
                 tk.span.len = 2;
 
                 (*i) += 2;
                 (*col) += 2;
+
                 return tk;
             }
+            if (c2 == '=') {
+                tk.type = SF_TOKEN_TYPE_LESS_EQUAL;
+
+                tk.value[0] = '<';
+                tk.value[1] = '=';
+                tk.value[2] = '\0';
+
+                tk.span.len = 2;
+
+                (*i) += 2;
+                (*col) += 2;
+
+                return tk;
+            }
+
+            tk.type = SF_TOKEN_TYPE_LESS;
 
             break;
         }
 
         case '>': {
-            if (input[*i + 1] == '>') {
+            if (c2 == '>') {
                 tk.type = SF_TOKEN_TYPE_RIGHT_SHIFT;
+
                 tk.value[0] = '>';
                 tk.value[1] = '>';
                 tk.value[2] = '\0';
+
                 tk.span.len = 2;
 
                 (*i) += 2;
                 (*col) += 2;
+
                 return tk;
             }
+            if (c2 == '=') {
+                tk.type = SF_TOKEN_TYPE_GREATER_EQUAL;
+
+                tk.value[0] = '>';
+                tk.value[1] = '=';
+                tk.value[2] = '\0';
+
+                tk.span.len = 2;
+
+                (*i) += 2;
+                (*col) += 2;
+
+                return tk;
+            }
+
+            tk.type = SF_TOKEN_TYPE_GREATER;
 
             break;
         }
 
-        default: {
-            return tk;
+        case '!': {
+            if (c2 == '=') {
+                tk.type = SF_TOKEN_TYPE_BANG_EQUAL;
+
+                tk.value[0] = '!';
+                tk.value[1] = '=';
+                tk.value[2] = '\0';
+
+                tk.span.len = 2;
+
+                (*i) += 2;
+                (*col) += 2;
+
+                return tk;
+            }
+
+            tk.type = SF_TOKEN_TYPE_BANG;
+
+            break;
         }
+
+        default:
+            return tk;
     }
 
-    tk.value[0] = c;
+    tk.value[0] = c1;
     tk.value[1] = '\0';
+
     tk.span.len = 1;
+
     (*i)++;
     (*col)++;
 

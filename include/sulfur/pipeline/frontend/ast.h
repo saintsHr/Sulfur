@@ -36,13 +36,14 @@ typedef enum {
 } sf_value_type;
 
 typedef enum {
+    // arithmetic
     SF_OP_TYPE_ADD,
     SF_OP_TYPE_SUB,
     SF_OP_TYPE_DIV,
     SF_OP_TYPE_MUL,
-
     SF_OP_TYPE_NEGATE,
 
+    // bitwise
     SF_OP_TYPE_BITWISE_AND,
     SF_OP_TYPE_BITWISE_OR,
     SF_OP_TYPE_BITWISE_XOR,
@@ -50,8 +51,21 @@ typedef enum {
     SF_OP_TYPE_BITWISE_RSHIFT,
     SF_OP_TYPE_BITWISE_LSHIFT,
 
+    // relational
+    SF_OP_TYPE_RELATIONAL_EQUAL,
+    SF_OP_TYPE_RELATIONAL_NOT_EQUAL,
+    SF_OP_TYPE_RELATIONAL_LESS,
+    SF_OP_TYPE_RELATIONAL_LESS_EQUAL,
+    SF_OP_TYPE_RELATIONAL_GREATER,
+    SF_OP_TYPE_RELATIONAL_GREATER_EQUAL,
+
+    // logical
     SF_OP_TYPE_LOGICAL_OR,
     SF_OP_TYPE_LOGICAL_AND,
+    SF_OP_TYPE_LOGICAL_NOT,
+
+    // fallback
+    SF_OP_TYPE_UNRESOLVED
 } sf_operation_type;
 
 typedef struct {

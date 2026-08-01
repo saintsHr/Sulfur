@@ -27,11 +27,13 @@ typedef enum {
     SF_TOKEN_TYPE_GREATER,        // >
     SF_TOKEN_TYPE_GREATER_EQUAL,  // >=
 
-    // logical & bitwise
+    // logical
+    SF_TOKEN_TYPE_AMP_AMP,    // &&
+    SF_TOKEN_TYPE_PIPE_PIPE,  // ||
+
+    // bitwise
     SF_TOKEN_TYPE_AMP,          // &
-    SF_TOKEN_TYPE_AMP_AMP,      // &&
     SF_TOKEN_TYPE_PIPE,         // |
-    SF_TOKEN_TYPE_PIPE_PIPE,    // ||
     SF_TOKEN_TYPE_CARET,        // ^
     SF_TOKEN_TYPE_TILDE,        // ~
     SF_TOKEN_TYPE_LEFT_SHIFT,   // <<
@@ -39,15 +41,10 @@ typedef enum {
 
     // delimiters
     SF_TOKEN_TYPE_SEMICOLON,  // ;
-    SF_TOKEN_TYPE_COMMA,      // ,
-    SF_TOKEN_TYPE_DOT,        // .
-
-    SF_TOKEN_TYPE_LPAREN,    // (
-    SF_TOKEN_TYPE_RPAREN,    // )
-    SF_TOKEN_TYPE_LBRACE,    // {
-    SF_TOKEN_TYPE_RBRACE,    // }
-    SF_TOKEN_TYPE_LBRACKET,  // [
-    SF_TOKEN_TYPE_RBRACKET,  // ]
+    SF_TOKEN_TYPE_LPAREN,     // (
+    SF_TOKEN_TYPE_RPAREN,     // )
+    SF_TOKEN_TYPE_LBRACE,     // {
+    SF_TOKEN_TYPE_RBRACE,     // }
 
     // keywords
     SF_TOKEN_TYPE_KW_I8,   // i8

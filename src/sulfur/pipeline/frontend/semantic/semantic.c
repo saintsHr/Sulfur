@@ -23,6 +23,8 @@ static void analyze_statement(
 
 static bool try_eval_const_uint(sf_ast_node* node, uint64_t* out_value);
 static bool try_eval_const_int(sf_ast_node* node, int64_t* out_value);
+static bool try_eval_const_bool(sf_ast_node* node, bool* out_value);
+
 static bool analyze_const_overflow(
     sf_ast_node* node, sf_value_type resolved, const char* filename
 );
@@ -70,6 +72,14 @@ static bool analyze_expr(
                 (bin->op == SF_OP_TYPE_BITWISE_LSHIFT ||
                  bin->op == SF_OP_TYPE_BITWISE_RSHIFT);
 
+            bool is_relational =
+                (bin->op == SF_OP_TYPE_RELATIONAL_EQUAL ||
+                 bin->op == SF_OP_TYPE_RELATIONAL_NOT_EQUAL ||
+                 bin->op == SF_OP_TYPE_RELATIONAL_LESS ||
+                 bin->op == SF_OP_TYPE_RELATIONAL_LESS_EQUAL ||
+                 bin->op == SF_OP_TYPE_RELATIONAL_GREATER ||
+                 bin->op == SF_OP_TYPE_RELATIONAL_GREATER_EQUAL);
+
             sf_value_type operand_expected = expected;
             if (is_logical) operand_expected = SF_VAL_TYPE_BOOL;
 
@@ -104,11 +114,61 @@ static bool analyze_expr(
                 }
 
                 node->resolved = SF_VAL_TYPE_BOOL;
+
+                bool const_result;
+                if (try_eval_const_bool(node, &const_result)) {
+                    sf_log(
+                        "constant condition",
+                        "this comparison always evaluates to '%s'",
+                        "check the operands",
+                        filename,
+                        SF_SEMANTIC_CONSTANT_EXPR,
+                        node->span,
+                        SF_SEV_WARNING,
+                        const_result ? "true" : "false"
+                    );
+                }
+
                 return true;
             }
 
             if (is_shift) {
                 node->resolved = ltype;
+                return true;
+            }
+
+            if (is_relational) {
+                if (!type_value_is_same_group(ltype, rtype)) {
+                    sf_log(
+                        "type mismatch",
+                        "cannot compare '%s' and '%s'",
+                        "cast one of the operands to match the other's type",
+                        filename,
+                        SF_SEMANTIC_TYPE_MISMATCH,
+                        node->span,
+                        SF_SEV_ERROR,
+                        type_value_name(ltype),
+                        type_value_name(rtype)
+                    );
+                    return false;
+                }
+
+                node->resolved = SF_VAL_TYPE_BOOL;
+
+                bool const_result;
+                if (try_eval_const_bool(node, &const_result)) {
+                    sf_log(
+                        "constant condition",
+                        "this comparison always evaluates to '%s'",
+                        "check the operands",
+                        filename,
+                        SF_SEMANTIC_CONSTANT_EXPR,
+                        node->span,
+                        SF_SEV_WARNING,
+                        const_result ? "true" : "false"
+                    );
+                }
+
                 return true;
             }
 
@@ -623,6 +683,121 @@ static bool try_eval_const_int(sf_ast_node* node, int64_t* out_value) {
             default:
                 return false;
         }
+    }
+
+    return false;
+}
+
+static bool try_eval_const_bool(sf_ast_node* node, bool* out_value) {
+    if (node->type == SF_NODE_LITERAL) {
+        sf_literal_node* lit = (sf_literal_node*)node;
+
+        if (lit->token_type == SF_TOKEN_TYPE_KW_TRUE) {
+            *out_value = true;
+            return true;
+        }
+
+        if (lit->token_type == SF_TOKEN_TYPE_KW_FALSE) {
+            *out_value = false;
+            return true;
+        }
+
+        return false;
+    }
+
+    if (node->type == SF_NODE_BINARY_EXPR) {
+        sf_binary_expr_node* bin = (sf_binary_expr_node*)node;
+
+        bool is_relational =
+            (bin->op == SF_OP_TYPE_RELATIONAL_EQUAL ||
+             bin->op == SF_OP_TYPE_RELATIONAL_NOT_EQUAL ||
+             bin->op == SF_OP_TYPE_RELATIONAL_LESS ||
+             bin->op == SF_OP_TYPE_RELATIONAL_LESS_EQUAL ||
+             bin->op == SF_OP_TYPE_RELATIONAL_GREATER ||
+             bin->op == SF_OP_TYPE_RELATIONAL_GREATER_EQUAL);
+
+        bool is_logical =
+            (bin->op == SF_OP_TYPE_LOGICAL_AND ||
+             bin->op == SF_OP_TYPE_LOGICAL_OR);
+
+        if (is_logical) {
+            bool l, r;
+
+            if (!try_eval_const_bool(bin->left, &l)) return false;
+            if (!try_eval_const_bool(bin->right, &r)) return false;
+
+            *out_value =
+                (bin->op == SF_OP_TYPE_LOGICAL_AND) ? (l && r) : (l || r);
+
+            return true;
+        }
+
+        if (is_relational) {
+            bool is_signed = type_value_is_signed(bin->left->resolved);
+
+            if (is_signed) {
+                int64_t l, r;
+
+                if (!try_eval_const_int(bin->left, &l)) return false;
+                if (!try_eval_const_int(bin->right, &r)) return false;
+
+                switch (bin->op) {
+                    case SF_OP_TYPE_RELATIONAL_EQUAL:
+                        *out_value = l == r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_NOT_EQUAL:
+                        *out_value = l != r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_LESS:
+                        *out_value = l < r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_LESS_EQUAL:
+                        *out_value = l <= r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_GREATER:
+                        *out_value = l > r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_GREATER_EQUAL:
+                        *out_value = l >= r;
+                        break;
+                    default:
+                        return false;
+                }
+            } else {
+                uint64_t l, r;
+
+                if (!try_eval_const_uint(bin->left, &l)) return false;
+                if (!try_eval_const_uint(bin->right, &r)) return false;
+
+                switch (bin->op) {
+                    case SF_OP_TYPE_RELATIONAL_EQUAL:
+                        *out_value = l == r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_NOT_EQUAL:
+                        *out_value = l != r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_LESS:
+                        *out_value = l < r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_LESS_EQUAL:
+                        *out_value = l <= r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_GREATER:
+                        *out_value = l > r;
+                        break;
+                    case SF_OP_TYPE_RELATIONAL_GREATER_EQUAL:
+                        *out_value = l >= r;
+                        break;
+
+                    default:
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     return false;

@@ -12,6 +12,7 @@
 #include "sulfur/pipeline/frontend/semantic/semantic.h"
 #include "sulfur/utils/arena.h"
 #include "sulfur/utils/log.h"
+#include "sulfur/utils/span.h"
 
 typedef struct {
     char* output_file;
