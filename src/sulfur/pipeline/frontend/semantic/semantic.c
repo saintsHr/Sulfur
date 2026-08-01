@@ -81,12 +81,44 @@ static bool analyze_expr(
                  bin->op == SF_OP_TYPE_RELATIONAL_GREATER_EQUAL);
 
             sf_value_type operand_expected = expected;
-            if (is_logical) operand_expected = SF_VAL_TYPE_BOOL;
 
-            if (!analyze_expr(bin->left, operand_expected, scope, filename))
-                return false;
-            if (!analyze_expr(bin->right, operand_expected, scope, filename))
-                return false;
+            if (is_logical) operand_expected = SF_VAL_TYPE_BOOL;
+            if (is_relational) operand_expected = SF_VAL_TYPE_UNRESOLVED;
+
+            bool left_is_literal = bin->left->type == SF_NODE_LITERAL;
+            bool right_is_literal = bin->right->type == SF_NODE_LITERAL;
+
+            bool swap_order =
+                is_relational && left_is_literal && !right_is_literal;
+
+            if (swap_order) {
+                if (!analyze_expr(
+                        bin->right, operand_expected, scope, filename
+                    ))
+                    return false;
+
+                sf_value_type left_expected = operand_expected;
+
+                if (bin->right->resolved != SF_VAL_TYPE_UNRESOLVED) {
+                    left_expected = bin->right->resolved;
+                }
+
+                if (!analyze_expr(bin->left, left_expected, scope, filename))
+                    return false;
+            } else {
+                if (!analyze_expr(bin->left, operand_expected, scope, filename))
+                    return false;
+
+                sf_value_type right_expected = operand_expected;
+
+                if (is_relational &&
+                    bin->left->resolved != SF_VAL_TYPE_UNRESOLVED) {
+                    right_expected = bin->left->resolved;
+                }
+
+                if (!analyze_expr(bin->right, right_expected, scope, filename))
+                    return false;
+            }
 
             sf_value_type ltype = bin->left->resolved;
             sf_value_type rtype = bin->right->resolved;
@@ -143,6 +175,22 @@ static bool analyze_expr(
                         "type mismatch",
                         "cannot compare '%s' and '%s'",
                         "cast one of the operands to match the other's type",
+                        filename,
+                        SF_SEMANTIC_TYPE_MISMATCH,
+                        node->span,
+                        SF_SEV_ERROR,
+                        type_value_name(ltype),
+                        type_value_name(rtype)
+                    );
+                    return false;
+                }
+
+                if (type_value_width_bits(ltype) !=
+                    type_value_width_bits(rtype)) {
+                    sf_log(
+                        "type mismatch",
+                        "cannot compare '%s' and '%s' due to differing widths",
+                        "cast one of the operands to match the other's width",
                         filename,
                         SF_SEMANTIC_TYPE_MISMATCH,
                         node->span,

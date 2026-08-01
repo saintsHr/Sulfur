@@ -1,0 +1,39 @@
+i64 x = 85;
+i64 y = 38;
+
+{
+	bool var1 = x == y;
+	bool var2 = y == x;
+	bool var3 = x == x;
+	bool var4 = y == y;
+}
+{
+	bool var1 = x != y;
+	bool var2 = y != x;
+	bool var3 = x != x;
+	bool var4 = y != y;
+}
+{
+	bool var1 = x < y;
+	bool var2 = y < x;
+	bool var3 = x < x;
+	bool var4 = y < y;
+}
+{
+	bool var1 = x <= y;
+	bool var2 = y <= x;
+	bool var3 = x <= x;
+	bool var4 = y <= y;
+}
+{
+	bool var1 = x > y;
+	bool var2 = y > x;
+	bool var3 = x > x;
+	bool var4 = y > y;
+}
+{
+	bool var1 = x >= y;
+	bool var2 = y >= x;
+	bool var3 = x >= x;
+	bool var4 = y >= y;
+}

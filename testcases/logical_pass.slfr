@@ -1,0 +1,27 @@
+bool x = false;
+bool y = true;
+
+{
+	bool var1 = x && y;
+	bool var2 = y && x;
+	bool var3 = x && x;
+	bool var4 = y && y;
+}
+{
+	bool var1 = false && true;
+	bool var2 = true && false;
+	bool var3 = true && true;
+	bool var4 = false && false;
+}
+{
+	bool var1 = x || y;
+	bool var2 = y || x;
+	bool var3 = x || x;
+	bool var4 = y || y;
+}
+{
+	bool var1 = false || true;
+	bool var2 = true || false;
+	bool var3 = true || true;
+	bool var4 = false || false;
+}

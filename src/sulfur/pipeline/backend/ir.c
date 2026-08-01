@@ -59,11 +59,31 @@ void sf_print_ir(const sf_ir_program* program) {
         printf(" = ");
 
         switch (op->opcode) {
-            case SF_OPCODE_ASSIGN: {
+            // arithmetic
+            case SF_OPCODE_ADD: {
                 print_operand(op->source1);
+                printf(" + ");
+                print_operand(op->source2);
                 break;
             }
-
+            case SF_OPCODE_SUB: {
+                print_operand(op->source1);
+                printf(" - ");
+                print_operand(op->source2);
+                break;
+            }
+            case SF_OPCODE_MULT: {
+                print_operand(op->source1);
+                printf(" * ");
+                print_operand(op->source2);
+                break;
+            }
+            case SF_OPCODE_DIV: {
+                print_operand(op->source1);
+                printf(" / ");
+                print_operand(op->source2);
+                break;
+            }
             case SF_OPCODE_NEGATE: {
                 printf("neg ");
                 print_operand(op->source1);
@@ -71,94 +91,105 @@ void sf_print_ir(const sf_ir_program* program) {
                 break;
             }
 
-            case SF_OPCODE_CAST: {
-                printf("cast ");
-                print_operand(op->source1);
-                break;
-            }
-
-            case SF_OPCODE_ADD: {
-                print_operand(op->source1);
-                printf(" + ");
-                print_operand(op->source2);
-                break;
-            }
-
-            case SF_OPCODE_SUB: {
-                print_operand(op->source1);
-                printf(" - ");
-                print_operand(op->source2);
-                break;
-            }
-
-            case SF_OPCODE_MULT: {
-                print_operand(op->source1);
-                printf(" * ");
-                print_operand(op->source2);
-                break;
-            }
-
-            case SF_OPCODE_DIV: {
-                print_operand(op->source1);
-                printf(" / ");
-                print_operand(op->source2);
-                break;
-            }
-
+            // bitwise
             case SF_OPCODE_BITWISE_AND: {
                 print_operand(op->source1);
                 printf(" & ");
                 print_operand(op->source2);
                 break;
             }
-
             case SF_OPCODE_BITWISE_OR: {
                 print_operand(op->source1);
                 printf(" | ");
                 print_operand(op->source2);
                 break;
             }
-
             case SF_OPCODE_BITWISE_XOR: {
                 print_operand(op->source1);
                 printf(" ^ ");
                 print_operand(op->source2);
                 break;
             }
-
             case SF_OPCODE_BITWISE_RSHIFT: {
                 print_operand(op->source1);
                 printf(" >> ");
                 print_operand(op->source2);
                 break;
             }
-
             case SF_OPCODE_BITWISE_LSHIFT: {
                 print_operand(op->source1);
                 printf(" << ");
                 print_operand(op->source2);
                 break;
             }
-
             case SF_OPCODE_BITWISE_NOT: {
                 printf("not ");
                 print_operand(op->source1);
                 break;
             }
 
+            // logical
             case SF_OPCODE_LOGICAL_AND: {
                 print_operand(op->source1);
                 printf(" && ");
                 print_operand(op->source2);
                 break;
             }
-
             case SF_OPCODE_LOGICAL_OR: {
                 print_operand(op->source1);
                 printf(" || ");
                 print_operand(op->source2);
                 break;
             }
+
+            // relational
+            case SF_OPCODE_RELATIONAL_EQUAL:
+                print_operand(op->source1);
+                printf(" == ");
+                print_operand(op->source2);
+                break;
+            case SF_OPCODE_RELATIONAL_NOT_EQUAL:
+                print_operand(op->source1);
+                printf(" != ");
+                print_operand(op->source2);
+                break;
+            case SF_OPCODE_RELATIONAL_LESS:
+                print_operand(op->source1);
+                printf(" < ");
+                print_operand(op->source2);
+                break;
+            case SF_OPCODE_RELATIONAL_LESS_EQUAL:
+                print_operand(op->source1);
+                printf(" <= ");
+                print_operand(op->source2);
+                break;
+            case SF_OPCODE_RELATIONAL_GREATER:
+                print_operand(op->source1);
+                printf(" > ");
+                print_operand(op->source2);
+                break;
+            case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
+                print_operand(op->source1);
+                printf(" >= ");
+                print_operand(op->source2);
+                break;
+
+            // other
+            case SF_OPCODE_ASSIGN: {
+                print_operand(op->source1);
+                break;
+            }
+            case SF_OPCODE_CAST: {
+                printf("cast ");
+                print_operand(op->source1);
+                break;
+            }
+
+            // fallback
+            default:
+                print_operand(op->source1);
+                printf(" ? ");
+                print_operand(op->source2);
         }
 
         printf("\n");
@@ -539,12 +570,85 @@ static bool try_fold_constants(
         return false;
     }
 
-    if (opcode != SF_OPCODE_ADD && opcode != SF_OPCODE_SUB &&
-        opcode != SF_OPCODE_MULT && opcode != SF_OPCODE_DIV) {
-        return false;
-    }
+    bool is_arithmetic =
+        (opcode == SF_OPCODE_ADD || opcode == SF_OPCODE_SUB ||
+         opcode == SF_OPCODE_MULT || opcode == SF_OPCODE_DIV);
 
-    bool is_signed = type_value_is_signed(result_type);
+    bool is_relational =
+        (opcode == SF_OPCODE_RELATIONAL_EQUAL ||
+         opcode == SF_OPCODE_RELATIONAL_NOT_EQUAL ||
+         opcode == SF_OPCODE_RELATIONAL_LESS ||
+         opcode == SF_OPCODE_RELATIONAL_LESS_EQUAL ||
+         opcode == SF_OPCODE_RELATIONAL_GREATER ||
+         opcode == SF_OPCODE_RELATIONAL_GREATER_EQUAL);
+
+    if (!is_arithmetic && !is_relational) return false;
+
+    bool is_signed = is_relational ? type_value_is_signed(left.value_type)
+                                   : type_value_is_signed(result_type);
+
+    if (is_relational) {
+        bool result;
+
+        if (is_signed) {
+            int64_t l = strtoll(left.immediate_value, NULL, 10);
+            int64_t r = strtoll(right.immediate_value, NULL, 10);
+
+            switch (opcode) {
+                case SF_OPCODE_RELATIONAL_EQUAL:
+                    result = l == r;
+                    break;
+                case SF_OPCODE_RELATIONAL_NOT_EQUAL:
+                    result = l != r;
+                    break;
+                case SF_OPCODE_RELATIONAL_LESS:
+                    result = l < r;
+                    break;
+                case SF_OPCODE_RELATIONAL_LESS_EQUAL:
+                    result = l <= r;
+                    break;
+                case SF_OPCODE_RELATIONAL_GREATER:
+                    result = l > r;
+                    break;
+                case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
+                    result = l >= r;
+                    break;
+                default:
+                    return false;
+            }
+        } else {
+            uint64_t l = strtoull(left.immediate_value, NULL, 10);
+            uint64_t r = strtoull(right.immediate_value, NULL, 10);
+
+            switch (opcode) {
+                case SF_OPCODE_RELATIONAL_EQUAL:
+                    result = l == r;
+                    break;
+                case SF_OPCODE_RELATIONAL_NOT_EQUAL:
+                    result = l != r;
+                    break;
+                case SF_OPCODE_RELATIONAL_LESS:
+                    result = l < r;
+                    break;
+                case SF_OPCODE_RELATIONAL_LESS_EQUAL:
+                    result = l <= r;
+                    break;
+                case SF_OPCODE_RELATIONAL_GREATER:
+                    result = l > r;
+                    break;
+                case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
+                    result = l >= r;
+                    break;
+                default:
+                    return false;
+            }
+        }
+
+        out->type = SF_OPERAND_TYPE_IMMEDIATE;
+        out->value_type = SF_VAL_TYPE_BOOL;
+        out->immediate_value = result ? "1" : "0";
+        return true;
+    }
 
     if (is_signed) {
         int64_t l = strtoll(left.immediate_value, NULL, 10);
