@@ -114,6 +114,14 @@ static void emit_not(
     const sf_stack_map* map
 );
 
+static void emit_relational(
+    char** buff,
+    size_t* len,
+    size_t* capacity,
+    sf_operation op,
+    const sf_stack_map* map
+);
+
 static sf_register register_from_size(uint8_t size);
 static sf_size_prefix prefix_from_size(uint8_t size);
 
@@ -209,6 +217,16 @@ char* sf_generate_assembly(const sf_ir_program* program) {
                 break;
             case SF_OPCODE_LOGICAL_OR:
                 emit_or(&as, &as_len, &as_capacity, op, &map);
+                break;
+
+            // relational
+            case SF_OPCODE_RELATIONAL_EQUAL:
+            case SF_OPCODE_RELATIONAL_NOT_EQUAL:
+            case SF_OPCODE_RELATIONAL_LESS:
+            case SF_OPCODE_RELATIONAL_LESS_EQUAL:
+            case SF_OPCODE_RELATIONAL_GREATER:
+            case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
+                emit_relational(&as, &as_len, &as_capacity, op, &map);
                 break;
 
             // other
@@ -749,6 +767,74 @@ static void emit_not(
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
     emitf(buff, len, capacity, "\tnot %s\n", reg_str);
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_relational(
+    char** buff,
+    size_t* len,
+    size_t* capacity,
+    sf_operation op,
+    const sf_stack_map* map
+) {
+    if (op.opcode != SF_OPCODE_RELATIONAL_EQUAL &&
+        op.opcode != SF_OPCODE_RELATIONAL_NOT_EQUAL &&
+        op.opcode != SF_OPCODE_RELATIONAL_LESS &&
+        op.opcode != SF_OPCODE_RELATIONAL_LESS_EQUAL &&
+        op.opcode != SF_OPCODE_RELATIONAL_GREATER &&
+        op.opcode != SF_OPCODE_RELATIONAL_GREATER_EQUAL)
+        return;
+
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+
+    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
+
+    uint8_t size = type_value_width_bytes(op.source1.value_type);
+    const char* reg_str = register_to_string(register_from_size(size));
+
+    bool is_signed = type_value_is_signed(op.source1.value_type);
+
+    const char* set_instr;
+
+    switch (op.opcode) {
+        case SF_OPCODE_RELATIONAL_EQUAL:
+            set_instr = "sete";
+            break;
+        case SF_OPCODE_RELATIONAL_NOT_EQUAL:
+            set_instr = "setne";
+            break;
+        case SF_OPCODE_RELATIONAL_LESS:
+            set_instr = is_signed ? "setl" : "setb";
+            break;
+        case SF_OPCODE_RELATIONAL_LESS_EQUAL:
+            set_instr = is_signed ? "setle" : "setbe";
+            break;
+        case SF_OPCODE_RELATIONAL_GREATER:
+            set_instr = is_signed ? "setg" : "seta";
+            break;
+        case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
+            set_instr = is_signed ? "setge" : "setae";
+            break;
+
+        default: {
+            fprintf(
+                stderr,
+                "internal compiler error: unreachable opcode %d in "
+                "emit_relational "
+                "(this is a bug in the codegen, not in the user's code)\n",
+                op.opcode
+            );
+
+            abort();
+            break;
+        }
+    }
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emitf(buff, len, capacity, "\tcmp %s, %s\n", reg_str, src2_fmt);
+    emitf(buff, len, capacity, "\t%s al\n", set_instr);
+    emitf(buff, len, capacity, "\tmov %s, al\n", dst_fmt);
 }
 
 static sf_register register_from_size(uint8_t size) {
