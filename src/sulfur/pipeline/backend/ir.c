@@ -582,7 +582,10 @@ static bool try_fold_constants(
          opcode == SF_OPCODE_RELATIONAL_GREATER ||
          opcode == SF_OPCODE_RELATIONAL_GREATER_EQUAL);
 
-    if (!is_arithmetic && !is_relational) return false;
+    bool is_logical =
+        (opcode == SF_OPCODE_LOGICAL_AND || opcode == SF_OPCODE_LOGICAL_OR);
+
+    if (!is_arithmetic && !is_relational && !is_logical) return false;
 
     bool is_signed = is_relational ? type_value_is_signed(left.value_type)
                                    : type_value_is_signed(result_type);
@@ -647,6 +650,32 @@ static bool try_fold_constants(
         out->type = SF_OPERAND_TYPE_IMMEDIATE;
         out->value_type = SF_VAL_TYPE_BOOL;
         out->immediate_value = result ? "1" : "0";
+
+        return true;
+    }
+
+    if (is_logical) {
+        bool result;
+
+        uint64_t l = strtoull(left.immediate_value, NULL, 10);
+        uint64_t r = strtoull(right.immediate_value, NULL, 10);
+
+        switch (opcode) {
+            case SF_OPCODE_LOGICAL_AND:
+                result = l && r;
+                break;
+            case SF_OPCODE_LOGICAL_OR:
+                result = l || r;
+                break;
+
+            default:
+                return false;
+        }
+
+        out->type = SF_OPERAND_TYPE_IMMEDIATE;
+        out->value_type = SF_VAL_TYPE_BOOL;
+        out->immediate_value = result ? "1" : "0";
+
         return true;
     }
 

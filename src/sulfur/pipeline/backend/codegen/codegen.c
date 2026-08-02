@@ -71,57 +71,42 @@ static void emit_assign(
     const sf_stack_map* map
 );
 
-static void emit_bitwise_and(
+static void emit_and(
     char** buff,
     size_t* len,
     size_t* capacity,
     sf_operation op,
     const sf_stack_map* map
 );
-static void emit_bitwise_or(
+static void emit_or(
     char** buff,
     size_t* len,
     size_t* capacity,
     sf_operation op,
     const sf_stack_map* map
 );
-static void emit_bitwise_xor(
+static void emit_xor(
     char** buff,
     size_t* len,
     size_t* capacity,
     sf_operation op,
     const sf_stack_map* map
 );
-static void emit_bitwise_rshift(
+static void emit_rshift(
     char** buff,
     size_t* len,
     size_t* capacity,
     sf_operation op,
     const sf_stack_map* map
 );
-static void emit_bitwise_lshift(
+static void emit_lshift(
     char** buff,
     size_t* len,
     size_t* capacity,
     sf_operation op,
     const sf_stack_map* map
 );
-static void emit_bitwise_not(
-    char** buff,
-    size_t* len,
-    size_t* capacity,
-    sf_operation op,
-    const sf_stack_map* map
-);
-
-static void emit_logical_and(
-    char** buff,
-    size_t* len,
-    size_t* capacity,
-    sf_operation op,
-    const sf_stack_map* map
-);
-static void emit_logical_or(
+static void emit_not(
     char** buff,
     size_t* len,
     size_t* capacity,
@@ -200,30 +185,30 @@ char* sf_generate_assembly(const sf_ir_program* program) {
 
             // bitwise
             case SF_OPCODE_BITWISE_AND:
-                emit_bitwise_and(&as, &as_len, &as_capacity, op, &map);
+                emit_and(&as, &as_len, &as_capacity, op, &map);
                 break;
             case SF_OPCODE_BITWISE_OR:
-                emit_bitwise_or(&as, &as_len, &as_capacity, op, &map);
+                emit_or(&as, &as_len, &as_capacity, op, &map);
                 break;
             case SF_OPCODE_BITWISE_XOR:
-                emit_bitwise_xor(&as, &as_len, &as_capacity, op, &map);
+                emit_xor(&as, &as_len, &as_capacity, op, &map);
                 break;
             case SF_OPCODE_BITWISE_RSHIFT:
-                emit_bitwise_rshift(&as, &as_len, &as_capacity, op, &map);
+                emit_rshift(&as, &as_len, &as_capacity, op, &map);
                 break;
             case SF_OPCODE_BITWISE_LSHIFT:
-                emit_bitwise_lshift(&as, &as_len, &as_capacity, op, &map);
+                emit_lshift(&as, &as_len, &as_capacity, op, &map);
                 break;
             case SF_OPCODE_BITWISE_NOT:
-                emit_bitwise_not(&as, &as_len, &as_capacity, op, &map);
+                emit_not(&as, &as_len, &as_capacity, op, &map);
                 break;
 
             // logical
             case SF_OPCODE_LOGICAL_AND:
-                emit_logical_and(&as, &as_len, &as_capacity, op, &map);
+                emit_and(&as, &as_len, &as_capacity, op, &map);
                 break;
             case SF_OPCODE_LOGICAL_OR:
-                emit_logical_or(&as, &as_len, &as_capacity, op, &map);
+                emit_or(&as, &as_len, &as_capacity, op, &map);
                 break;
 
             // other
@@ -569,14 +554,16 @@ static void emit_cast(
     }
 }
 
-static void emit_bitwise_and(
+static void emit_and(
     char** buff,
     size_t* len,
     size_t* capacity,
     sf_operation op,
     const sf_stack_map* map
 ) {
-    if (op.opcode != SF_OPCODE_BITWISE_AND) return;
+    if (op.opcode != SF_OPCODE_BITWISE_AND &&
+        op.opcode != SF_OPCODE_LOGICAL_AND)
+        return;
 
     char src1_fmt[256], src2_fmt[256], dst_fmt[256];
 
@@ -599,14 +586,15 @@ static void emit_bitwise_and(
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
 }
 
-static void emit_bitwise_or(
+static void emit_or(
     char** buff,
     size_t* len,
     size_t* capacity,
     sf_operation op,
     const sf_stack_map* map
 ) {
-    if (op.opcode != SF_OPCODE_BITWISE_OR) return;
+    if (op.opcode != SF_OPCODE_BITWISE_OR && op.opcode != SF_OPCODE_LOGICAL_OR)
+        return;
 
     char src1_fmt[256], src2_fmt[256], dst_fmt[256];
 
@@ -629,7 +617,7 @@ static void emit_bitwise_or(
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
 }
 
-static void emit_bitwise_xor(
+static void emit_xor(
     char** buff,
     size_t* len,
     size_t* capacity,
@@ -659,7 +647,7 @@ static void emit_bitwise_xor(
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
 }
 
-static void emit_bitwise_rshift(
+static void emit_rshift(
     char** buff,
     size_t* len,
     size_t* capacity,
@@ -700,7 +688,7 @@ static void emit_bitwise_rshift(
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
 }
 
-static void emit_bitwise_lshift(
+static void emit_lshift(
     char** buff,
     size_t* len,
     size_t* capacity,
@@ -736,7 +724,7 @@ static void emit_bitwise_lshift(
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
 }
 
-static void emit_bitwise_not(
+static void emit_not(
     char** buff,
     size_t* len,
     size_t* capacity,
@@ -760,66 +748,6 @@ static void emit_bitwise_not(
 
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
     emitf(buff, len, capacity, "\tnot %s\n", reg_str);
-    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
-}
-
-static void emit_logical_and(
-    char** buff,
-    size_t* len,
-    size_t* capacity,
-    sf_operation op,
-    const sf_stack_map* map
-) {
-    if (op.opcode != SF_OPCODE_LOGICAL_AND) return;
-
-    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
-
-    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
-    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
-    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
-
-    if (strcmp(dst_fmt, src1_fmt) == 0 &&
-        op.source2.type != SF_OPERAND_TYPE_VARIABLE &&
-        op.source2.type != SF_OPERAND_TYPE_TEMPORARY) {
-        emitf(buff, len, capacity, "\tand %s, %s\n", dst_fmt, src2_fmt);
-        return;
-    }
-
-    uint8_t size = type_value_width_bytes(op.destiny.value_type);
-    const char* reg_str = register_to_string(register_from_size(size));
-
-    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-    emitf(buff, len, capacity, "\tand %s, %s\n", reg_str, src2_fmt);
-    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
-}
-
-static void emit_logical_or(
-    char** buff,
-    size_t* len,
-    size_t* capacity,
-    sf_operation op,
-    const sf_stack_map* map
-) {
-    if (op.opcode != SF_OPCODE_LOGICAL_OR) return;
-
-    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
-
-    format_operand(src1_fmt, sizeof(src1_fmt), op.source1, map);
-    format_operand(src2_fmt, sizeof(src2_fmt), op.source2, map);
-    format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
-
-    if (strcmp(dst_fmt, src1_fmt) == 0 &&
-        op.source2.type != SF_OPERAND_TYPE_VARIABLE &&
-        op.source2.type != SF_OPERAND_TYPE_TEMPORARY) {
-        emitf(buff, len, capacity, "\tor %s, %s\n", dst_fmt, src2_fmt);
-        return;
-    }
-
-    uint8_t size = type_value_width_bytes(op.destiny.value_type);
-    const char* reg_str = register_to_string(register_from_size(size));
-
-    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-    emitf(buff, len, capacity, "\tor %s, %s\n", reg_str, src2_fmt);
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
 }
 
