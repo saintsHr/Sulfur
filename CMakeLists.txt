@@ -31,7 +31,8 @@ set(SOURCES
 	src/sulfur/pipeline/frontend/semantic/scope.c
 	src/sulfur/pipeline/frontend/semantic/symbol.c
 
-	src/sulfur/pipeline/backend/ir.c
+	src/sulfur/pipeline/backend/ir/ir.c
+	src/sulfur/pipeline/backend/ir/optimization.c
 	src/sulfur/pipeline/backend/codegen/codegen.c
 	src/sulfur/pipeline/backend/codegen/stack.c
 )

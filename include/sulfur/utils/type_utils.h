@@ -2,7 +2,7 @@
 
 #include <stdbool.h>
 
-#include "sulfur/pipeline/backend/ir.h"
+#include "sulfur/pipeline/backend/ir/ir.h"
 #include "sulfur/pipeline/frontend/ast.h"
 
 bool type_value_uint_literal_fits(sf_value_type type, uint64_t value);

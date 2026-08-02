@@ -1,10 +1,11 @@
-#include "sulfur/pipeline/backend/ir.h"
+#include "sulfur/pipeline/backend/ir/ir.h"
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "sulfur/pipeline/backend/ir/optimization.h"
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/utils/type_utils.h"
 
@@ -24,14 +25,6 @@ static sf_operand generate_expression_into(
     sf_ast_node* node,
     uint32_t depth,
     sf_operand* hint
-);
-static bool try_fold_constants(
-    sf_arena* arena,
-    sf_operand left,
-    sf_operand right,
-    sf_opcode opcode,
-    sf_value_type result_type,
-    sf_operand* out
 );
 
 static void print_operand(sf_operand op);
@@ -250,7 +243,7 @@ static sf_operand generate_expression(
                 generate_expression(arena, program, ex->right, depth);
 
             sf_operand folded;
-            if (try_fold_constants(
+            if (sf_fold_constants(
                     arena,
                     left,
                     right,
@@ -385,7 +378,7 @@ static sf_operand generate_expression_into(
             sf_opcode opcode = type_operation_to_opcode(ex->op);
 
             sf_operand folded;
-            if (try_fold_constants(
+            if (sf_fold_constants(
                     arena, left, right, opcode, node->resolved, &folded
                 )) {
                 return folded;
@@ -559,190 +552,5 @@ static void print_operand(sf_operand op) {
         case SF_OPERAND_TYPE_IMMEDIATE:
             printf("%s:%s", op.immediate_value, type_value_name(op.value_type));
             break;
-    }
-}
-
-static bool try_fold_constants(
-    sf_arena* arena,
-    sf_operand left,
-    sf_operand right,
-    sf_opcode opcode,
-    sf_value_type result_type,
-    sf_operand* out
-) {
-    if (left.type != SF_OPERAND_TYPE_IMMEDIATE ||
-        right.type != SF_OPERAND_TYPE_IMMEDIATE) {
-        return false;
-    }
-
-    bool is_arithmetic =
-        (opcode == SF_OPCODE_ADD || opcode == SF_OPCODE_SUB ||
-         opcode == SF_OPCODE_MULT || opcode == SF_OPCODE_DIV);
-
-    bool is_relational =
-        (opcode == SF_OPCODE_RELATIONAL_EQUAL ||
-         opcode == SF_OPCODE_RELATIONAL_NOT_EQUAL ||
-         opcode == SF_OPCODE_RELATIONAL_LESS ||
-         opcode == SF_OPCODE_RELATIONAL_LESS_EQUAL ||
-         opcode == SF_OPCODE_RELATIONAL_GREATER ||
-         opcode == SF_OPCODE_RELATIONAL_GREATER_EQUAL);
-
-    bool is_logical =
-        (opcode == SF_OPCODE_LOGICAL_AND || opcode == SF_OPCODE_LOGICAL_OR);
-
-    if (!is_arithmetic && !is_relational && !is_logical) return false;
-
-    bool is_signed = is_relational ? type_value_is_signed(left.value_type)
-                                   : type_value_is_signed(result_type);
-
-    if (is_relational) {
-        bool result;
-
-        if (is_signed) {
-            int64_t l = strtoll(left.immediate_value, NULL, 10);
-            int64_t r = strtoll(right.immediate_value, NULL, 10);
-
-            switch (opcode) {
-                case SF_OPCODE_RELATIONAL_EQUAL:
-                    result = l == r;
-                    break;
-                case SF_OPCODE_RELATIONAL_NOT_EQUAL:
-                    result = l != r;
-                    break;
-                case SF_OPCODE_RELATIONAL_LESS:
-                    result = l < r;
-                    break;
-                case SF_OPCODE_RELATIONAL_LESS_EQUAL:
-                    result = l <= r;
-                    break;
-                case SF_OPCODE_RELATIONAL_GREATER:
-                    result = l > r;
-                    break;
-                case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
-                    result = l >= r;
-                    break;
-                default:
-                    return false;
-            }
-        } else {
-            uint64_t l = strtoull(left.immediate_value, NULL, 10);
-            uint64_t r = strtoull(right.immediate_value, NULL, 10);
-
-            switch (opcode) {
-                case SF_OPCODE_RELATIONAL_EQUAL:
-                    result = l == r;
-                    break;
-                case SF_OPCODE_RELATIONAL_NOT_EQUAL:
-                    result = l != r;
-                    break;
-                case SF_OPCODE_RELATIONAL_LESS:
-                    result = l < r;
-                    break;
-                case SF_OPCODE_RELATIONAL_LESS_EQUAL:
-                    result = l <= r;
-                    break;
-                case SF_OPCODE_RELATIONAL_GREATER:
-                    result = l > r;
-                    break;
-                case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
-                    result = l >= r;
-                    break;
-                default:
-                    return false;
-            }
-        }
-
-        out->type = SF_OPERAND_TYPE_IMMEDIATE;
-        out->value_type = SF_VAL_TYPE_BOOL;
-        out->immediate_value = result ? "1" : "0";
-
-        return true;
-    }
-
-    if (is_logical) {
-        bool result;
-
-        uint64_t l = strtoull(left.immediate_value, NULL, 10);
-        uint64_t r = strtoull(right.immediate_value, NULL, 10);
-
-        switch (opcode) {
-            case SF_OPCODE_LOGICAL_AND:
-                result = l && r;
-                break;
-            case SF_OPCODE_LOGICAL_OR:
-                result = l || r;
-                break;
-
-            default:
-                return false;
-        }
-
-        out->type = SF_OPERAND_TYPE_IMMEDIATE;
-        out->value_type = SF_VAL_TYPE_BOOL;
-        out->immediate_value = result ? "1" : "0";
-
-        return true;
-    }
-
-    if (is_signed) {
-        int64_t l = strtoll(left.immediate_value, NULL, 10);
-        int64_t r = strtoll(right.immediate_value, NULL, 10);
-        int64_t result;
-
-        switch (opcode) {
-            case SF_OPCODE_ADD:
-                result = l + r;
-                break;
-            case SF_OPCODE_SUB:
-                result = l - r;
-                break;
-            case SF_OPCODE_MULT:
-                result = l * r;
-                break;
-            case SF_OPCODE_DIV:
-                if (r == 0) return false;
-                result = l / r;
-                break;
-            default:
-                return false;
-        }
-
-        char* buf = sf_arena_alloc(arena, 32);
-        snprintf(buf, 32, "%lld", (long long)result);
-
-        out->type = SF_OPERAND_TYPE_IMMEDIATE;
-        out->value_type = result_type;
-        out->immediate_value = buf;
-        return true;
-    } else {
-        uint64_t l = strtoull(left.immediate_value, NULL, 10);
-        uint64_t r = strtoull(right.immediate_value, NULL, 10);
-        uint64_t result;
-
-        switch (opcode) {
-            case SF_OPCODE_ADD:
-                result = l + r;
-                break;
-            case SF_OPCODE_SUB:
-                result = l - r;
-                break;
-            case SF_OPCODE_MULT:
-                result = l * r;
-                break;
-            case SF_OPCODE_DIV:
-                if (r == 0) return false;
-                result = l / r;
-                break;
-            default:
-                return false;
-        }
-
-        char* buf = sf_arena_alloc(arena, 32);
-        snprintf(buf, 32, "%llu", (unsigned long long)result);
-
-        out->type = SF_OPERAND_TYPE_IMMEDIATE;
-        out->value_type = result_type;
-        out->immediate_value = buf;
-        return true;
     }
 }

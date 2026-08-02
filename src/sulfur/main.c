@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "sulfur/pipeline/backend/codegen/codegen.h"
-#include "sulfur/pipeline/backend/ir.h"
+#include "sulfur/pipeline/backend/ir/ir.h"
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/lexer.h"
 #include "sulfur/pipeline/frontend/parser.h"

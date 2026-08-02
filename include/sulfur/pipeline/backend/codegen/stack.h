@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "sulfur/pipeline/backend/ir.h"
+#include "sulfur/pipeline/backend/ir/ir.h"
 #include "sulfur/pipeline/frontend/ast.h"
 
 typedef int64_t sf_stack_offset_size_t;

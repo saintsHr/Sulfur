@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sulfur/pipeline/backend/ir.h"
+#include "sulfur/pipeline/backend/ir/ir.h"
 
 typedef enum {
     SF_REGISTER_RAX,

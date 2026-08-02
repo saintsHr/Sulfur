@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "sulfur/pipeline/backend/codegen/stack.h"
-#include "sulfur/pipeline/backend/ir.h"
+#include "sulfur/pipeline/backend/ir/ir.h"
 #include "sulfur/utils/string.h"
 #include "sulfur/utils/type_utils.h"
 
