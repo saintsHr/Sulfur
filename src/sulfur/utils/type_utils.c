@@ -118,6 +118,8 @@ const char* type_operation_name(sf_operation_type op) {
             return "&&";
         case SF_OP_TYPE_LOGICAL_OR:
             return "||";
+        case SF_OP_TYPE_LOGICAL_NOT:
+            return "!";
 
         // fallback
         default:
@@ -285,6 +287,9 @@ sf_opcode type_operation_to_opcode(sf_operation_type type) {
             break;
         case SF_OP_TYPE_LOGICAL_OR:
             op = SF_OPCODE_LOGICAL_OR;
+            break;
+        case SF_OP_TYPE_LOGICAL_NOT:
+            op = SF_OPCODE_LOGICAL_NOT;
             break;
 
         // fallback

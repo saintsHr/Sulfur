@@ -37,6 +37,7 @@ typedef enum {
     // logical
     SF_OPCODE_LOGICAL_AND,
     SF_OPCODE_LOGICAL_OR,
+    SF_OPCODE_LOGICAL_NOT,
 
     // other
     SF_OPCODE_ASSIGN,

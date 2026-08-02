@@ -85,7 +85,7 @@ void sf_print_ir(const sf_ir_program* program) {
                 break;
             }
             case SF_OPCODE_NEGATE: {
-                printf("neg ");
+                printf("-");
                 print_operand(op->source1);
 
                 break;
@@ -123,7 +123,7 @@ void sf_print_ir(const sf_ir_program* program) {
                 break;
             }
             case SF_OPCODE_BITWISE_NOT: {
-                printf("not ");
+                printf("~");
                 print_operand(op->source1);
                 break;
             }
@@ -139,6 +139,11 @@ void sf_print_ir(const sf_ir_program* program) {
                 print_operand(op->source1);
                 printf(" || ");
                 print_operand(op->source2);
+                break;
+            }
+            case SF_OPCODE_LOGICAL_NOT: {
+                printf("!");
+                print_operand(op->source1);
                 break;
             }
 

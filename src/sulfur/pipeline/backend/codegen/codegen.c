@@ -218,6 +218,9 @@ char* sf_generate_assembly(const sf_ir_program* program) {
             case SF_OPCODE_LOGICAL_OR:
                 emit_or(&as, &as_len, &as_capacity, op, &map);
                 break;
+            case SF_OPCODE_LOGICAL_NOT:
+                emit_not(&as, &as_len, &as_capacity, op, &map);
+                break;
 
             // relational
             case SF_OPCODE_RELATIONAL_EQUAL:
@@ -749,7 +752,9 @@ static void emit_not(
     sf_operation op,
     const sf_stack_map* map
 ) {
-    if (op.opcode != SF_OPCODE_BITWISE_NOT) return;
+    if (op.opcode != SF_OPCODE_BITWISE_NOT &&
+        op.opcode != SF_OPCODE_LOGICAL_NOT)
+        return;
 
     char src1_fmt[256], dst_fmt[256];
 
@@ -757,7 +762,12 @@ static void emit_not(
     format_operand(dst_fmt, sizeof(dst_fmt), op.destiny, map);
 
     if (strcmp(dst_fmt, src1_fmt) == 0) {
-        emitf(buff, len, capacity, "\tneg %s\n", dst_fmt);
+        if (op.opcode == SF_OPCODE_BITWISE_NOT)
+            emitf(buff, len, capacity, "\tnot %s\n", dst_fmt);
+
+        if (op.opcode == SF_OPCODE_LOGICAL_NOT)
+            emitf(buff, len, capacity, "\txor %s, 1\n", dst_fmt);
+
         return;
     }
 
@@ -765,7 +775,12 @@ static void emit_not(
     const char* reg_str = register_to_string(register_from_size(size));
 
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-    emitf(buff, len, capacity, "\tnot %s\n", reg_str);
+
+    if (op.opcode == SF_OPCODE_BITWISE_NOT)
+        emitf(buff, len, capacity, "\tnot %s\n", reg_str);
+    if (op.opcode == SF_OPCODE_LOGICAL_NOT)
+        emitf(buff, len, capacity, "\txor %s, 1\n", reg_str);
+
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
 }
 

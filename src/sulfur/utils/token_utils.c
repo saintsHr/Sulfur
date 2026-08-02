@@ -1,6 +1,7 @@
 #include "sulfur/utils/token_utils.h"
 
 #include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/lexer.h"
 
 bool token_is_type(sf_token token) {
     if (token.type == SF_TOKEN_TYPE_KW_I8) return true;
@@ -60,6 +61,8 @@ sf_operation_type token_to_unary_op(sf_token token) {
             return SF_OP_TYPE_NEGATE;
         case SF_TOKEN_TYPE_TILDE:
             return SF_OP_TYPE_BITWISE_NOT;
+        case SF_TOKEN_TYPE_BANG:
+            return SF_OP_TYPE_LOGICAL_NOT;
 
         default:
             return SF_OP_TYPE_UNRESOLVED;

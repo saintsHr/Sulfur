@@ -275,87 +275,158 @@ static bool analyze_expr(
         case SF_NODE_UNARY_EXPR: {
             sf_unary_expr_node* un = (sf_unary_expr_node*)node;
 
-            bool is_negate = un->op == SF_OP_TYPE_NEGATE;
+            switch (un->op) {
+                case SF_OP_TYPE_NEGATE: {
+                    bool is_negate = true;
 
-            sf_ast_node* operand = un->operand;
-            bool is_literal = operand->type == SF_NODE_LITERAL;
+                    sf_ast_node* operand = un->operand;
+                    bool is_literal = operand->type == SF_NODE_LITERAL;
 
-            sf_token_type operand_token = is_literal
-                ? ((sf_literal_node*)operand)->token_type
-                : SF_TOKEN_TYPE_INTEGER;
+                    sf_token_type operand_token = is_literal
+                        ? ((sf_literal_node*)operand)->token_type
+                        : SF_TOKEN_TYPE_INTEGER;
 
-            bool is_int_literal =
-                is_literal && operand_token == SF_TOKEN_TYPE_INTEGER;
+                    bool is_int_literal =
+                        is_literal && operand_token == SF_TOKEN_TYPE_INTEGER;
 
-            if (is_negate && is_int_literal) {
-                sf_literal_node* lit = (sf_literal_node*)un->operand;
+                    if (is_negate && is_int_literal) {
+                        sf_literal_node* lit = (sf_literal_node*)un->operand;
 
-                sf_value_type target = expected;
+                        sf_value_type target = expected;
 
-                if (target != SF_VAL_TYPE_UNRESOLVED &&
-                    type_value_is_integer(target) &&
-                    !type_value_is_signed(target)) {
-                    sf_log(
-                        "negative literal in unsigned context",
-                        "cannot assign a negative literal to a variable of "
-                        "unsigned type '%s'",
-                        "use a signed type, or remove the negation",
-                        filename,
-                        SF_SEMANTIC_TYPE_MISMATCH,
-                        node->span,
-                        SF_SEV_ERROR,
-                        type_value_name(target)
-                    );
+                        if (target != SF_VAL_TYPE_UNRESOLVED &&
+                            type_value_is_integer(target) &&
+                            !type_value_is_signed(target)) {
+                            sf_log(
+                                "negative literal in unsigned context",
+                                "cannot assign a negative literal to a "
+                                "variable of "
+                                "unsigned type '%s'",
+                                "use a signed type, or remove the negation",
+                                filename,
+                                SF_SEMANTIC_TYPE_MISMATCH,
+                                node->span,
+                                SF_SEV_ERROR,
+                                type_value_name(target)
+                            );
+                            return false;
+                        }
+
+                        if (target == SF_VAL_TYPE_UNRESOLVED ||
+                            !type_value_is_integer(target) ||
+                            !type_value_is_signed(target)) {
+                            target = SF_VAL_TYPE_I64;
+                        }
+
+                        errno = 0;
+                        uint64_t magnitude = strtoull(lit->value, NULL, 10);
+
+                        if (errno == ERANGE ||
+                            !type_value_signed_literal_fits_negated(
+                                target, magnitude
+                            )) {
+                            sf_log(
+                                "integer literal out of range",
+                                "literal '-%s' does not fit in type '%s'",
+                                "use a wider type, or cast explicitly if "
+                                "truncation is "
+                                "intended",
+                                filename,
+                                SF_SEMANTIC_LITERAL_OVERFLOW,
+                                node->span,
+                                SF_SEV_ERROR,
+                                lit->value,
+                                type_value_name(target)
+                            );
+                            return false;
+                        }
+
+                        lit->base.resolved = target;
+                        node->resolved = target;
+                        return true;
+                    }
+
+                    sf_value_type pass_down = expected;
+                    if (!type_value_is_signed(expected))
+                        pass_down = SF_VAL_TYPE_I64;
+
+                    if (!analyze_expr(un->operand, pass_down, scope, filename))
+                        return false;
+
+                    sf_value_type child_type = un->operand->resolved;
+                    if (child_type == SF_VAL_TYPE_UNRESOLVED) return false;
+
+                    if (!type_value_is_signed(child_type)) {
+                        sf_log(
+                            "invalid operand to unary '-'",
+                            "operator '-' requires a signed integer operand, "
+                            "got '%s'",
+                            NULL,
+                            filename,
+                            SF_SEMANTIC_TYPE_MISMATCH,
+                            node->span,
+                            SF_SEV_ERROR,
+                            type_value_name(child_type)
+                        );
+                        return false;
+                    }
+
+                    node->resolved = child_type;
+                    return true;
+                }
+
+                case SF_OP_TYPE_BITWISE_NOT: {
+                    if (!analyze_expr(un->operand, expected, scope, filename))
+                        return false;
+
+                    sf_value_type child_type = un->operand->resolved;
+
+                    if (!type_value_is_integer(child_type)) {
+                        sf_log(
+                            "invalid operand to '~'",
+                            "operator '~' requires an integer operand, got "
+                            "'%s'",
+                            NULL,
+                            filename,
+                            SF_SEMANTIC_TYPE_MISMATCH,
+                            node->span,
+                            SF_SEV_ERROR,
+                            type_value_name(child_type)
+                        );
+                        return false;
+                    }
+
+                    node->resolved = child_type;
+                    return true;
+                }
+
+                case SF_OP_TYPE_LOGICAL_NOT: {
+                    if (!analyze_expr(
+                            un->operand, SF_VAL_TYPE_BOOL, scope, filename
+                        ))
+                        return false;
+
+                    if (un->operand->resolved != SF_VAL_TYPE_BOOL) {
+                        sf_log(
+                            "invalid operand to '!'",
+                            "operator '!' requires a boolean operand, got '%s'",
+                            NULL,
+                            filename,
+                            SF_SEMANTIC_TYPE_MISMATCH,
+                            node->span,
+                            SF_SEV_ERROR,
+                            type_value_name(un->operand->resolved)
+                        );
+                        return false;
+                    }
+
+                    node->resolved = SF_VAL_TYPE_BOOL;
+                    return true;
+                }
+
+                default:
                     return false;
-                }
-
-                if (target == SF_VAL_TYPE_UNRESOLVED ||
-                    !type_value_is_integer(target) ||
-                    !type_value_is_signed(target)) {
-                    target = SF_VAL_TYPE_I64;
-                }
-
-                errno = 0;
-                uint64_t magnitude = strtoull(lit->value, NULL, 10);
-
-                if (errno == ERANGE ||
-                    !type_value_signed_literal_fits_negated(
-                        target, magnitude
-                    )) {
-                    sf_log(
-                        "integer literal out of range",
-                        "literal '-%s' does not fit in type '%s'",
-                        "use a wider type, or cast explicitly if truncation is "
-                        "intended",
-                        filename,
-                        SF_SEMANTIC_LITERAL_OVERFLOW,
-                        node->span,
-                        SF_SEV_ERROR,
-                        lit->value,
-                        type_value_name(target)
-                    );
-                    return false;
-                }
-
-                lit->base.resolved = target;
-                node->resolved = target;
-                return true;
             }
-
-            sf_value_type pass_down = expected;
-            if (un->op == SF_OP_TYPE_NEGATE &&
-                !type_value_is_signed(expected)) {
-                pass_down = SF_VAL_TYPE_I64;
-            }
-
-            if (!analyze_expr(un->operand, pass_down, scope, filename))
-                return false;
-
-            sf_value_type child_type = un->operand->resolved;
-            if (child_type == SF_VAL_TYPE_UNRESOLVED) return false;
-
-            node->resolved = child_type;
-            return true;
         }
 
         case SF_NODE_CAST_EXPR: {
