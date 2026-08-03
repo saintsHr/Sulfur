@@ -70,6 +70,11 @@ typedef enum {
 
 typedef struct {
   sf_token_type type;
+  const char *string;
+} sf_map_type_string;
+
+typedef struct {
+  sf_token_type type;
   char value[SF_MAX_TOKEN_VALUE_SIZE];
   sf_span span;
 } sf_token;
@@ -79,6 +84,26 @@ typedef struct {
   size_t count;
   size_t capacity;
 } sf_token_list;
+
+static const sf_map_type_string keywords[] = {
+    // numbers
+    {SF_TOKEN_TYPE_KW_I8, "i8"},
+    {SF_TOKEN_TYPE_KW_I16, "i16"},
+    {SF_TOKEN_TYPE_KW_I32, "i32"},
+    {SF_TOKEN_TYPE_KW_I64, "i64"},
+    {SF_TOKEN_TYPE_KW_U8, "u8"},
+    {SF_TOKEN_TYPE_KW_U16, "u16"},
+    {SF_TOKEN_TYPE_KW_U32, "u32"},
+    {SF_TOKEN_TYPE_KW_U64, "u64"},
+
+    // bool
+    {SF_TOKEN_TYPE_KW_BOOL, "bool"},
+    {SF_TOKEN_TYPE_KW_TRUE, "true"},
+    {SF_TOKEN_TYPE_KW_FALSE, "false"},
+
+    // cast
+    {SF_TOKEN_TYPE_KW_AS, "as"},
+};
 
 sf_token_list sf_tokenize(const char *input, const char *filename);
 
