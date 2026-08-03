@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-debug:
+    name: Build Debug (${{ matrix.compiler }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    env:
+      CC: ${{ matrix.compiler }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake make ccache ${{ matrix.compiler }}
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-debug-${{ matrix.compiler }}-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ccache-debug-${{ matrix.compiler }}-${{ github.ref }}-
+            ccache-debug-${{ matrix.compiler }}-
+
+      - name: Run build_debug.sh
+        run: |
+          chmod +x scripts/build_debug.sh
+          ./scripts/build_debug.sh
+        env:
+          CCACHE_DIR: ~/.cache/ccache
+
+      - name: Run testcases
+        run: |
+          chmod +x scripts/run_testcases.sh
+          ./scripts/run_testcases.sh
+
+  build-release:
+    name: Build Release (${{ matrix.compiler }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    env:
+      CC: ${{ matrix.compiler }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake make ccache ${{ matrix.compiler }}
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-release-${{ matrix.compiler }}-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ccache-release-${{ matrix.compiler }}-${{ github.ref }}-
+            ccache-release-${{ matrix.compiler }}-
+
+      - name: Run build_release.sh
+        run: |
+          chmod +x scripts/build_release.sh
+          ./scripts/build_release.sh
+        env:
+          CCACHE_DIR: ~/.cache/ccache
+
+      - name: Run testcases
+        run: |
+          chmod +x scripts/run_testcases.sh
+          ./scripts/run_testcases.sh
+
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang-format
+
+      - name: Configure
+        run: cmake -B build
+
+      - name: Run format target
+        run: cmake --build build --target format
+
+      - name: Check for uncommitted formatting changes
+        run: |
+          if ! git diff --quiet; then
+            echo "The following files are not formatted correctly:"
+            git diff --name-only
+            echo ""
+            git diff
+            exit 1
+          fi
