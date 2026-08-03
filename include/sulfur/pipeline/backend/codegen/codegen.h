@@ -3,17 +3,17 @@
 #include "sulfur/pipeline/backend/ir/ir.h"
 
 typedef enum {
-    SF_REGISTER_RAX,
-    SF_REGISTER_EAX,
-    SF_REGISTER_AX,
-    SF_REGISTER_AL,
+  SF_REGISTER_RAX,
+  SF_REGISTER_EAX,
+  SF_REGISTER_AX,
+  SF_REGISTER_AL,
 } sf_register;
 
 typedef enum {
-    SF_PREFIX_BYTE,
-    SF_PREFIX_WORD,
-    SF_PREFIX_DWORD,
-    SF_PREFIX_QWORD,
+  SF_PREFIX_BYTE,
+  SF_PREFIX_WORD,
+  SF_PREFIX_DWORD,
+  SF_PREFIX_QWORD,
 } sf_size_prefix;
 
-char* sf_generate_assembly(const sf_ir_program* program);
+char *sf_generate_assembly(const sf_ir_program *program);

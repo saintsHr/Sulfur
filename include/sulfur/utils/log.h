@@ -26,60 +26,53 @@
 #define SF_INDENT "   "
 
 typedef enum {
-    SF_SEV_INFO,
-    SF_SEV_WARNING,
-    SF_SEV_ERROR,
-    SF_SEV_FATAL
+  SF_SEV_INFO,
+  SF_SEV_WARNING,
+  SF_SEV_ERROR,
+  SF_SEV_FATAL
 } sf_severity;
 
 typedef struct {
-    const char* title;
-    const char* desc;
-    const char* hint;
-    const char* file;
-    uint16_t code;
-    sf_span span;
-    sf_severity sev;
+  const char *title;
+  const char *desc;
+  const char *hint;
+  const char *file;
+  uint16_t code;
+  sf_span span;
+  sf_severity sev;
 } sf_log_info;
 
 typedef enum {
-    SF_GENERAL_INSUFFICIENT_MEMORY = 0x0000,
+  SF_GENERAL_INSUFFICIENT_MEMORY = 0x0000,
 
-    SF_MAIN_NO_INPUT_FILE = 0x1000,
-    SF_MAIN_NO_OUTPUT_FILE = 0x1001,
-    SF_MAIN_UNKNOWN_FLAG = 0x1002,
-    SF_MAIN_CANNOT_OPEN_FILE = 0x1003,
+  SF_MAIN_NO_INPUT_FILE = 0x1000,
+  SF_MAIN_NO_OUTPUT_FILE = 0x1001,
+  SF_MAIN_UNKNOWN_FLAG = 0x1002,
+  SF_MAIN_CANNOT_OPEN_FILE = 0x1003,
 
-    SF_PREP_TOO_MANY_DEFINES = 0x2000,
+  SF_PREP_TOO_MANY_DEFINES = 0x2000,
 
-    SF_LEXER_UNDEFINED_TOKEN = 0x3000,
+  SF_LEXER_UNDEFINED_TOKEN = 0x3000,
 
-    SF_PARSER_UNEXPECTED_TOKEN = 0x5000,
-    SF_PARSER_UNDECLARED_VARIABLE = 0x5001,
+  SF_PARSER_UNEXPECTED_TOKEN = 0x5000,
+  SF_PARSER_UNDECLARED_VARIABLE = 0x5001,
 
-    SF_SEMANTIC_REDECLARATION = 0x6000,
-    SF_SEMANTIC_UNDECLARED = 0x6001,
-    SF_SEMANTIC_UNINITIALIZED = 0x6002,
-    SF_SEMANTIC_TYPE_MISMATCH = 0x6003,
-    SF_SEMANTIC_INVALID_EXPLICIT_CAST = 0x6004,
-    SF_SEMANTIC_INVALID_IMPLICIT_CAST = 0x6005,
-    SF_SEMANTIC_LITERAL_OVERFLOW = 0x6006,
-    SF_SEMANTIC_DIVISION_BY_ZERO = 0x6007,
-    SF_SEMANTIC_CONSTANT_EXPR = 0x6008,
+  SF_SEMANTIC_REDECLARATION = 0x6000,
+  SF_SEMANTIC_UNDECLARED = 0x6001,
+  SF_SEMANTIC_UNINITIALIZED = 0x6002,
+  SF_SEMANTIC_TYPE_MISMATCH = 0x6003,
+  SF_SEMANTIC_INVALID_EXPLICIT_CAST = 0x6004,
+  SF_SEMANTIC_INVALID_IMPLICIT_CAST = 0x6005,
+  SF_SEMANTIC_LITERAL_OVERFLOW = 0x6006,
+  SF_SEMANTIC_DIVISION_BY_ZERO = 0x6007,
+  SF_SEMANTIC_CONSTANT_EXPR = 0x6008,
 } sf_error_code;
 
-void sf_log_set_source(const char* filename, const char* content);
+void sf_log_set_source(const char *filename, const char *content);
 
-void sf_log(
-    const char* title,
-    const char* desc,
-    const char* hint,
-    const char* file,
-    uint16_t code,
-    sf_span span,
-    sf_severity sev,
-    ...
-);
+void sf_log(const char *title, const char *desc, const char *hint,
+            const char *file, uint16_t code, sf_span span, sf_severity sev,
+            ...);
 
 void sf_log_init(void);
 bool sf_log_had_fatal(void);

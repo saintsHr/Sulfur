@@ -5,55 +5,51 @@
 
 #include "sulfur/utils/log.h"
 
-static void remove_carriage_return(char* str);
-static void remove_comments(char* str);
+static void remove_carriage_return(char *str);
+static void remove_comments(char *str);
 
-char* sf_preprocess(const char* src, long src_size, const char* filename) {
-    char* out = malloc(src_size + 1);
-    if (!out) {
-        sf_log(
-            "Insufficient Memory.",
-            "Cannot allocate memory for compiling.",
-            "Free some memory and try again.",
-            NULL,
-            SF_GENERAL_INSUFFICIENT_MEMORY,
-            (sf_span){0},
-            SF_SEV_FATAL
-        );
-    }
+char *sf_preprocess(const char *src, long src_size, const char *filename) {
+  char *out = malloc(src_size + 1);
+  if (!out) {
+    sf_log("Insufficient Memory.", "Cannot allocate memory for compiling.",
+           "Free some memory and try again.", NULL,
+           SF_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_SEV_FATAL);
+  }
 
-    memcpy(out, src, src_size);
-    out[src_size] = '\0';
+  memcpy(out, src, src_size);
+  out[src_size] = '\0';
 
-    remove_carriage_return(out);
-    remove_comments(out);
+  remove_carriage_return(out);
+  remove_comments(out);
 
-    return out;
+  return out;
 }
 
-static void remove_carriage_return(char* str) {
-    char* read = str;
-    char* write = str;
+static void remove_carriage_return(char *str) {
+  char *read = str;
+  char *write = str;
 
-    while (*read) {
-        if (*read != '\r') *write++ = *read;
+  while (*read) {
+    if (*read != '\r')
+      *write++ = *read;
+    read++;
+  }
+
+  *write = '\0';
+}
+
+static void remove_comments(char *str) {
+  char *read = str;
+  char *write = str;
+
+  while (*read) {
+    if (*read == '/' && *(read + 1) == '/') {
+      while (*read && *read != '\n')
         read++;
+    } else {
+      *write++ = *read++;
     }
+  }
 
-    *write = '\0';
-}
-
-static void remove_comments(char* str) {
-    char* read = str;
-    char* write = str;
-
-    while (*read) {
-        if (*read == '/' && *(read + 1) == '/') {
-            while (*read && *read != '\n') read++;
-        } else {
-            *write++ = *read++;
-        }
-    }
-
-    *write = '\0';
+  *write = '\0';
 }
