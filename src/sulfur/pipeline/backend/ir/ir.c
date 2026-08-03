@@ -278,6 +278,20 @@ static sf_operand generate_expression(
 
             sf_operand src =
                 generate_expression(arena, program, un->operand, depth);
+
+            sf_operand folded;
+            if (sf_fold_constants(
+                    arena,
+                    src,
+                    (sf_operand){0},
+                    type_operation_to_opcode(un->op),
+                    node->resolved,
+                    &folded
+                )) {
+                operand = folded;
+                break;
+            }
+
             sf_operand dst = new_temporary(program, node->resolved);
 
             operand = dst;
@@ -408,6 +422,18 @@ static sf_operand generate_expression_into(
                 generate_expression(arena, program, un->operand, depth);
             sf_operand dst =
                 hint ? *hint : new_temporary(program, node->resolved);
+
+            sf_operand folded;
+            if (sf_fold_constants(
+                    arena,
+                    src,
+                    (sf_operand){0},
+                    type_operation_to_opcode(un->op),
+                    node->resolved,
+                    &folded
+                )) {
+                return folded;
+            }
 
             push(
                 arena,

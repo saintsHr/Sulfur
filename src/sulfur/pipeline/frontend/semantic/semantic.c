@@ -151,7 +151,7 @@ static bool analyze_expr(
                 if (try_eval_const_bool(node, &const_result)) {
                     sf_log(
                         "constant condition",
-                        "this comparison always evaluates to '%s'",
+                        "this logical expression always evaluates to '%s'",
                         "check the operands",
                         filename,
                         SF_SEMANTIC_CONSTANT_EXPR,
@@ -166,6 +166,30 @@ static bool analyze_expr(
 
             if (is_shift) {
                 node->resolved = ltype;
+
+                int64_t width = type_value_width_bits(ltype);
+                int64_t shift_amount;
+
+                if (try_eval_const_int(bin->right, &shift_amount)) {
+                    if (shift_amount < 0 || shift_amount >= width) {
+                        sf_log(
+                            "shift amount out of range",
+                            "shift amount '%lld' is out of range for type '%s' "
+                            "(width %lld)",
+                            "use a shift amount between 0 and the type's bit "
+                            "width minus one",
+                            filename,
+                            SF_SEMANTIC_LITERAL_OVERFLOW,
+                            node->span,
+                            SF_SEV_FATAL,
+                            (long long)shift_amount,
+                            type_value_name(ltype),
+                            (long long)width
+                        );
+                        return false;
+                    }
+                }
+
                 return true;
             }
 
@@ -418,6 +442,20 @@ static bool analyze_expr(
                             type_value_name(un->operand->resolved)
                         );
                         return false;
+                    }
+
+                    bool const_result;
+                    if (try_eval_const_bool(node, &const_result)) {
+                        sf_log(
+                            "constant condition",
+                            "this expression always evaluates to '%s'",
+                            "check the operand",
+                            filename,
+                            SF_SEMANTIC_CONSTANT_EXPR,
+                            node->span,
+                            SF_SEV_WARNING,
+                            const_result ? "true" : "false"
+                        );
                     }
 
                     node->resolved = SF_VAL_TYPE_BOOL;
@@ -822,6 +860,18 @@ static bool try_eval_const_bool(sf_ast_node* node, bool* out_value) {
         }
 
         return false;
+    }
+
+    if (node->type == SF_NODE_UNARY_EXPR) {
+        sf_unary_expr_node* un = (sf_unary_expr_node*)node;
+
+        if (un->op != SF_OP_TYPE_LOGICAL_NOT) return false;
+
+        bool operand_value;
+        if (!try_eval_const_bool(un->operand, &operand_value)) return false;
+
+        *out_value = !operand_value;
+        return true;
     }
 
     if (node->type == SF_NODE_BINARY_EXPR) {

@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "sulfur/pipeline/backend/ir/ir.h"
 #include "sulfur/utils/type_utils.h"
 
 static bool sf_apply_relational_s(
@@ -102,6 +103,86 @@ static bool sf_apply_arith_u(
     }
 }
 
+static bool sf_apply_bitwise_s(
+    sf_opcode opcode, int64_t l, int64_t r, int64_t* result
+) {
+    switch (opcode) {
+        case SF_OPCODE_BITWISE_AND:
+            *result = l & r;
+            return true;
+        case SF_OPCODE_BITWISE_OR:
+            *result = l | r;
+            return true;
+        case SF_OPCODE_BITWISE_XOR:
+            *result = l ^ r;
+            return true;
+        case SF_OPCODE_BITWISE_RSHIFT:
+            *result = l >> r;
+            return true;
+        case SF_OPCODE_BITWISE_LSHIFT:
+            *result = l << r;
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool sf_apply_bitwise_u(
+    sf_opcode opcode, uint64_t l, uint64_t r, uint64_t* result
+) {
+    switch (opcode) {
+        case SF_OPCODE_BITWISE_AND:
+            *result = l & r;
+            return true;
+        case SF_OPCODE_BITWISE_OR:
+            *result = l | r;
+            return true;
+        case SF_OPCODE_BITWISE_XOR:
+            *result = l ^ r;
+            return true;
+        case SF_OPCODE_BITWISE_RSHIFT:
+            *result = l >> r;
+            return true;
+        case SF_OPCODE_BITWISE_LSHIFT:
+            *result = l << r;
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool sf_apply_unary_s(sf_opcode opcode, int64_t o, int64_t* result) {
+    switch (opcode) {
+        case SF_OPCODE_BITWISE_NOT:
+            *result = ~o;
+            return true;
+        case SF_OPCODE_LOGICAL_NOT:
+            *result = !o;
+            return true;
+        case SF_OPCODE_NEGATE:
+            *result = -o;
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool sf_apply_unary_u(sf_opcode opcode, uint64_t o, uint64_t* result) {
+    switch (opcode) {
+        case SF_OPCODE_BITWISE_NOT:
+            *result = ~o;
+            return true;
+        case SF_OPCODE_LOGICAL_NOT:
+            *result = !o;
+            return true;
+        case SF_OPCODE_NEGATE:
+            *result = -o;
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool sf_fold_constants(
     sf_arena* arena,
     sf_operand left,
@@ -110,11 +191,6 @@ bool sf_fold_constants(
     sf_value_type result_type,
     sf_operand* out
 ) {
-    if (left.type != SF_OPERAND_TYPE_IMMEDIATE ||
-        right.type != SF_OPERAND_TYPE_IMMEDIATE) {
-        return false;
-    }
-
     bool is_arithmetic =
         (opcode == SF_OPCODE_ADD || opcode == SF_OPCODE_SUB ||
          opcode == SF_OPCODE_MULT || opcode == SF_OPCODE_DIV);
@@ -130,10 +206,25 @@ bool sf_fold_constants(
     bool is_logical =
         (opcode == SF_OPCODE_LOGICAL_AND || opcode == SF_OPCODE_LOGICAL_OR);
 
-    if (!is_arithmetic && !is_relational && !is_logical) return false;
-
     bool is_signed = is_relational ? type_value_is_signed(left.value_type)
                                    : type_value_is_signed(result_type);
+
+    bool is_bitwise =
+        (opcode == SF_OPCODE_BITWISE_AND || opcode == SF_OPCODE_BITWISE_OR ||
+         opcode == SF_OPCODE_BITWISE_XOR ||
+         opcode == SF_OPCODE_BITWISE_RSHIFT ||
+         opcode == SF_OPCODE_BITWISE_LSHIFT);
+
+    bool is_unary =
+        (opcode == SF_OPCODE_BITWISE_NOT || opcode == SF_OPCODE_LOGICAL_NOT ||
+         opcode == SF_OPCODE_NEGATE);
+
+    if (!is_unary && right.type != SF_OPERAND_TYPE_IMMEDIATE) return false;
+    if (left.type != SF_OPERAND_TYPE_IMMEDIATE) return false;
+
+    if (!is_arithmetic && !is_relational && !is_logical && !is_bitwise &&
+        !is_unary)
+        return false;
 
     if (is_relational) {
         bool result, ok;
@@ -168,6 +259,7 @@ bool sf_fold_constants(
     if (is_logical) {
         uint64_t l = strtoull(left.immediate_value, NULL, 10);
         uint64_t r = strtoull(right.immediate_value, NULL, 10);
+
         bool result;
 
         switch (opcode) {
@@ -185,6 +277,78 @@ bool sf_fold_constants(
             .type = SF_OPERAND_TYPE_IMMEDIATE,
             .value_type = SF_VAL_TYPE_BOOL,
             .immediate_value = result ? "1" : "0"
+        };
+
+        return true;
+    }
+
+    if (is_bitwise) {
+        char* buf = sf_arena_alloc(arena, 32);
+        bool ok;
+
+        if (is_signed) {
+            int64_t result;
+
+            ok = sf_apply_bitwise_s(
+                opcode,
+                strtoll(left.immediate_value, NULL, 10),
+                strtoll(right.immediate_value, NULL, 10),
+                &result
+            );
+
+            if (ok) snprintf(buf, 32, "%lld", (long long)result);
+        } else {
+            uint64_t result;
+
+            ok = sf_apply_bitwise_u(
+                opcode,
+                strtoull(left.immediate_value, NULL, 10),
+                strtoull(right.immediate_value, NULL, 10),
+                &result
+            );
+
+            if (ok) snprintf(buf, 32, "%llu", (unsigned long long)result);
+        }
+
+        if (!ok) return false;
+
+        *out = (sf_operand){
+            .type = SF_OPERAND_TYPE_IMMEDIATE,
+            .value_type = result_type,
+            .immediate_value = buf
+        };
+
+        return true;
+    }
+
+    if (is_unary) {
+        char* buf = sf_arena_alloc(arena, 32);
+        bool ok;
+
+        if (is_signed) {
+            int64_t result;
+
+            ok = sf_apply_unary_s(
+                opcode, strtoll(left.immediate_value, NULL, 10), &result
+            );
+
+            if (ok) snprintf(buf, 32, "%lld", (long long)result);
+        } else {
+            uint64_t result;
+
+            ok = sf_apply_unary_u(
+                opcode, strtoull(left.immediate_value, NULL, 10), &result
+            );
+
+            if (ok) snprintf(buf, 32, "%llu", (unsigned long long)result);
+        }
+
+        if (!ok) return false;
+
+        *out = (sf_operand){
+            .type = SF_OPERAND_TYPE_IMMEDIATE,
+            .value_type = result_type,
+            .immediate_value = buf
         };
 
         return true;
@@ -213,7 +377,7 @@ bool sf_fold_constants(
             strtoull(right.immediate_value, NULL, 10),
             &result
         );
-        
+
         if (ok) snprintf(buf, 32, "%llu", (unsigned long long)result);
     }
 
