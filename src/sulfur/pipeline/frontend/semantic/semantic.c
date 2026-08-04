@@ -64,10 +64,13 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
 
     sf_value_type operand_expected = expected;
 
-    if (is_logical)
+    if (is_logical) {
       operand_expected = SF_VAL_TYPE_BOOL;
-    if (is_relational)
+    } else if (is_relational) {
       operand_expected = SF_VAL_TYPE_UNRESOLVED;
+    } else if (!type_value_is_integer(operand_expected)) {
+      operand_expected = SF_VAL_TYPE_UNRESOLVED;
+    }
 
     bool left_is_literal = bin->left->type == SF_NODE_LITERAL;
     bool right_is_literal = bin->right->type == SF_NODE_LITERAL;
@@ -92,7 +95,7 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
 
       sf_value_type right_expected = operand_expected;
 
-      if (is_relational && bin->left->resolved != SF_VAL_TYPE_UNRESOLVED) {
+      if (!is_shift && bin->left->resolved != SF_VAL_TYPE_UNRESOLVED) {
         right_expected = bin->left->resolved;
       }
 
@@ -124,8 +127,9 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
       if (try_eval_const_bool(node, &const_result)) {
         sf_log("constant condition",
                "this logical expression always evaluates to '%s'",
-               "check the operands", filename, SF_SEMANTIC_CONSTANT_EXPR,
-               node->span, SF_SEV_WARNING, const_result ? "true" : "false");
+               "check the operands and operators", filename,
+               SF_SEMANTIC_CONSTANT_EXPR, node->span, SF_SEV_WARNING,
+               const_result ? "true" : "false");
       }
 
       return true;
@@ -177,8 +181,9 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
       bool const_result;
       if (try_eval_const_bool(node, &const_result)) {
         sf_log("constant condition", "this comparison always evaluates to '%s'",
-               "check the operands", filename, SF_SEMANTIC_CONSTANT_EXPR,
-               node->span, SF_SEV_WARNING, const_result ? "true" : "false");
+               "check the operands and operators", filename,
+               SF_SEMANTIC_CONSTANT_EXPR, node->span, SF_SEV_WARNING,
+               const_result ? "true" : "false");
       }
 
       return true;
@@ -340,8 +345,9 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
       bool const_result;
       if (try_eval_const_bool(node, &const_result)) {
         sf_log("constant condition", "this expression always evaluates to '%s'",
-               "check the operand", filename, SF_SEMANTIC_CONSTANT_EXPR,
-               node->span, SF_SEV_WARNING, const_result ? "true" : "false");
+               "check the operands and operators", filename,
+               SF_SEMANTIC_CONSTANT_EXPR, node->span, SF_SEV_WARNING,
+               const_result ? "true" : "false");
       }
 
       node->resolved = SF_VAL_TYPE_BOOL;
@@ -514,6 +520,31 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
     }
 
     scope_pop(scope);
+
+    break;
+  }
+
+  case SF_NODE_IF_STMT: {
+    sf_if_stmt_node *if_stmt = (sf_if_stmt_node *)node;
+
+    if (!analyze_expr(if_stmt->condition, SF_VAL_TYPE_BOOL, scope, filename)) {
+      break;
+    }
+
+    if (if_stmt->condition->resolved != SF_VAL_TYPE_BOOL) {
+      sf_log("type mismatch",
+             "if condition should always be an boolean expression, found %s",
+             "check for typos and missing operands", filename,
+             SF_SEMANTIC_TYPE_MISMATCH, if_stmt->condition->span, SF_SEV_ERROR,
+             type_value_name(if_stmt->condition->resolved));
+
+      break;
+    }
+
+    analyze_statement(if_stmt->branch_then, scope, filename);
+    if (if_stmt->branch_else) {
+      analyze_statement(if_stmt->branch_else, scope, filename);
+    }
 
     break;
   }
