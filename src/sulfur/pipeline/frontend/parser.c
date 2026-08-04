@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/lexer.h"
@@ -18,49 +19,37 @@ static bool expect(sf_token_list list, size_t *current, sf_token_type type,
 
 static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
                                     size_t *current, const char *filename);
-
 static sf_ast_node *parse_declaration(sf_arena *arena, sf_token_list list,
                                       size_t *current, const char *filename);
-
 static sf_ast_node *parse_assign(sf_arena *arena, sf_token_list list,
                                  size_t *current, const char *filename);
+static sf_ast_node *parse_if_stmt(sf_arena *arena, sf_token_list list,
+                                  size_t *current, const char *filename);
 
 static sf_ast_node *parse_block(sf_arena *arena, sf_token_list list,
                                 size_t *current, const char *filename);
-
 static sf_ast_node *parse_primary(sf_arena *arena, sf_token_list list,
                                   size_t *current, const char *filename);
-
 static sf_ast_node *parse_unary(sf_arena *arena, sf_token_list list,
                                 size_t *current, const char *filename);
-
 static sf_ast_node *parse_cast(sf_arena *arena, sf_token_list list,
                                size_t *current, const char *filename);
-
 static sf_ast_node *parse_multiplicative(sf_arena *arena, sf_token_list list,
                                          size_t *current, const char *filename);
-
 static sf_ast_node *parse_additive(sf_arena *arena, sf_token_list list,
                                    size_t *current, const char *filename);
-
 static sf_ast_node *parse_shift(sf_arena *arena, sf_token_list list,
                                 size_t *current, const char *filename);
-
 static sf_ast_node *parse_bitwise_and(sf_arena *arena, sf_token_list list,
                                       size_t *current, const char *filename);
-
 static sf_ast_node *parse_bitwise_xor(sf_arena *arena, sf_token_list list,
                                       size_t *current, const char *filename);
-
 static sf_ast_node *parse_bitwise_or(sf_arena *arena, sf_token_list list,
                                      size_t *current, const char *filename);
-
 static sf_ast_node *parse_relational(sf_arena *arena, sf_token_list list,
                                      size_t *current, const char *filename);
-
 static sf_ast_node *parse_logical_and(sf_arena *arena, sf_token_list list,
                                       size_t *current, const char *filename);
-
 static sf_ast_node *parse_logical_or(sf_arena *arena, sf_token_list list,
                                      size_t *current, const char *filename);
 
@@ -115,7 +104,7 @@ static bool expect(sf_token_list list, size_t *current, sf_token_type type,
   }
 
   if (!match(list, current, type)) {
-    sf_log("unexpected token", "expected %s but found '%s'",
+    sf_log("unexpected token", "expected '%s' but found '%s'",
            "check for a missing or misplaced token nearby", filename,
            SF_PARSER_UNEXPECTED_TOKEN, list.tokens[*current].span, SF_SEV_ERROR,
            sf_token_type_name(type), list.tokens[*current].value);
@@ -416,6 +405,57 @@ static sf_ast_node *parse_assign(sf_arena *arena, sf_token_list list,
   return as;
 }
 
+static sf_ast_node *parse_if_stmt(sf_arena *arena, sf_token_list list,
+                                  size_t *current, const char *filename) {
+  if (filename == NULL)
+    return NULL;
+  if (current == NULL)
+    return NULL;
+
+  sf_token token = advance(list, current); // gets "if" keyword token
+
+  // expects "("
+  if (!expect(list, current, SF_TOKEN_TYPE_LPAREN, filename)) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // gets condition inside of "( )"
+  sf_ast_node *condition = parse_logical_or(arena, list, current, filename);
+  if (condition == NULL) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // expects ")"
+  if (!expect(list, current, SF_TOKEN_TYPE_RPAREN, filename)) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // gets "then" body inside of "{ }" or inline
+  sf_ast_node *branch_then = parse_statement(arena, list, current, filename);
+  if (branch_then == NULL) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // gets "else" body inside of "{ }" or inline, if present
+  sf_ast_node *branch_else = NULL;
+  if (match(list, current, SF_TOKEN_TYPE_KW_ELSE)) {
+    branch_else = parse_statement(arena, list, current, filename);
+    if (branch_else == NULL) {
+      recover_statement(list, current);
+      return NULL;
+    }
+  }
+
+  sf_if_stmt_node *if_stmt =
+      sf_new_if_stmt(arena, condition, branch_then, branch_else, token.span);
+
+  return (sf_ast_node *)if_stmt;
+}
+
 static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
                                     size_t *current, const char *filename) {
   if (filename == NULL)
@@ -437,8 +477,12 @@ static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
     return parse_block(arena, list, current, filename);
   }
 
+  if (token_is_if(token)) {
+    return parse_if_stmt(arena, list, current, filename);
+  }
+
   sf_log("unexpected token", "unexpected '%s' at the start of a statement",
-         "a statement must start with a type, identifier, or '{'", filename,
+         "a statement must start with a type, identifier, if, or '{'", filename,
          SF_PARSER_UNEXPECTED_TOKEN, token.span, SF_SEV_ERROR, token.value);
 
   recover_statement(list, current);

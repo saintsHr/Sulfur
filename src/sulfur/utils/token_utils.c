@@ -36,6 +36,8 @@ bool token_is_block(sf_token token) {
   return (token.type == SF_TOKEN_TYPE_LBRACE);
 }
 
+bool token_is_if(sf_token token) { return (token.type == SF_TOKEN_TYPE_KW_IF); }
+
 sf_value_type token_to_type(sf_token token) {
   switch (token.type) {
   case SF_TOKEN_TYPE_KW_I8:

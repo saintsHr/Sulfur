@@ -10,6 +10,8 @@ typedef enum {
   // literals
   SF_TOKEN_TYPE_IDENTIFIER, // ident
   SF_TOKEN_TYPE_INTEGER,    // 123
+  SF_TOKEN_TYPE_KW_TRUE,    // true
+  SF_TOKEN_TYPE_KW_FALSE,   // false
 
   // arithmetic
   SF_TOKEN_TYPE_PLUS,  // +
@@ -46,7 +48,7 @@ typedef enum {
   SF_TOKEN_TYPE_LBRACE,    // {
   SF_TOKEN_TYPE_RBRACE,    // }
 
-  // keywords
+  // types
   SF_TOKEN_TYPE_KW_I8,  // i8
   SF_TOKEN_TYPE_KW_I16, // i16
   SF_TOKEN_TYPE_KW_I32, // i32
@@ -57,11 +59,14 @@ typedef enum {
   SF_TOKEN_TYPE_KW_U32, // u32
   SF_TOKEN_TYPE_KW_U64, // u64
 
-  SF_TOKEN_TYPE_KW_BOOL,  // bool
-  SF_TOKEN_TYPE_KW_TRUE,  // true
-  SF_TOKEN_TYPE_KW_FALSE, // false
+  SF_TOKEN_TYPE_KW_BOOL, // bool
 
+  // cast
   SF_TOKEN_TYPE_KW_AS, // as
+
+  // flux control
+  SF_TOKEN_TYPE_KW_IF,   // if
+  SF_TOKEN_TYPE_KW_ELSE, // else
 
   // special
   SF_TOKEN_TYPE_UNDEFINED,
@@ -85,8 +90,49 @@ typedef struct {
   size_t capacity;
 } sf_token_list;
 
-static const sf_map_type_string keywords[] = {
-    // numbers
+static const sf_map_type_string token_string_map[] = {
+    // literals
+    {SF_TOKEN_TYPE_IDENTIFIER, "an identifier"},
+    {SF_TOKEN_TYPE_INTEGER, "a integer"},
+    {SF_TOKEN_TYPE_KW_TRUE, "true"},
+    {SF_TOKEN_TYPE_KW_FALSE, "false"},
+
+    // arithmetic
+    {SF_TOKEN_TYPE_PLUS, "+"},
+    {SF_TOKEN_TYPE_MINUS, "-"},
+    {SF_TOKEN_TYPE_STAR, "*"},
+    {SF_TOKEN_TYPE_SLASH, "/"},
+
+    // assignment & comparison
+    {SF_TOKEN_TYPE_EQUAL, "="},
+    {SF_TOKEN_TYPE_EQUAL_EQUAL, "=="},
+    {SF_TOKEN_TYPE_BANG, "!"},
+    {SF_TOKEN_TYPE_BANG_EQUAL, "!="},
+    {SF_TOKEN_TYPE_LESS, "<"},
+    {SF_TOKEN_TYPE_LESS_EQUAL, "<="},
+    {SF_TOKEN_TYPE_GREATER, ">"},
+    {SF_TOKEN_TYPE_GREATER_EQUAL, ">="},
+
+    // logical
+    {SF_TOKEN_TYPE_AMP_AMP, "&&"},
+    {SF_TOKEN_TYPE_PIPE_PIPE, "||"},
+
+    // bitwise
+    {SF_TOKEN_TYPE_AMP, "&"},
+    {SF_TOKEN_TYPE_PIPE, "|"},
+    {SF_TOKEN_TYPE_CARET, "^"},
+    {SF_TOKEN_TYPE_TILDE, "~"},
+    {SF_TOKEN_TYPE_LEFT_SHIFT, "<<"},
+    {SF_TOKEN_TYPE_RIGHT_SHIFT, ">>"},
+
+    // delimiters
+    {SF_TOKEN_TYPE_SEMICOLON, ";"},
+    {SF_TOKEN_TYPE_LPAREN, "("},
+    {SF_TOKEN_TYPE_RPAREN, ")"},
+    {SF_TOKEN_TYPE_LBRACE, "{"},
+    {SF_TOKEN_TYPE_RBRACE, "}"},
+
+    // types
     {SF_TOKEN_TYPE_KW_I8, "i8"},
     {SF_TOKEN_TYPE_KW_I16, "i16"},
     {SF_TOKEN_TYPE_KW_I32, "i32"},
@@ -95,14 +141,14 @@ static const sf_map_type_string keywords[] = {
     {SF_TOKEN_TYPE_KW_U16, "u16"},
     {SF_TOKEN_TYPE_KW_U32, "u32"},
     {SF_TOKEN_TYPE_KW_U64, "u64"},
-
-    // bool
     {SF_TOKEN_TYPE_KW_BOOL, "bool"},
-    {SF_TOKEN_TYPE_KW_TRUE, "true"},
-    {SF_TOKEN_TYPE_KW_FALSE, "false"},
 
     // cast
     {SF_TOKEN_TYPE_KW_AS, "as"},
+
+    // flow control
+    {SF_TOKEN_TYPE_KW_IF, "if"},
+    {SF_TOKEN_TYPE_KW_ELSE, "else"},
 };
 
 sf_token_list sf_tokenize(const char *input, const char *filename);

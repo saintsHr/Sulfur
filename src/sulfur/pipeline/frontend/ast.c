@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "sulfur/utils/arena.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/string.h"
 #include "sulfur/utils/type_utils.h"
@@ -19,6 +20,7 @@ static void print_binary_expr(const sf_ast_node *node, int indent);
 static void print_unary_expr(const sf_ast_node *node, int indent);
 static void print_block(const sf_ast_node *node, int indent);
 static void print_cast_expr(const sf_ast_node *node, int indent);
+static void print_if_stmt(const sf_ast_node *node, int indent);
 
 sf_program_node *sf_new_program(sf_arena *arena) {
   sf_program_node *program = sf_arena_alloc(arena, sizeof(sf_program_node));
@@ -183,6 +185,21 @@ sf_var_assign_node *sf_new_var_assign(sf_arena *arena, const char *name,
   return node;
 }
 
+sf_if_stmt_node *sf_new_if_stmt(sf_arena *arena, sf_ast_node *condition,
+                                sf_ast_node *branch_then,
+                                sf_ast_node *branch_else, sf_span span) {
+  sf_if_stmt_node *node = sf_arena_alloc(arena, sizeof(sf_if_stmt_node));
+
+  node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+  node->base.type = SF_NODE_IF_STMT;
+  node->base.span = span;
+  node->branch_then = branch_then;
+  node->branch_else = branch_else;
+  node->condition = condition;
+
+  return node;
+}
+
 void sf_print_ast(sf_ast_node *root) { print_ast_node(root, 0); }
 
 static void print_indent(int indent) {
@@ -221,6 +238,9 @@ static void print_ast_node(sf_ast_node *node, int indent) {
     break;
   case SF_NODE_CAST_EXPR:
     print_cast_expr(node, indent);
+    break;
+  case SF_NODE_IF_STMT:
+    print_if_stmt(node, indent);
     break;
   }
 }
@@ -305,4 +325,25 @@ static void print_cast_expr(const sf_ast_node *node, int indent) {
   printf("Cast to %s\n", type_value_name(cast->target_type));
 
   print_ast_node(cast->operand, indent + 1);
+}
+
+static void print_if_stmt(const sf_ast_node *node, int indent) {
+  sf_if_stmt_node *if_stmt = (sf_if_stmt_node *)node;
+
+  print_indent(indent);
+  printf("If\n");
+
+  print_indent(indent + 1);
+  printf("Condition\n");
+  print_ast_node(if_stmt->condition, indent + 2);
+
+  print_indent(indent + 1);
+  printf("Then\n");
+  print_ast_node(if_stmt->branch_then, indent + 2);
+
+  if (if_stmt->branch_else != NULL) {
+    print_indent(indent + 1);
+    printf("Else\n");
+    print_ast_node(if_stmt->branch_else, indent + 2);
+  }
 }

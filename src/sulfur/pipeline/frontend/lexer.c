@@ -91,99 +91,13 @@ void sf_free_tokens(sf_token_list *list) {
 }
 
 const char *sf_token_type_name(sf_token_type type) {
-  switch (type) {
-  // identifiers
-  case SF_TOKEN_TYPE_IDENTIFIER:
-    return "an identifier";
-
-  // literals
-  case SF_TOKEN_TYPE_INTEGER:
-    return "a integer";
-  case SF_TOKEN_TYPE_KW_TRUE:
-    return "'true'";
-  case SF_TOKEN_TYPE_KW_FALSE:
-    return "'false'";
-
-  // arithmetic
-  case SF_TOKEN_TYPE_PLUS:
-    return "'+'";
-  case SF_TOKEN_TYPE_MINUS:
-    return "'-'";
-  case SF_TOKEN_TYPE_STAR:
-    return "'*'";
-  case SF_TOKEN_TYPE_SLASH:
-    return "'/'";
-  case SF_TOKEN_TYPE_EQUAL:
-    return "'='";
-
-  // delimiters
-  case SF_TOKEN_TYPE_SEMICOLON:
-    return "';'";
-  case SF_TOKEN_TYPE_LBRACE:
-    return "'{'";
-  case SF_TOKEN_TYPE_RBRACE:
-    return "'}'";
-  case SF_TOKEN_TYPE_LPAREN:
-    return "'('";
-  case SF_TOKEN_TYPE_RPAREN:
-    return "')'";
-
-  // logical
-  case SF_TOKEN_TYPE_AMP_AMP:
-    return "'&&'";
-  case SF_TOKEN_TYPE_PIPE_PIPE:
-    return "'||'";
-
-  // bitwise
-  case SF_TOKEN_TYPE_AMP:
-    return "'&'";
-  case SF_TOKEN_TYPE_CARET:
-    return "'^'";
-  case SF_TOKEN_TYPE_PIPE:
-    return "'|'";
-  case SF_TOKEN_TYPE_TILDE:
-    return "'~'";
-  case SF_TOKEN_TYPE_LEFT_SHIFT:
-    return "'<<'";
-  case SF_TOKEN_TYPE_RIGHT_SHIFT:
-    return "'>>'";
-
-  // types
-  case SF_TOKEN_TYPE_KW_I8:
-    return "'i8'";
-  case SF_TOKEN_TYPE_KW_I16:
-    return "'i16'";
-  case SF_TOKEN_TYPE_KW_I32:
-    return "'i32'";
-  case SF_TOKEN_TYPE_KW_I64:
-    return "'i64'";
-
-  case SF_TOKEN_TYPE_KW_U8:
-    return "'u8'";
-  case SF_TOKEN_TYPE_KW_U16:
-    return "'u16'";
-  case SF_TOKEN_TYPE_KW_U32:
-    return "'u32'";
-  case SF_TOKEN_TYPE_KW_U64:
-    return "'u64'";
-
-  case SF_TOKEN_TYPE_KW_BOOL:
-    return "'bool'";
-
-  // cast
-  case SF_TOKEN_TYPE_KW_AS:
-    return "'as'";
-
-  // others
-  case SF_TOKEN_TYPE_UNDEFINED:
-    return "an undefined token";
-  case SF_TOKEN_TYPE_EOF:
-    return "end of file";
-
-  // fallback
-  default:
-    return "a token";
+  for (uint64_t i = 0;
+       i < sizeof(token_string_map) / sizeof(token_string_map[0]); i++) {
+    if (type == token_string_map[i].type)
+      return token_string_map[i].string;
   }
+
+  return "a token";
 }
 
 static void undefined(sf_token_list *list, const char *input, int *i, int *col,
@@ -315,8 +229,10 @@ static sf_token read_number(const char *input, int *i, int *col, int line) {
 }
 
 static sf_token_type resolve_keyword(const char *value) {
-  for (uint64_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++) {
-    if (strcmp(value, keywords[i].string) == 0) return keywords[i].type;
+  for (uint64_t i = 0;
+       i < sizeof(token_string_map) / sizeof(token_string_map[0]); i++) {
+    if (strcmp(value, token_string_map[i].string) == 0)
+      return token_string_map[i].type;
   }
 
   return SF_TOKEN_TYPE_IDENTIFIER;

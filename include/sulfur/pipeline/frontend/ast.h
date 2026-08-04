@@ -17,6 +17,7 @@ typedef enum {
   SF_NODE_IDENTIFIER,
   SF_NODE_VAR_ASSIGN,
   SF_NODE_BLOCK,
+  SF_NODE_IF_STMT,
 } sf_node_type;
 
 typedef enum {
@@ -135,6 +136,13 @@ typedef struct {
   sf_value_type target_type;
 } sf_cast_expr_node;
 
+typedef struct {
+  sf_ast_node base;
+  sf_ast_node *condition;
+  sf_ast_node *branch_then;
+  sf_ast_node *branch_else;
+} sf_if_stmt_node;
+
 void sf_print_ast(sf_ast_node *root);
 
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program,
@@ -168,3 +176,7 @@ sf_unary_expr_node *sf_new_unary_expr(sf_arena *arena, sf_ast_node *operand,
 
 sf_cast_expr_node *sf_new_cast_expr(sf_arena *arena, sf_ast_node *operand,
                                     sf_value_type target_type, sf_span span);
+
+sf_if_stmt_node *sf_new_if_stmt(sf_arena *arena, sf_ast_node *condition,
+                                sf_ast_node *branch_then,
+                                sf_ast_node *branch_else, sf_span span);
