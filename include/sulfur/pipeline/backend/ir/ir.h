@@ -8,6 +8,7 @@ typedef enum {
   SF_OPERAND_TYPE_TEMPORARY,
   SF_OPERAND_TYPE_VARIABLE,
   SF_OPERAND_TYPE_IMMEDIATE,
+  SF_OPERAND_TYPE_LABEL,
 } sf_operand_type;
 
 typedef enum {
@@ -39,6 +40,11 @@ typedef enum {
   SF_OPCODE_LOGICAL_OR,
   SF_OPCODE_LOGICAL_NOT,
 
+  // lebels & jumps
+  SF_OPCODE_LABEL,
+  SF_OPCODE_JMP_COND,
+  SF_OPCODE_JMP_INCOND,
+
   // other
   SF_OPCODE_ASSIGN,
   SF_OPCODE_CAST,
@@ -50,6 +56,7 @@ typedef struct {
 
   union {
     uint32_t temporary_id;
+    uint32_t label_id;
     char *variable_name;
     char *immediate_value;
   };
@@ -57,9 +64,9 @@ typedef struct {
 
 typedef struct {
   sf_opcode opcode;
-  sf_operand destiny;
-  sf_operand source1;
-  sf_operand source2;
+  sf_operand operand1;
+  sf_operand operand2;
+  sf_operand operand3;
 } sf_operation;
 
 typedef struct {
@@ -67,6 +74,7 @@ typedef struct {
   uint32_t count;
   uint32_t capacity;
   uint32_t nextTemp;
+  uint32_t nextLabel;
 } sf_ir_program;
 
 sf_ir_program sf_generate_ir(sf_arena *arena, const sf_program_node *program);

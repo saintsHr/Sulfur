@@ -64,7 +64,7 @@ typedef enum {
   // cast
   SF_TOKEN_TYPE_KW_AS, // as
 
-  // flux control
+  // flow control
   SF_TOKEN_TYPE_KW_IF,   // if
   SF_TOKEN_TYPE_KW_ELSE, // else
 

@@ -114,20 +114,20 @@ void sf_stack_populate(sf_stack_map *map, const sf_ir_program *program) {
   for (uint64_t i = 0; i < program->count; i++) {
     sf_operation op = program->operations[i];
 
-    if (op.destiny.type == SF_OPERAND_TYPE_VARIABLE ||
-        op.destiny.type == SF_OPERAND_TYPE_TEMPORARY) {
-      sf_stack_register_operand(map, op.destiny, &next_offset);
+    if (op.operand1.type == SF_OPERAND_TYPE_VARIABLE ||
+        op.operand1.type == SF_OPERAND_TYPE_TEMPORARY) {
+      sf_stack_register_operand(map, op.operand1, &next_offset);
     }
 
-    if (op.source1.type == SF_OPERAND_TYPE_VARIABLE ||
-        op.source1.type == SF_OPERAND_TYPE_TEMPORARY) {
-      sf_stack_register_operand(map, op.source1, &next_offset);
+    if (op.operand2.type == SF_OPERAND_TYPE_VARIABLE ||
+        op.operand2.type == SF_OPERAND_TYPE_TEMPORARY) {
+      sf_stack_register_operand(map, op.operand2, &next_offset);
     }
 
     if (op.opcode != SF_OPCODE_ASSIGN) {
-      if (op.source2.type == SF_OPERAND_TYPE_VARIABLE ||
-          op.source2.type == SF_OPERAND_TYPE_TEMPORARY) {
-        sf_stack_register_operand(map, op.source2, &next_offset);
+      if (op.operand3.type == SF_OPERAND_TYPE_VARIABLE ||
+          op.operand3.type == SF_OPERAND_TYPE_TEMPORARY) {
+        sf_stack_register_operand(map, op.operand3, &next_offset);
       }
     }
   }

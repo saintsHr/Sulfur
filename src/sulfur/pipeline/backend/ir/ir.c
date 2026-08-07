@@ -42,146 +42,167 @@ void sf_print_ir(const sf_ir_program *program) {
   for (size_t i = 0; i < program->count; i++) {
     sf_operation *op = &program->operations[i];
 
-    print_operand(op->destiny);
-    printf(" = ");
+    bool is_control_flow = op->opcode == SF_OPCODE_LABEL ||
+                           op->opcode == SF_OPCODE_JMP_COND ||
+                           op->opcode == SF_OPCODE_JMP_INCOND;
+
+    if (!is_control_flow) {
+      print_operand(op->operand1);
+      printf(" = ");
+    }
 
     switch (op->opcode) {
     // arithmetic
     case SF_OPCODE_ADD: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" + ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_SUB: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" - ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_MULT: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" * ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_DIV: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" / ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_NEGATE: {
       printf("-");
-      print_operand(op->source1);
-
+      print_operand(op->operand2);
       break;
     }
 
     // bitwise
     case SF_OPCODE_BITWISE_AND: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" & ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_BITWISE_OR: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" | ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_BITWISE_XOR: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" ^ ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_BITWISE_RSHIFT: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" >> ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_BITWISE_LSHIFT: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" << ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_BITWISE_NOT: {
       printf("~");
-      print_operand(op->source1);
+      print_operand(op->operand2);
       break;
     }
 
     // logical
     case SF_OPCODE_LOGICAL_AND: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" && ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_LOGICAL_OR: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" || ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     }
     case SF_OPCODE_LOGICAL_NOT: {
       printf("!");
-      print_operand(op->source1);
+      print_operand(op->operand2);
       break;
     }
 
     // relational
     case SF_OPCODE_RELATIONAL_EQUAL:
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" == ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     case SF_OPCODE_RELATIONAL_NOT_EQUAL:
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" != ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     case SF_OPCODE_RELATIONAL_LESS:
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" < ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     case SF_OPCODE_RELATIONAL_LESS_EQUAL:
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" <= ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     case SF_OPCODE_RELATIONAL_GREATER:
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" > ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
     case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" >= ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
       break;
+
+    // control flow
+    case SF_OPCODE_LABEL: {
+      printf("LABEL L%u:", op->operand1.label_id);
+      break;
+    }
+    case SF_OPCODE_JMP_COND: {
+      printf("if not ");
+      print_operand(op->operand2);
+      printf(" jmp L%u", op->operand1.label_id);
+      break;
+    }
+    case SF_OPCODE_JMP_INCOND: {
+      printf("jmp L%u", op->operand1.label_id);
+      break;
+    }
 
     // other
     case SF_OPCODE_ASSIGN: {
-      print_operand(op->source1);
+      print_operand(op->operand2);
       break;
     }
     case SF_OPCODE_CAST: {
       printf("cast ");
-      print_operand(op->source1);
+      print_operand(op->operand2);
       break;
     }
 
     // fallback
     default:
-      print_operand(op->source1);
+      print_operand(op->operand2);
       printf(" ? ");
-      print_operand(op->source2);
+      print_operand(op->operand3);
     }
 
     printf("\n");
@@ -216,6 +237,14 @@ static sf_operand new_temporary(sf_ir_program *program, sf_value_type type) {
   return op;
 }
 
+static sf_operand new_label(sf_ir_program *program) {
+  sf_operand op;
+  op.type = SF_OPERAND_TYPE_LABEL;
+  op.value_type = SF_VAL_TYPE_UNRESOLVED;
+  op.label_id = program->nextLabel++;
+  return op;
+}
+
 static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
                                       sf_ast_node *node, uint32_t depth) {
   sf_operand operand;
@@ -240,9 +269,9 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
 
     push(arena, program,
          (sf_operation){.opcode = type_operation_to_opcode(ex->op),
-                        .destiny = dst,
-                        .source1 = left,
-                        .source2 = right});
+                        .operand1 = dst,
+                        .operand2 = left,
+                        .operand3 = right});
 
     break;
   }
@@ -266,9 +295,9 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
 
     push(arena, program,
          (sf_operation){.opcode = type_operation_to_opcode(un->op),
-                        .destiny = dst,
-                        .source1 = src,
-                        .source2 = {0}});
+                        .operand1 = dst,
+                        .operand2 = src,
+                        .operand3 = {0}});
 
     break;
   }
@@ -315,9 +344,9 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
 
     push(arena, program,
          (sf_operation){.opcode = SF_OPCODE_CAST,
-                        .destiny = dst,
-                        .source1 = src,
-                        .source2 = {0}});
+                        .operand1 = dst,
+                        .operand2 = src,
+                        .operand3 = {0}});
 
     break;
   }
@@ -353,9 +382,9 @@ static sf_operand generate_expression_into(sf_arena *arena,
 
     push(arena, program,
          (sf_operation){.opcode = opcode,
-                        .destiny = dst,
-                        .source1 = left,
-                        .source2 = right});
+                        .operand1 = dst,
+                        .operand2 = left,
+                        .operand3 = right});
 
     return dst;
   }
@@ -375,9 +404,9 @@ static sf_operand generate_expression_into(sf_arena *arena,
 
     push(arena, program,
          (sf_operation){.opcode = type_operation_to_opcode(un->op),
-                        .destiny = dst,
-                        .source1 = src,
-                        .source2 = {0}});
+                        .operand1 = dst,
+                        .operand2 = src,
+                        .operand3 = {0}});
 
     return dst;
   }
@@ -390,9 +419,9 @@ static sf_operand generate_expression_into(sf_arena *arena,
 
     push(arena, program,
          (sf_operation){.opcode = SF_OPCODE_CAST,
-                        .destiny = dst,
-                        .source1 = src,
-                        .source2 = {0}});
+                        .operand1 = dst,
+                        .operand2 = src,
+                        .operand3 = {0}});
 
     return dst;
   }
@@ -429,9 +458,9 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
     if (!wrote_directly) {
       sf_operation op = {
           .opcode = SF_OPCODE_ASSIGN,
-          .destiny = dst,
-          .source1 = src,
-          .source2 = {0},
+          .operand1 = dst,
+          .operand2 = src,
+          .operand3 = {0},
       };
 
       push(arena, program, op);
@@ -462,9 +491,9 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
     if (!wrote_directly) {
       sf_operation op = {
           .opcode = SF_OPCODE_ASSIGN,
-          .destiny = dst,
-          .source1 = src,
-          .source2 = {0},
+          .operand1 = dst,
+          .operand2 = src,
+          .operand3 = {0},
       };
 
       push(arena, program, op);
@@ -478,6 +507,39 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
 
     for (size_t i = 0; i < block->statement_count; i++) {
       generate_statement(arena, program, block->statements[i], depth + 1);
+    }
+
+    break;
+  }
+
+  case SF_NODE_IF_STMT: {
+    sf_if_stmt_node *if_stmt = (sf_if_stmt_node *)node;
+
+    sf_operand cond =
+        generate_expression(arena, program, if_stmt->condition, depth);
+
+    sf_operand else_id = new_label(program);
+    sf_operand end_id = new_label(program);
+
+    sf_operation jmp_else = {
+        .opcode = SF_OPCODE_JMP_COND, .operand1 = else_id, .operand2 = cond};
+
+    sf_operation jmp_end = {.opcode = SF_OPCODE_JMP_INCOND, .operand1 = end_id};
+
+    sf_operation else_label = {.opcode = SF_OPCODE_LABEL, .operand1 = else_id};
+
+    sf_operation end_label = {.opcode = SF_OPCODE_LABEL, .operand1 = end_id};
+
+    push(arena, program, jmp_else);
+    generate_statement(arena, program, if_stmt->branch_then, depth);
+    if (if_stmt->branch_else != NULL) {
+      push(arena, program, jmp_end);
+
+      push(arena, program, else_label);
+      generate_statement(arena, program, if_stmt->branch_else, depth);
+      push(arena, program, end_label);
+    } else {
+      push(arena, program, else_label);
     }
 
     break;
