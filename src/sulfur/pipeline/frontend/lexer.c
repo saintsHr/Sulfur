@@ -14,6 +14,8 @@ static void undefined(sf_token_list *list, const char *input, int *i, int *col,
 
 static void add_token(sf_token_list *list, sf_token token);
 static sf_token make_token(sf_token_type type, sf_span span);
+static void make_two_char_token(sf_token *tk, int *i, int *col, char c1,
+                                char c2, sf_token_type type);
 
 static sf_token_type resolve_keyword(const char *value);
 
@@ -152,6 +154,20 @@ static sf_token make_token(sf_token_type type, sf_span span) {
   return tk;
 }
 
+static void make_two_char_token(sf_token *tk, int *i, int *col, char c1,
+                                char c2, sf_token_type type) {
+  tk->type = type;
+
+  tk->value[0] = c1;
+  tk->value[1] = c2;
+  tk->value[2] = '\0';
+
+  tk->span.len = 2;
+
+  (*i) += 2;
+  (*col) += 2;
+}
+
 static sf_token read_number(const char *input, int *i, int *col, int line) {
   int start_i = *i;
   int start_col = *col;
@@ -266,222 +282,114 @@ static sf_token read_symbol(const char *input, int *i, int *col, int line) {
                            (sf_span){.line = line, .col = *col, .len = 0});
 
   switch (c1) {
-  case '+': {
+  case '+':
     tk.type = SF_TOKEN_TYPE_PLUS;
-
     break;
-  }
 
-  case '-': {
+  case '-':
     tk.type = SF_TOKEN_TYPE_MINUS;
-
     break;
-  }
 
-  case '*': {
+  case '*':
     tk.type = SF_TOKEN_TYPE_STAR;
-
     break;
-  }
 
-  case '/': {
+  case '/':
     tk.type = SF_TOKEN_TYPE_SLASH;
-
     break;
-  }
 
   case '=':
     if (c2 == '=') {
-      tk.type = SF_TOKEN_TYPE_EQUAL_EQUAL;
-
-      tk.value[0] = '=';
-      tk.value[1] = '=';
-      tk.value[2] = '\0';
-
-      tk.span.len = 2;
-
-      (*i) += 2;
-      (*col) += 2;
-
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_EQUAL_EQUAL);
       return tk;
     }
 
     tk.type = SF_TOKEN_TYPE_EQUAL;
-
     break;
 
-  case ';': {
+  case ';':
     tk.type = SF_TOKEN_TYPE_SEMICOLON;
-
     break;
-  }
 
-  case '{': {
+  case '{':
     tk.type = SF_TOKEN_TYPE_LBRACE;
-
     break;
-  }
 
-  case '}': {
+  case '}':
     tk.type = SF_TOKEN_TYPE_RBRACE;
-
     break;
-  }
 
-  case '(': {
+  case '(':
     tk.type = SF_TOKEN_TYPE_LPAREN;
-
     break;
-  }
 
-  case ')': {
+  case ')':
     tk.type = SF_TOKEN_TYPE_RPAREN;
-
     break;
-  }
 
   case '&': {
     if (c2 == '&') {
-      tk.type = SF_TOKEN_TYPE_AMP_AMP;
-
-      tk.value[0] = '&';
-      tk.value[1] = '&';
-      tk.value[2] = '\0';
-
-      tk.span.len = 2;
-
-      (*i) += 2;
-      (*col) += 2;
-
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_AMP_AMP);
       return tk;
     }
 
     tk.type = SF_TOKEN_TYPE_AMP;
-
     break;
   }
 
   case '|': {
     if (c2 == '|') {
-      tk.type = SF_TOKEN_TYPE_PIPE_PIPE;
-
-      tk.value[0] = '|';
-      tk.value[1] = '|';
-      tk.value[2] = '\0';
-
-      tk.span.len = 2;
-
-      (*i) += 2;
-      (*col) += 2;
-
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_PIPE_PIPE);
       return tk;
     }
 
     tk.type = SF_TOKEN_TYPE_PIPE;
-
     break;
   }
 
-  case '^': {
+  case '^':
     tk.type = SF_TOKEN_TYPE_CARET;
-
     break;
-  }
 
-  case '~': {
+  case '~':
     tk.type = SF_TOKEN_TYPE_TILDE;
-
     break;
-  }
 
   case '<': {
     if (c2 == '<') {
-      tk.type = SF_TOKEN_TYPE_LEFT_SHIFT;
-
-      tk.value[0] = '<';
-      tk.value[1] = '<';
-      tk.value[2] = '\0';
-
-      tk.span.len = 2;
-
-      (*i) += 2;
-      (*col) += 2;
-
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_LEFT_SHIFT);
       return tk;
     }
     if (c2 == '=') {
-      tk.type = SF_TOKEN_TYPE_LESS_EQUAL;
-
-      tk.value[0] = '<';
-      tk.value[1] = '=';
-      tk.value[2] = '\0';
-
-      tk.span.len = 2;
-
-      (*i) += 2;
-      (*col) += 2;
-
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_LESS_EQUAL);
       return tk;
     }
 
     tk.type = SF_TOKEN_TYPE_LESS;
-
     break;
   }
 
   case '>': {
     if (c2 == '>') {
-      tk.type = SF_TOKEN_TYPE_RIGHT_SHIFT;
-
-      tk.value[0] = '>';
-      tk.value[1] = '>';
-      tk.value[2] = '\0';
-
-      tk.span.len = 2;
-
-      (*i) += 2;
-      (*col) += 2;
-
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_RIGHT_SHIFT);
       return tk;
     }
     if (c2 == '=') {
-      tk.type = SF_TOKEN_TYPE_GREATER_EQUAL;
-
-      tk.value[0] = '>';
-      tk.value[1] = '=';
-      tk.value[2] = '\0';
-
-      tk.span.len = 2;
-
-      (*i) += 2;
-      (*col) += 2;
-
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_GREATER_EQUAL);
       return tk;
     }
 
     tk.type = SF_TOKEN_TYPE_GREATER;
-
     break;
   }
 
   case '!': {
     if (c2 == '=') {
-      tk.type = SF_TOKEN_TYPE_BANG_EQUAL;
-
-      tk.value[0] = '!';
-      tk.value[1] = '=';
-      tk.value[2] = '\0';
-
-      tk.span.len = 2;
-
-      (*i) += 2;
-      (*col) += 2;
-
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_BANG_EQUAL);
       return tk;
     }
 
     tk.type = SF_TOKEN_TYPE_BANG;
-
     break;
   }
 

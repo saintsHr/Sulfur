@@ -21,6 +21,7 @@ static void print_unary_expr(const sf_ast_node *node, int indent);
 static void print_block(const sf_ast_node *node, int indent);
 static void print_cast_expr(const sf_ast_node *node, int indent);
 static void print_if_stmt(const sf_ast_node *node, int indent);
+static void print_while_stmt(const sf_ast_node *node, int indent);
 
 sf_program_node *sf_new_program(sf_arena *arena) {
   sf_program_node *program = sf_arena_alloc(arena, sizeof(sf_program_node));
@@ -200,6 +201,19 @@ sf_if_stmt_node *sf_new_if_stmt(sf_arena *arena, sf_ast_node *condition,
   return node;
 }
 
+sf_while_stmt_node *sf_new_while_stmt(sf_arena *arena, sf_ast_node *condition,
+                                      sf_ast_node *branch_do, sf_span span) {
+  sf_while_stmt_node *node = sf_arena_alloc(arena, sizeof(sf_while_stmt_node));
+
+  node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+  node->base.type = SF_NODE_WHILE_STMT;
+  node->base.span = span;
+  node->branch_do = branch_do;
+  node->condition = condition;
+
+  return node;
+}
+
 void sf_print_ast(sf_ast_node *root) { print_ast_node(root, 0); }
 
 static void print_indent(int indent) {
@@ -241,6 +255,9 @@ static void print_ast_node(sf_ast_node *node, int indent) {
     break;
   case SF_NODE_IF_STMT:
     print_if_stmt(node, indent);
+    break;
+  case SF_NODE_WHILE_STMT:
+    print_while_stmt(node, indent);
     break;
   }
 }
@@ -346,4 +363,19 @@ static void print_if_stmt(const sf_ast_node *node, int indent) {
     printf("Else\n");
     print_ast_node(if_stmt->branch_else, indent + 2);
   }
+}
+
+static void print_while_stmt(const sf_ast_node *node, int indent) {
+  sf_while_stmt_node *while_stmt = (sf_while_stmt_node *)node;
+
+  print_indent(indent);
+  printf("While\n");
+
+  print_indent(indent + 1);
+  printf("Condition\n");
+  print_ast_node(while_stmt->condition, indent + 2);
+
+  print_indent(indent + 1);
+  printf("Do\n");
+  print_ast_node(while_stmt->branch_do, indent + 2);
 }

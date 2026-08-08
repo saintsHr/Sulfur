@@ -65,8 +65,9 @@ typedef enum {
   SF_TOKEN_TYPE_KW_AS, // as
 
   // flow control
-  SF_TOKEN_TYPE_KW_IF,   // if
-  SF_TOKEN_TYPE_KW_ELSE, // else
+  SF_TOKEN_TYPE_KW_IF,    // if
+  SF_TOKEN_TYPE_KW_ELSE,  // else
+  SF_TOKEN_TYPE_KW_WHILE, // while
 
   // special
   SF_TOKEN_TYPE_UNDEFINED,
@@ -149,6 +150,7 @@ static const sf_map_type_string token_string_map[] = {
     // flow control
     {SF_TOKEN_TYPE_KW_IF, "if"},
     {SF_TOKEN_TYPE_KW_ELSE, "else"},
+    {SF_TOKEN_TYPE_KW_WHILE, "while"},
 };
 
 sf_token_list sf_tokenize(const char *input, const char *filename);
