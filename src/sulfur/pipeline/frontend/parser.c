@@ -25,6 +25,8 @@ static sf_ast_node *parse_assign(sf_arena *arena, sf_token_list list,
                                  size_t *current, const char *filename);
 static sf_ast_node *parse_if_stmt(sf_arena *arena, sf_token_list list,
                                   size_t *current, const char *filename);
+static sf_ast_node *parse_while_stmt(sf_arena *arena, sf_token_list list,
+                                     size_t *current, const char *filename);
 
 static sf_ast_node *parse_block(sf_arena *arena, sf_token_list list,
                                 size_t *current, const char *filename);
@@ -456,6 +458,47 @@ static sf_ast_node *parse_if_stmt(sf_arena *arena, sf_token_list list,
   return (sf_ast_node *)if_stmt;
 }
 
+static sf_ast_node *parse_while_stmt(sf_arena *arena, sf_token_list list,
+                                     size_t *current, const char *filename) {
+  if (filename == NULL)
+    return NULL;
+  if (current == NULL)
+    return NULL;
+
+  sf_token token = advance(list, current); // gets "while" keyword token
+
+  // expects "("
+  if (!expect(list, current, SF_TOKEN_TYPE_LPAREN, filename)) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // gets condition inside of "( )"
+  sf_ast_node *condition = parse_logical_or(arena, list, current, filename);
+  if (condition == NULL) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // expects ")"
+  if (!expect(list, current, SF_TOKEN_TYPE_RPAREN, filename)) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // gets "do" body inside of "{ }" or inline
+  sf_ast_node *branch_do = parse_statement(arena, list, current, filename);
+  if (branch_do == NULL) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  sf_while_stmt_node *while_stmt =
+      sf_new_while_stmt(arena, condition, branch_do, token.span);
+
+  return (sf_ast_node *)while_stmt;
+}
+
 static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
                                     size_t *current, const char *filename) {
   if (filename == NULL)
@@ -479,6 +522,10 @@ static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
 
   if (token_is_if(token)) {
     return parse_if_stmt(arena, list, current, filename);
+  }
+
+  if (token_is_while(token)) {
+    return parse_while_stmt(arena, list, current, filename);
   }
 
   sf_log("unexpected token", "unexpected '%s' at the start of a statement",

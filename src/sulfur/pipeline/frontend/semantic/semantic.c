@@ -549,6 +549,29 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
     break;
   }
 
+  case SF_NODE_WHILE_STMT: {
+    sf_while_stmt_node *while_stmt = (sf_while_stmt_node *)node;
+
+    if (!analyze_expr(while_stmt->condition, SF_VAL_TYPE_BOOL, scope,
+                      filename)) {
+      break;
+    }
+
+    if (while_stmt->condition->resolved != SF_VAL_TYPE_BOOL) {
+      sf_log("type mismatch",
+             "while condition should always be an boolean expression, found %s",
+             "check for typos and missing operands", filename,
+             SF_SEMANTIC_TYPE_MISMATCH, while_stmt->condition->span,
+             SF_SEV_ERROR, type_value_name(while_stmt->condition->resolved));
+
+      break;
+    }
+
+    analyze_statement(while_stmt->branch_do, scope, filename);
+
+    break;
+  }
+
   default:
     break;
   }
