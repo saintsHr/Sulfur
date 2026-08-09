@@ -545,6 +545,36 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
     break;
   }
 
+  case SF_NODE_WHILE_STMT: {
+    sf_while_stmt_node *while_stmt = (sf_while_stmt_node *)node;
+
+    sf_operand start_id = new_label(program);
+    sf_operand end_id = new_label(program);
+
+    sf_operation jmp_start = {.opcode = SF_OPCODE_JMP_INCOND,
+                              .operand1 = start_id};
+
+    sf_operation start_label = {.opcode = SF_OPCODE_LABEL,
+                                .operand1 = start_id};
+    sf_operation end_label = {.opcode = SF_OPCODE_LABEL, .operand1 = end_id};
+
+    push(arena, program, start_label);
+
+    sf_operand cond =
+        generate_expression(arena, program, while_stmt->condition, depth);
+    sf_operation jmp_end = {
+        .opcode = SF_OPCODE_JMP_COND, .operand1 = end_id, .operand2 = cond};
+
+    push(arena, program, jmp_end);
+
+    generate_statement(arena, program, while_stmt->branch_do, depth);
+
+    push(arena, program, jmp_start);
+    push(arena, program, end_label);
+
+    break;
+  }
+
   default: {
     break;
   }
