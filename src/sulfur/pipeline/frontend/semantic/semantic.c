@@ -842,6 +842,35 @@ static bool try_eval_const_bool(sf_ast_node *node, bool *out_value) {
 
     if (is_relational) {
       bool is_signed = type_value_is_signed(bin->left->resolved);
+      bool is_bool = bin->left->resolved == SF_VAL_TYPE_BOOL;
+
+      if (is_bool) {
+        if (bin->op != SF_OP_TYPE_RELATIONAL_EQUAL &&
+            bin->op != SF_OP_TYPE_RELATIONAL_NOT_EQUAL) {
+          return false;
+        }
+
+        bool l, r;
+
+        if (!try_eval_const_bool(bin->left, &l))
+          return false;
+        if (!try_eval_const_bool(bin->right, &r))
+          return false;
+
+        switch (bin->op) {
+        case SF_OP_TYPE_RELATIONAL_EQUAL:
+          *out_value = l == r;
+          break;
+        case SF_OP_TYPE_RELATIONAL_NOT_EQUAL:
+          *out_value = l != r;
+          break;
+
+        default:
+          return false;
+        }
+
+        return true;
+      }
 
       if (is_signed) {
         int64_t l, r;
