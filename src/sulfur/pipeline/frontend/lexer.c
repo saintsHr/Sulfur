@@ -283,18 +283,46 @@ static sf_token read_symbol(const char *input, int *i, int *col, int line) {
 
   switch (c1) {
   case '+':
+    if (c2 == '+') {
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_PLUS_PLUS);
+      return tk;
+    }
+    if (c2 == '=') {
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_PLUS_EQUAL);
+      return tk;
+    }
+
     tk.type = SF_TOKEN_TYPE_PLUS;
     break;
 
   case '-':
+    if (c2 == '-') {
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_MINUS_MINUS);
+      return tk;
+    }
+    if (c2 == '=') {
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_MINUS_EQUAL);
+      return tk;
+    }
+
     tk.type = SF_TOKEN_TYPE_MINUS;
     break;
 
   case '*':
+    if (c2 == '=') {
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_STAR_EQUAL);
+      return tk;
+    }
+
     tk.type = SF_TOKEN_TYPE_STAR;
     break;
 
   case '/':
+    if (c2 == '=') {
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_SLASH_EQUAL);
+      return tk;
+    }
+
     tk.type = SF_TOKEN_TYPE_SLASH;
     break;
 

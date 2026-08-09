@@ -29,6 +29,16 @@ typedef enum {
   SF_TOKEN_TYPE_GREATER,       // >
   SF_TOKEN_TYPE_GREATER_EQUAL, // >=
 
+  // compound operators
+  SF_TOKEN_TYPE_PLUS_EQUAL,  // +=
+  SF_TOKEN_TYPE_MINUS_EQUAL, // -=
+  SF_TOKEN_TYPE_STAR_EQUAL,  // *=
+  SF_TOKEN_TYPE_SLASH_EQUAL, // /=
+
+  // increment & decrement
+  SF_TOKEN_TYPE_PLUS_PLUS,   // ++
+  SF_TOKEN_TYPE_MINUS_MINUS, // --
+
   // logical
   SF_TOKEN_TYPE_AMP_AMP,   // &&
   SF_TOKEN_TYPE_PIPE_PIPE, // ||
