@@ -77,6 +77,22 @@ sf_operation_type token_to_unary_op(sf_token token) {
     return SF_OP_TYPE_BITWISE_NOT;
   case SF_TOKEN_TYPE_BANG:
     return SF_OP_TYPE_LOGICAL_NOT;
+  case SF_TOKEN_TYPE_PLUS_PLUS:
+    return SF_OP_TYPE_PREFIX_INCREMENT;
+  case SF_TOKEN_TYPE_MINUS_MINUS:
+    return SF_OP_TYPE_PREFIX_DECREMENT;
+
+  default:
+    return SF_OP_TYPE_UNRESOLVED;
+  }
+}
+
+sf_operation_type token_to_postfix_op(sf_token token) {
+  switch (token.type) {
+  case SF_TOKEN_TYPE_PLUS_PLUS:
+    return SF_OP_TYPE_POSTFIX_INCREMENT;
+  case SF_TOKEN_TYPE_MINUS_MINUS:
+    return SF_OP_TYPE_POSTFIX_DECREMENT;
 
   default:
     return SF_OP_TYPE_UNRESOLVED;

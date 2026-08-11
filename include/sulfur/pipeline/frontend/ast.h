@@ -66,6 +66,12 @@ typedef enum {
   SF_OP_TYPE_LOGICAL_AND,
   SF_OP_TYPE_LOGICAL_NOT,
 
+  // increment & decrement
+  SF_OP_TYPE_PREFIX_INCREMENT,
+  SF_OP_TYPE_POSTFIX_INCREMENT,
+  SF_OP_TYPE_PREFIX_DECREMENT,
+  SF_OP_TYPE_POSTFIX_DECREMENT,
+
   // fallback
   SF_OP_TYPE_UNRESOLVED
 } sf_operation_type;

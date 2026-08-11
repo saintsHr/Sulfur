@@ -19,6 +19,8 @@ static bool expect(sf_token_list list, size_t *current, sf_token_type type,
 
 static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
                                     size_t *current, const char *filename);
+static sf_ast_node *parse_expr_stmt(sf_arena *arena, sf_token_list list,
+                                    size_t *current, const char *filename);
 static sf_ast_node *parse_declaration(sf_arena *arena, sf_token_list list,
                                       size_t *current, const char *filename);
 static sf_ast_node *parse_assign(sf_arena *arena, sf_token_list list,
@@ -31,6 +33,8 @@ static sf_ast_node *parse_while_stmt(sf_arena *arena, sf_token_list list,
 static sf_ast_node *parse_block(sf_arena *arena, sf_token_list list,
                                 size_t *current, const char *filename);
 static sf_ast_node *parse_primary(sf_arena *arena, sf_token_list list,
+                                  size_t *current, const char *filename);
+static sf_ast_node *parse_postfix(sf_arena *arena, sf_token_list list,
                                   size_t *current, const char *filename);
 static sf_ast_node *parse_unary(sf_arena *arena, sf_token_list list,
                                 size_t *current, const char *filename);
@@ -169,6 +173,8 @@ static sf_ast_node *parse_unary(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_token token = list.tokens[*current];
   sf_operation_type op_type = token_to_unary_op(token);
@@ -184,7 +190,37 @@ static sf_ast_node *parse_unary(sf_arena *arena, sf_token_list list,
                                             token.span);
   }
 
-  return parse_primary(arena, list, current, filename);
+  return parse_postfix(arena, list, current, filename);
+}
+
+static sf_ast_node *parse_postfix(sf_arena *arena, sf_token_list list,
+                                  size_t *current, const char *filename) {
+  if (filename == NULL)
+    return NULL;
+  if (current == NULL)
+    return NULL;
+  if (arena == NULL)
+    return NULL;
+
+  sf_ast_node *operand = parse_primary(arena, list, current, filename);
+  if (operand == NULL)
+    return NULL;
+
+  while (list.tokens[*current].type == SF_TOKEN_TYPE_PLUS_PLUS ||
+         list.tokens[*current].type == SF_TOKEN_TYPE_MINUS_MINUS) {
+    sf_token op = advance(list, current);
+
+    sf_operation_type op_type = token_to_postfix_op(op);
+    if (op_type == SF_OP_TYPE_UNRESOLVED)
+      return NULL;
+
+    operand =
+        (sf_ast_node *)sf_new_unary_expr(arena, operand, op_type, op.span);
+    if (operand == NULL)
+      return NULL;
+  }
+
+  return operand;
 }
 
 static sf_ast_node *parse_primary(sf_arena *arena, sf_token_list list,
@@ -192,6 +228,8 @@ static sf_ast_node *parse_primary(sf_arena *arena, sf_token_list list,
   if (filename == NULL)
     return NULL;
   if (current == NULL)
+    return NULL;
+  if (arena == NULL)
     return NULL;
 
   if (match(list, current, SF_TOKEN_TYPE_LPAREN)) {
@@ -245,6 +283,8 @@ static sf_ast_node *parse_multiplicative(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_ast_node *left = parse_cast(arena, list, current, filename);
   if (left == NULL)
@@ -277,6 +317,8 @@ static sf_ast_node *parse_additive(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_ast_node *left = parse_multiplicative(arena, list, current, filename);
   if (left == NULL)
@@ -308,6 +350,8 @@ static sf_ast_node *parse_declaration(sf_arena *arena, sf_token_list list,
   if (filename == NULL)
     return NULL;
   if (current == NULL)
+    return NULL;
+  if (arena == NULL)
     return NULL;
 
   sf_token type_token = advance(list, current);
@@ -366,6 +410,8 @@ static sf_ast_node *parse_assign(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_token name_token = advance(list, current);
 
@@ -412,6 +458,8 @@ static sf_ast_node *parse_if_stmt(sf_arena *arena, sf_token_list list,
   if (filename == NULL)
     return NULL;
   if (current == NULL)
+    return NULL;
+  if (arena == NULL)
     return NULL;
 
   sf_token token = advance(list, current); // gets "if" keyword token
@@ -464,6 +512,8 @@ static sf_ast_node *parse_while_stmt(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_token token = advance(list, current); // gets "while" keyword token
 
@@ -505,6 +555,8 @@ static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_token token = list.tokens[*current];
 
@@ -512,7 +564,8 @@ static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
     return parse_declaration(arena, list, current, filename);
   }
 
-  if (token_is_ident(token)) {
+  if (token_is_ident(token) &&
+      list.tokens[*current + 1].type == SF_TOKEN_TYPE_EQUAL) {
     return parse_assign(arena, list, current, filename);
   }
 
@@ -528,13 +581,28 @@ static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
     return parse_while_stmt(arena, list, current, filename);
   }
 
-  sf_log("unexpected token", "unexpected '%s' at the start of a statement",
-         "a statement must start with a type, identifier, if, or '{'", filename,
-         SF_PARSER_UNEXPECTED_TOKEN, token.span, SF_SEV_ERROR, token.value);
+  return parse_expr_stmt(arena, list, current, filename);
+}
 
-  recover_statement(list, current);
+static sf_ast_node *parse_expr_stmt(sf_arena *arena, sf_token_list list,
+                                    size_t *current, const char *filename) {
+  if (filename == NULL)
+    return NULL;
+  if (current == NULL)
+    return NULL;
+  if (arena == NULL)
+    return NULL;
 
-  return NULL;
+  sf_ast_node *expr = parse_logical_or(arena, list, current, filename);
+  if (expr == NULL)
+    return NULL;
+
+  if (!expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename)) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  return expr;
 }
 
 static sf_ast_node *parse_block(sf_arena *arena, sf_token_list list,
@@ -542,6 +610,8 @@ static sf_ast_node *parse_block(sf_arena *arena, sf_token_list list,
   if (filename == NULL)
     return NULL;
   if (current == NULL)
+    return NULL;
+  if (arena == NULL)
     return NULL;
 
   sf_span block_span = list.tokens[*current].span;
@@ -576,6 +646,8 @@ static sf_ast_node *parse_cast(sf_arena *arena, sf_token_list list,
   if (filename == NULL)
     return NULL;
   if (current == NULL)
+    return NULL;
+  if (arena == NULL)
     return NULL;
 
   sf_ast_node *expr = parse_unary(arena, list, current, filename);
@@ -615,6 +687,8 @@ static sf_ast_node *parse_shift(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_ast_node *left = parse_additive(arena, list, current, filename);
   if (left == NULL)
@@ -647,6 +721,8 @@ static sf_ast_node *parse_bitwise_and(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_ast_node *left = parse_shift(arena, list, current, filename);
   if (left == NULL)
@@ -677,6 +753,8 @@ static sf_ast_node *parse_bitwise_xor(sf_arena *arena, sf_token_list list,
   if (filename == NULL)
     return NULL;
   if (current == NULL)
+    return NULL;
+  if (arena == NULL)
     return NULL;
 
   sf_ast_node *left = parse_bitwise_and(arena, list, current, filename);
@@ -709,6 +787,8 @@ static sf_ast_node *parse_bitwise_or(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_ast_node *left = parse_bitwise_xor(arena, list, current, filename);
   if (left == NULL)
@@ -739,6 +819,8 @@ static sf_ast_node *parse_relational(sf_arena *arena, sf_token_list list,
   if (filename == NULL)
     return NULL;
   if (current == NULL)
+    return NULL;
+  if (arena == NULL)
     return NULL;
 
   sf_ast_node *left = parse_bitwise_or(arena, list, current, filename);
@@ -776,6 +858,8 @@ static sf_ast_node *parse_logical_and(sf_arena *arena, sf_token_list list,
     return NULL;
   if (current == NULL)
     return NULL;
+  if (arena == NULL)
+    return NULL;
 
   sf_ast_node *left = parse_relational(arena, list, current, filename);
   if (left == NULL)
@@ -806,6 +890,8 @@ static sf_ast_node *parse_logical_or(sf_arena *arena, sf_token_list list,
   if (filename == NULL)
     return NULL;
   if (current == NULL)
+    return NULL;
+  if (arena == NULL)
     return NULL;
 
   sf_ast_node *left = parse_logical_and(arena, list, current, filename);

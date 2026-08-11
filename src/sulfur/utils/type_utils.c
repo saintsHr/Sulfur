@@ -120,6 +120,16 @@ const char *type_operation_name(sf_operation_type op) {
   case SF_OP_TYPE_LOGICAL_NOT:
     return "!";
 
+  // increment & decrement
+  case SF_OP_TYPE_PREFIX_INCREMENT:
+    return "++x";
+  case SF_OP_TYPE_PREFIX_DECREMENT:
+    return "--x";
+  case SF_OP_TYPE_POSTFIX_INCREMENT:
+    return "x++";
+  case SF_OP_TYPE_POSTFIX_DECREMENT:
+    return "x--";
+
   // fallback
   default:
     return "?";
