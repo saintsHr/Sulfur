@@ -1,0 +1,7 @@
+bool c = true;
+i64 x = 0;
+if (c) {
+    x = 1;
+} else {
+    x = 2;
+}

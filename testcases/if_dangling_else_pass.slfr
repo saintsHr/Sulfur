@@ -1,0 +1,8 @@
+bool a = true;
+bool b = false;
+i64 x = 0;
+if (a)
+    if (b)
+        x = 1;
+    else
+        x = 2;

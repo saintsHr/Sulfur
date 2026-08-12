@@ -1,0 +1,4 @@
+// this whole line must be ignored
+u64 x = 10;
+// another comment
+x = x + 5;

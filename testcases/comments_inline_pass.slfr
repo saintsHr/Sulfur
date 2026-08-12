@@ -1,0 +1,3 @@
+u64 x = 1; // inline comment
+u64 y = 2; // inline comment
+y = x + y; // inline comment

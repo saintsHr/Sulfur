@@ -1,0 +1,6 @@
+bool run = true;
+u64 i = 0;
+while (!(!run)) {
+    i++;
+    run = false;
+}
