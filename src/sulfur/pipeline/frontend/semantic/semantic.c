@@ -330,6 +330,34 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
       return true;
     }
 
+    case SF_OP_TYPE_POSTFIX_DECREMENT:
+    case SF_OP_TYPE_POSTFIX_INCREMENT:
+    case SF_OP_TYPE_PREFIX_DECREMENT:
+    case SF_OP_TYPE_PREFIX_INCREMENT: {
+      if (un->operand->type != SF_NODE_IDENTIFIER) {
+        sf_log("invalid operand", "operand of '++'/'--' must be a variable",
+               "only variables can be incremented or decremented", filename,
+               SF_SEMANTIC_TYPE_MISMATCH, node->span, SF_SEV_ERROR);
+        return false;
+      }
+
+      if (!analyze_expr(un->operand, expected, scope, filename))
+        return false;
+
+      sf_value_type child_type = un->operand->resolved;
+
+      if (!type_value_is_integer(child_type)) {
+        sf_log("invalid operand type",
+               "operator '++'/'--' requires an integer operand, got '%s'", NULL,
+               filename, SF_SEMANTIC_TYPE_MISMATCH, node->span, SF_SEV_ERROR,
+               type_value_name(child_type));
+        return false;
+      }
+
+      node->resolved = child_type;
+      return true;
+    }
+
     case SF_OP_TYPE_LOGICAL_NOT: {
       if (!analyze_expr(un->operand, SF_VAL_TYPE_BOOL, scope, filename))
         return false;
@@ -572,8 +600,10 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
     break;
   }
 
-  default:
+  default: {
+    analyze_expr(node, SF_VAL_TYPE_UNRESOLVED, scope, filename);
     break;
+  }
   }
 }
 
