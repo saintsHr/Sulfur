@@ -1,0 +1,5 @@
+{
+    i64 inner = 1;
+}
+
+i64 outer = inner;

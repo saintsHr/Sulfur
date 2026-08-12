@@ -1,0 +1,11 @@
+i64 total = 0;
+u64 i = 0;
+while (i < 4) {
+    i64 step = i as i64;
+    if ((i & 1) == 0) {
+        total += step * 2;
+    } else {
+        total -= step;
+    }
+    i++;
+}

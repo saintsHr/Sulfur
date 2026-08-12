@@ -1,0 +1,3 @@
+while (true {
+    i64 x = 1;
+}

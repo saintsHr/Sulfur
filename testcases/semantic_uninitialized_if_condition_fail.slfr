@@ -1,0 +1,4 @@
+bool cond;
+if (cond) {
+    i64 x = 1;
+}

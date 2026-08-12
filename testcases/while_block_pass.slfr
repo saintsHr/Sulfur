@@ -1,0 +1,7 @@
+u64 i = 0;
+u64 total = 0;
+
+while (i < 4) {
+    total += i;
+    i++;
+}

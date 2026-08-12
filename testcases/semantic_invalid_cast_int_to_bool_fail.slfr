@@ -1,0 +1,2 @@
+i64 x = 1;
+bool y = x as bool;

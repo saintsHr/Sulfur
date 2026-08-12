@@ -1,0 +1,10 @@
+u64 score = 85;
+u64 payout = 0;
+
+if (score >= 90) {
+    payout = 300;
+} else if (score >= 80) {
+    payout = 200;
+} else {
+    payout = 100;
+}

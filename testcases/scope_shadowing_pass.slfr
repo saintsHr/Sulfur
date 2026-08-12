@@ -1,0 +1,9 @@
+i64 value = 10;
+i64 result = value;
+
+{
+    i64 value = 20;
+    result = value;
+}
+
+result = value;

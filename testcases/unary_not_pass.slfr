@@ -1,0 +1,2 @@
+bool done = false;
+bool check = !done;
