@@ -41,6 +41,19 @@ bool token_is_while(sf_token token) {
   return (token.type == SF_TOKEN_TYPE_KW_WHILE);
 }
 
+bool token_is_assignment_op(sf_token_type t) {
+  switch (t) {
+  case SF_TOKEN_TYPE_EQUAL:
+  case SF_TOKEN_TYPE_PLUS_EQUAL:
+  case SF_TOKEN_TYPE_MINUS_EQUAL:
+  case SF_TOKEN_TYPE_STAR_EQUAL:
+  case SF_TOKEN_TYPE_SLASH_EQUAL:
+    return true;
+  default:
+    return false;
+  }
+}
+
 sf_value_type token_to_type(sf_token token) {
   switch (token.type) {
   case SF_TOKEN_TYPE_KW_I8:
@@ -66,6 +79,21 @@ sf_value_type token_to_type(sf_token token) {
 
   default:
     return SF_VAL_TYPE_UNRESOLVED;
+  }
+}
+
+sf_operation_type token_assign_to_binary_op(sf_token_type t) {
+  switch (t) {
+  case SF_TOKEN_TYPE_PLUS_EQUAL:
+    return SF_OP_TYPE_ADD;
+  case SF_TOKEN_TYPE_MINUS_EQUAL:
+    return SF_OP_TYPE_SUB;
+  case SF_TOKEN_TYPE_STAR_EQUAL:
+    return SF_OP_TYPE_MUL;
+  case SF_TOKEN_TYPE_SLASH_EQUAL:
+    return SF_OP_TYPE_DIV;
+  default:
+    return SF_OP_TYPE_UNRESOLVED;
   }
 }
 
