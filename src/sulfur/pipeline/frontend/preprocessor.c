@@ -10,6 +10,7 @@ static void remove_comments(char *str);
 
 char *sf_preprocess(const char *src, long src_size, const char *filename) {
   char *out = malloc(src_size + 1);
+
   if (!out) {
     sf_log("Insufficient Memory.", "Cannot allocate memory for compiling.",
            "Free some memory and try again.", NULL,

@@ -48,6 +48,11 @@ bool token_is_assignment_op(sf_token_type t) {
   case SF_TOKEN_TYPE_MINUS_EQUAL:
   case SF_TOKEN_TYPE_STAR_EQUAL:
   case SF_TOKEN_TYPE_SLASH_EQUAL:
+  case SF_TOKEN_TYPE_AMP_EQUAL:
+  case SF_TOKEN_TYPE_PIPE_EQUAL:
+  case SF_TOKEN_TYPE_CARET_EQUAL:
+  case SF_TOKEN_TYPE_LEFT_SHIFT_EQUAL:
+  case SF_TOKEN_TYPE_RIGHT_SHIFT_EQUAL:
     return true;
   default:
     return false;
@@ -92,6 +97,16 @@ sf_operation_type token_assign_to_binary_op(sf_token_type t) {
     return SF_OP_TYPE_MUL;
   case SF_TOKEN_TYPE_SLASH_EQUAL:
     return SF_OP_TYPE_DIV;
+  case SF_TOKEN_TYPE_AMP_EQUAL:
+    return SF_OP_TYPE_BITWISE_AND;
+  case SF_TOKEN_TYPE_PIPE_EQUAL:
+    return SF_OP_TYPE_BITWISE_OR;
+  case SF_TOKEN_TYPE_CARET_EQUAL:
+    return SF_OP_TYPE_BITWISE_XOR;
+  case SF_TOKEN_TYPE_LEFT_SHIFT_EQUAL:
+    return SF_OP_TYPE_BITWISE_LSHIFT;
+  case SF_TOKEN_TYPE_RIGHT_SHIFT_EQUAL:
+    return SF_OP_TYPE_BITWISE_RSHIFT;
   default:
     return SF_OP_TYPE_UNRESOLVED;
   }

@@ -16,6 +16,8 @@ static void add_token(sf_token_list *list, sf_token token);
 static sf_token make_token(sf_token_type type, sf_span span);
 static void make_two_char_token(sf_token *tk, int *i, int *col, char c1,
                                 char c2, sf_token_type type);
+static void make_three_char_token(sf_token *tk, int *i, int *col, char c1,
+                                  char c2, char c3, sf_token_type type);
 
 static sf_token_type resolve_keyword(const char *value);
 
@@ -78,7 +80,7 @@ sf_token_list sf_tokenize(const char *input, const char *filename) {
 
 void sf_print_tokens(const sf_token_list *list) {
   for (size_t i = 0; i < list->count; i++) {
-    printf("Token %zu: type=%d value=%s (%u:%u)\n", i, list->tokens[i].type,
+    printf("Token %zu: type= %d value= %s (%u:%u)\n", i, list->tokens[i].type,
            list->tokens[i].value, list->tokens[i].span.line,
            list->tokens[i].span.col);
   }
@@ -166,6 +168,21 @@ static void make_two_char_token(sf_token *tk, int *i, int *col, char c1,
 
   (*i) += 2;
   (*col) += 2;
+}
+
+static void make_three_char_token(sf_token *tk, int *i, int *col, char c1,
+                                  char c2, char c3, sf_token_type type) {
+  tk->type = type;
+
+  tk->value[0] = c1;
+  tk->value[1] = c2;
+  tk->value[2] = c3;
+  tk->value[3] = '\0';
+
+  tk->span.len = 3;
+
+  (*i) += 3;
+  (*col) += 3;
 }
 
 static sf_token read_number(const char *input, int *i, int *col, int line) {
@@ -275,8 +292,12 @@ static sf_token read_identifier(const char *input, int *i, int *col, int line) {
 }
 
 static sf_token read_symbol(const char *input, int *i, int *col, int line) {
-  char c1 = input[*i];
-  char c2 = input[*i + 1];
+  size_t len = strlen(input);
+  size_t pos = (size_t)*i;
+
+  char c1 = pos < len ? input[pos] : '\0';
+  char c2 = (pos + 1) < len ? input[pos + 1] : '\0';
+  char c3 = (pos + 2) < len ? input[pos + 2] : '\0';
 
   sf_token tk = make_token(SF_TOKEN_TYPE_UNDEFINED,
                            (sf_span){.line = line, .col = *col, .len = 0});
@@ -360,6 +381,10 @@ static sf_token read_symbol(const char *input, int *i, int *col, int line) {
       make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_AMP_AMP);
       return tk;
     }
+    if (c2 == '=') {
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_AMP_EQUAL);
+      return tk;
+    }
 
     tk.type = SF_TOKEN_TYPE_AMP;
     break;
@@ -370,12 +395,21 @@ static sf_token read_symbol(const char *input, int *i, int *col, int line) {
       make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_PIPE_PIPE);
       return tk;
     }
+    if (c2 == '=') {
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_PIPE_EQUAL);
+      return tk;
+    }
 
     tk.type = SF_TOKEN_TYPE_PIPE;
     break;
   }
 
   case '^':
+    if (c2 == '=') {
+      make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_CARET_EQUAL);
+      return tk;
+    }
+
     tk.type = SF_TOKEN_TYPE_CARET;
     break;
 
@@ -385,6 +419,12 @@ static sf_token read_symbol(const char *input, int *i, int *col, int line) {
 
   case '<': {
     if (c2 == '<') {
+      if (c3 == '=') {
+        make_three_char_token(&tk, i, col, c1, c2, c3,
+                              SF_TOKEN_TYPE_LEFT_SHIFT_EQUAL);
+        return tk;
+      }
+
       make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_LEFT_SHIFT);
       return tk;
     }
@@ -399,6 +439,12 @@ static sf_token read_symbol(const char *input, int *i, int *col, int line) {
 
   case '>': {
     if (c2 == '>') {
+      if (c3 == '=') {
+        make_three_char_token(&tk, i, col, c1, c2, c3,
+                              SF_TOKEN_TYPE_RIGHT_SHIFT_EQUAL);
+        return tk;
+      }
+
       make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_RIGHT_SHIFT);
       return tk;
     }
