@@ -1,0 +1,3 @@
+i64 cond = 1;
+
+if (cond) cond = 0;
