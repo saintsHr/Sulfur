@@ -279,6 +279,70 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
   case SF_NODE_UNARY_EXPR: {
     sf_unary_expr_node *un = (sf_unary_expr_node *)node;
 
+    bool is_inc_dec = un->op == SF_OP_TYPE_PREFIX_INCREMENT ||
+                      un->op == SF_OP_TYPE_PREFIX_DECREMENT ||
+                      un->op == SF_OP_TYPE_POSTFIX_INCREMENT ||
+                      un->op == SF_OP_TYPE_POSTFIX_DECREMENT;
+
+    if (is_inc_dec) {
+      sf_operand op = generate_expression(arena, program, un->operand, depth);
+
+      sf_operand one = {
+          .type = SF_OPERAND_TYPE_IMMEDIATE,
+          .value_type = node->resolved,
+          .immediate_value = "1",
+      };
+
+      sf_operand tmp = new_temporary(program, node->resolved);
+
+      bool is_increment = (un->op == SF_OP_TYPE_PREFIX_INCREMENT ||
+                           un->op == SF_OP_TYPE_POSTFIX_INCREMENT);
+
+      bool is_postfix = (un->op == SF_OP_TYPE_POSTFIX_INCREMENT ||
+                         un->op == SF_OP_TYPE_POSTFIX_DECREMENT);
+
+      sf_opcode opc = is_increment ? SF_OPCODE_ADD : SF_OPCODE_SUB;
+
+      sf_operand result;
+
+      if (is_postfix) {
+        sf_operand old = new_temporary(program, node->resolved);
+
+        push(arena, program,
+             (sf_operation){
+                 .opcode = SF_OPCODE_ASSIGN,
+                 .operand1 = old,
+                 .operand2 = op,
+                 .operand3 = {0},
+             });
+
+        result = old;
+      }
+
+      push(arena, program,
+           (sf_operation){
+               .opcode = opc,
+               .operand1 = tmp,
+               .operand2 = op,
+               .operand3 = one,
+           });
+
+      push(arena, program,
+           (sf_operation){
+               .opcode = SF_OPCODE_ASSIGN,
+               .operand1 = op,
+               .operand2 = tmp,
+               .operand3 = {0},
+           });
+
+      if (!is_postfix) {
+        result = tmp;
+      }
+
+      operand = result;
+      break;
+    }
+
     sf_operand src = generate_expression(arena, program, un->operand, depth);
 
     sf_operand folded;
@@ -576,6 +640,7 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
   }
 
   default: {
+    (void)generate_expression(arena, program, node, depth);
     break;
   }
   }
