@@ -22,7 +22,7 @@ The language, compiler, standard library, and tooling are still evolving, and br
 
 ## Documentation
 
-The official documentation is available in the [`docs/`](docs/) directory.
+The official documentation is available in the [`doc/`](doc/) directory.
 
 Documentation is considered part of the project and may evolve alongside the language and compiler.
 
