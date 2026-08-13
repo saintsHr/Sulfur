@@ -62,6 +62,7 @@ typedef enum {
   SF_TOKEN_TYPE_RPAREN,    // )
   SF_TOKEN_TYPE_LBRACE,    // {
   SF_TOKEN_TYPE_RBRACE,    // }
+  SF_TOKEN_TYPE_COMMA,     // ,
 
   // types
   SF_TOKEN_TYPE_KW_I8,  // i8
@@ -83,6 +84,10 @@ typedef enum {
   SF_TOKEN_TYPE_KW_IF,    // if
   SF_TOKEN_TYPE_KW_ELSE,  // else
   SF_TOKEN_TYPE_KW_WHILE, // while
+
+  // functions
+  SF_TOKEN_TYPE_KW_FN,     // fn
+  SF_TOKEN_TYPE_KW_RETURN, // return
 
   // special
   SF_TOKEN_TYPE_UNDEFINED,
@@ -147,6 +152,7 @@ static const sf_map_type_string token_string_map[] = {
     {SF_TOKEN_TYPE_RPAREN, ")"},
     {SF_TOKEN_TYPE_LBRACE, "{"},
     {SF_TOKEN_TYPE_RBRACE, "}"},
+    {SF_TOKEN_TYPE_COMMA, ","},
 
     // types
     {SF_TOKEN_TYPE_KW_I8, "i8"},
@@ -166,6 +172,10 @@ static const sf_map_type_string token_string_map[] = {
     {SF_TOKEN_TYPE_KW_IF, "if"},
     {SF_TOKEN_TYPE_KW_ELSE, "else"},
     {SF_TOKEN_TYPE_KW_WHILE, "while"},
+
+    // functions
+    {SF_TOKEN_TYPE_KW_FN, "fn"},
+    {SF_TOKEN_TYPE_KW_RETURN, "return"},
 };
 
 sf_token_list sf_tokenize(const char *input, const char *filename);

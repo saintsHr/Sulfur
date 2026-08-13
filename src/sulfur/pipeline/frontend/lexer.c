@@ -376,6 +376,10 @@ static sf_token read_symbol(const char *input, int *i, int *col, int line) {
     tk.type = SF_TOKEN_TYPE_RPAREN;
     break;
 
+  case ',':
+    tk.type = SF_TOKEN_TYPE_COMMA;
+    break;
+
   case '&': {
     if (c2 == '&') {
       make_two_char_token(&tk, i, col, c1, c2, SF_TOKEN_TYPE_AMP_AMP);
