@@ -215,6 +215,12 @@ static sf_token read_number(const char *input, int *i, int *col, int line) {
     char c = input[*i];
     int digit = -1;
 
+    if (c == '_') {
+      (*i)++;
+      (*col)++;
+      continue;
+    }
+
     if (base == 10) {
       if (isdigit(c))
         digit = c - '0';
