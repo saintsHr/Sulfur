@@ -479,36 +479,29 @@ static sf_ast_node *parse_if_stmt(sf_arena *arena, sf_token_list list,
 
   sf_token token = advance(list, current); // gets "if" keyword token
 
-  // expects "("
-  if (!expect(list, current, SF_TOKEN_TYPE_LPAREN, filename)) {
-    recover_statement(list, current);
-    return NULL;
-  }
-
-  // gets condition inside of "( )"
+  // gets condition
   sf_ast_node *condition = parse_logical_or(arena, list, current, filename);
   if (condition == NULL) {
     recover_statement(list, current);
     return NULL;
   }
 
-  // expects ")"
-  if (!expect(list, current, SF_TOKEN_TYPE_RPAREN, filename)) {
-    recover_statement(list, current);
-    return NULL;
-  }
-
-  // gets "then" body inside of "{ }" or inline
-  sf_ast_node *branch_then = parse_statement(arena, list, current, filename);
+  // gets "then" body inside of "{ }"
+  sf_ast_node *branch_then = parse_block(arena, list, current, filename);
   if (branch_then == NULL) {
     recover_statement(list, current);
     return NULL;
   }
 
-  // gets "else" body inside of "{ }" or inline, if present
+  // gets "else" body inside "{ }", if present
   sf_ast_node *branch_else = NULL;
   if (match(list, current, SF_TOKEN_TYPE_KW_ELSE)) {
-    branch_else = parse_statement(arena, list, current, filename);
+    if (peek(list, current).type == SF_TOKEN_TYPE_KW_IF) {
+      branch_else = parse_if_stmt(arena, list, current, filename);
+    } else {
+      branch_else = parse_block(arena, list, current, filename);
+    }
+
     if (branch_else == NULL) {
       recover_statement(list, current);
       return NULL;
@@ -532,27 +525,15 @@ static sf_ast_node *parse_while_stmt(sf_arena *arena, sf_token_list list,
 
   sf_token token = advance(list, current); // gets "while" keyword token
 
-  // expects "("
-  if (!expect(list, current, SF_TOKEN_TYPE_LPAREN, filename)) {
-    recover_statement(list, current);
-    return NULL;
-  }
-
-  // gets condition inside of "( )"
+  // gets condition
   sf_ast_node *condition = parse_logical_or(arena, list, current, filename);
   if (condition == NULL) {
     recover_statement(list, current);
     return NULL;
   }
 
-  // expects ")"
-  if (!expect(list, current, SF_TOKEN_TYPE_RPAREN, filename)) {
-    recover_statement(list, current);
-    return NULL;
-  }
-
-  // gets "do" body inside of "{ }" or inline
-  sf_ast_node *branch_do = parse_statement(arena, list, current, filename);
+  // gets "do" body inside "{ }"
+  sf_ast_node *branch_do = parse_block(arena, list, current, filename);
   if (branch_do == NULL) {
     recover_statement(list, current);
     return NULL;
