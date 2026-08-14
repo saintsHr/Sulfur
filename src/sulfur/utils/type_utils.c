@@ -65,6 +65,9 @@ const char *type_value_name(sf_value_type type) {
   case SF_VAL_TYPE_BOOL:
     return "bool";
 
+  case SF_VAL_TYPE_VOID:
+    return "void";
+
   default:
     return "?";
   }
@@ -219,6 +222,9 @@ uint8_t type_value_width_bits(sf_value_type type) {
 
   case SF_VAL_TYPE_BOOL:
     return 8;
+
+  case SF_VAL_TYPE_VOID:
+    return 0;
 
   default:
     return 64;

@@ -77,6 +77,8 @@ typedef enum {
 
   SF_TOKEN_TYPE_KW_BOOL, // bool
 
+  SF_TOKEN_TYPE_KW_VOID, // void
+
   // cast
   SF_TOKEN_TYPE_KW_AS, // as
 
@@ -159,11 +161,15 @@ static const sf_map_type_string token_string_map[] = {
     {SF_TOKEN_TYPE_KW_I16, "i16"},
     {SF_TOKEN_TYPE_KW_I32, "i32"},
     {SF_TOKEN_TYPE_KW_I64, "i64"},
+
     {SF_TOKEN_TYPE_KW_U8, "u8"},
     {SF_TOKEN_TYPE_KW_U16, "u16"},
     {SF_TOKEN_TYPE_KW_U32, "u32"},
     {SF_TOKEN_TYPE_KW_U64, "u64"},
+
     {SF_TOKEN_TYPE_KW_BOOL, "bool"},
+
+    {SF_TOKEN_TYPE_KW_VOID, "void"},
 
     // cast
     {SF_TOKEN_TYPE_KW_AS, "as"},

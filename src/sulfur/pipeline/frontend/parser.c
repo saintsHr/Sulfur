@@ -7,6 +7,7 @@
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/lexer.h"
 #include "sulfur/utils/log.h"
+#include "sulfur/utils/string.h"
 #include "sulfur/utils/token_utils.h"
 
 static void recover_statement(sf_token_list list, size_t *current);
@@ -33,6 +34,8 @@ static sf_ast_node *parse_if_stmt(sf_arena *arena, sf_token_list list,
                                   size_t *current, const char *filename);
 static sf_ast_node *parse_while_stmt(sf_arena *arena, sf_token_list list,
                                      size_t *current, const char *filename);
+static sf_ast_node *parse_func(sf_arena *arena, sf_token_list list,
+                               size_t *current, const char *filename);
 
 static sf_ast_node *parse_block(sf_arena *arena, sf_token_list list,
                                 size_t *current, const char *filename);
@@ -375,7 +378,6 @@ static sf_ast_node *parse_declaration(sf_arena *arena, sf_token_list list,
            type_token.span, SF_SEV_ERROR, type_token.value);
 
     recover_statement(list, current);
-
     return NULL;
   }
 
@@ -545,6 +547,108 @@ static sf_ast_node *parse_while_stmt(sf_arena *arena, sf_token_list list,
   return (sf_ast_node *)while_stmt;
 }
 
+static sf_ast_node *parse_func(sf_arena *arena, sf_token_list list,
+                               size_t *current, const char *filename) {
+  if (filename == NULL)
+    return NULL;
+  if (current == NULL)
+    return NULL;
+  if (arena == NULL)
+    return NULL;
+
+  sf_token fn_token = advance(list, current); // gets "fn" keyword token
+
+  // gets name token
+  sf_token name_token = advance(list, current);
+  if (name_token.type != SF_TOKEN_TYPE_IDENTIFIER) {
+    sf_log("unexpected token", "expected a function name but found '%s'",
+           "follow the language syntax", filename, SF_PARSER_UNEXPECTED_TOKEN,
+           name_token.span, SF_SEV_ERROR, name_token.value);
+
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // creates node (without return type)
+  sf_func_decl_node *func = sf_new_func_decl(
+      arena, name_token.value, SF_VAL_TYPE_UNRESOLVED, fn_token.span);
+
+  // expects "("
+  if (!expect(list, current, SF_TOKEN_TYPE_LPAREN, filename)) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // gets parameters
+  if (peek(list, current).type != SF_TOKEN_TYPE_RPAREN) {
+    while (true) {
+      sf_token type_token = advance(list, current);
+      if (token_to_type(type_token) == SF_VAL_TYPE_UNRESOLVED) {
+        sf_log("unexpected token", "expected a type name but found '%s'",
+               "follow the language syntax", filename,
+               SF_PARSER_UNEXPECTED_TOKEN, type_token.span, SF_SEV_ERROR,
+               type_token.value);
+
+        recover_statement(list, current);
+        return NULL;
+      }
+
+      sf_token name_token = advance(list, current);
+      if (name_token.type != SF_TOKEN_TYPE_IDENTIFIER) {
+        sf_log("unexpected token", "expected a identifier but found '%s'",
+               "follow the language syntax", filename,
+               SF_PARSER_UNEXPECTED_TOKEN, name_token.span, SF_SEV_ERROR,
+               name_token.value);
+
+        recover_statement(list, current);
+        return NULL;
+      }
+
+      sf_parameter param = {.name = sf_strdup_arena(arena, name_token.value),
+                            .type = token_to_type(type_token)};
+
+      sf_function_add_parameter(arena, func, param);
+
+      if (!match(list, current, SF_TOKEN_TYPE_COMMA))
+        break;
+    }
+  }
+
+  // expects ")"
+  if (!expect(list, current, SF_TOKEN_TYPE_RPAREN, filename)) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  // gets the return type
+  sf_token ret_token = peek(list, current);
+  if (ret_token.type != SF_TOKEN_TYPE_LBRACE) {
+    if (token_is_type(ret_token)) {
+      func->return_type = token_to_type(ret_token);
+      advance(list, current);
+    } else {
+      sf_log("unexpected token", "expected '{' or type name but found '%s'",
+             "follow the language syntax", filename, SF_PARSER_UNEXPECTED_TOKEN,
+             ret_token.span, SF_SEV_ERROR, ret_token.value);
+
+      recover_statement(list, current);
+      return NULL;
+    }
+  } else {
+    func->return_type = SF_VAL_TYPE_VOID;
+  }
+
+  // gets body
+  sf_ast_node *body = parse_block(arena, list, current, filename);
+  if (body == NULL) {
+    recover_statement(list, current);
+    return NULL;
+  }
+  func->body = body;
+
+  return (sf_ast_node *)func;
+}
+
 static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
                                     size_t *current, const char *filename) {
   if (filename == NULL)
@@ -575,6 +679,10 @@ static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
 
   if (token_is_while(token)) {
     return parse_while_stmt(arena, list, current, filename);
+  }
+
+  if (token_is_fn(token)) {
+    return parse_func(arena, list, current, filename);
   }
 
   return parse_expr_stmt(arena, list, current, filename);

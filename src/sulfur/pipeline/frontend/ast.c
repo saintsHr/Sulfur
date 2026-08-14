@@ -22,6 +22,7 @@ static void print_block(const sf_ast_node *node, int indent);
 static void print_cast_expr(const sf_ast_node *node, int indent);
 static void print_if_stmt(const sf_ast_node *node, int indent);
 static void print_while_stmt(const sf_ast_node *node, int indent);
+static void print_func_decl(const sf_ast_node *node, int indent);
 
 sf_program_node *sf_new_program(sf_arena *arena) {
   sf_program_node *program = sf_arena_alloc(arena, sizeof(sf_program_node));
@@ -89,6 +90,29 @@ void sf_block_add_statement(sf_arena *arena, sf_block_node *block,
   }
 
   block->statements[block->statement_count++] = stmt;
+}
+
+void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function,
+                               sf_parameter param) {
+  if (function->parameter_count >= function->parameter_capacity) {
+    function->parameter_capacity = function->parameter_capacity == 0
+                                       ? 8
+                                       : function->parameter_capacity * 2;
+
+    sf_parameter *new_parameters = sf_arena_grow_array(
+        arena, function->parameters, function->parameter_count,
+        function->parameter_capacity, sizeof(sf_parameter));
+
+    if (!new_parameters) {
+      sf_log("Insufficient Memory.", "Cannot allocate memory for compiling.",
+             "Free some memory and try again.", NULL,
+             SF_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_SEV_FATAL);
+    }
+
+    function->parameters = new_parameters;
+  }
+
+  function->parameters[function->parameter_count++] = param;
 }
 
 sf_identifier_node *sf_new_identifier(sf_arena *arena, const char *name,
@@ -214,6 +238,24 @@ sf_while_stmt_node *sf_new_while_stmt(sf_arena *arena, sf_ast_node *condition,
   return node;
 }
 
+sf_func_decl_node *sf_new_func_decl(sf_arena *arena, const char *name,
+                                    sf_value_type return_type, sf_span span) {
+  sf_func_decl_node *node = sf_arena_alloc(arena, sizeof(sf_func_decl_node));
+
+  node->base.type = SF_NODE_FUNC_DECL;
+  node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+  node->base.span = span;
+
+  node->name = sf_strdup_arena(arena, name);
+  node->return_type = return_type;
+  node->parameters = NULL;
+  node->parameter_capacity = 0;
+  node->parameter_count = 0;
+  node->body = NULL;
+
+  return node;
+}
+
 void sf_print_ast(sf_ast_node *root) { print_ast_node(root, 0); }
 
 static void print_indent(int indent) {
@@ -258,6 +300,11 @@ static void print_ast_node(sf_ast_node *node, int indent) {
     break;
   case SF_NODE_WHILE_STMT:
     print_while_stmt(node, indent);
+    break;
+  case SF_NODE_FUNC_DECL:
+    print_func_decl(node, indent);
+    break;
+  default:
     break;
   }
 }
@@ -339,7 +386,7 @@ static void print_cast_expr(const sf_ast_node *node, int indent) {
   sf_cast_expr_node *cast = (sf_cast_expr_node *)node;
 
   print_indent(indent);
-  printf("Cast to %s\n", type_value_name(cast->target_type));
+  printf("Cast : %s\n", type_value_name(cast->target_type));
 
   print_ast_node(cast->operand, indent + 1);
 }
@@ -378,4 +425,24 @@ static void print_while_stmt(const sf_ast_node *node, int indent) {
   print_indent(indent + 1);
   printf("Do\n");
   print_ast_node(while_stmt->branch_do, indent + 2);
+}
+
+static void print_func_decl(const sf_ast_node *node, int indent) {
+  sf_func_decl_node *func_decl = (sf_func_decl_node *)node;
+
+  print_indent(indent);
+  printf("Function %s : %s\n", func_decl->name,
+         type_value_name(func_decl->return_type));
+
+  print_indent(indent + 1);
+  printf("Parameters\n");
+  for (size_t i = 0; i < func_decl->parameter_count; i++) {
+    print_indent(indent + 2);
+    printf("%s : %s\n", func_decl->parameters[i].name,
+           type_value_name(func_decl->parameters[i].type));
+  }
+
+  print_indent(indent + 1);
+  printf("Body\n");
+  print_ast_node(func_decl->body, indent + 2);
 }

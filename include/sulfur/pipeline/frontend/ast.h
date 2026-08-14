@@ -19,6 +19,7 @@ typedef enum {
   SF_NODE_BLOCK,
   SF_NODE_IF_STMT,
   SF_NODE_WHILE_STMT,
+  SF_NODE_FUNC_DECL,
 } sf_node_type;
 
 typedef enum {
@@ -33,6 +34,8 @@ typedef enum {
   SF_VAL_TYPE_U64,
 
   SF_VAL_TYPE_BOOL,
+
+  SF_VAL_TYPE_VOID,
 
   SF_VAL_TYPE_UNRESOLVED,
 } sf_value_type;
@@ -75,6 +78,11 @@ typedef enum {
   // fallback
   SF_OP_TYPE_UNRESOLVED
 } sf_operation_type;
+
+typedef struct {
+  sf_value_type type;
+  char *name;
+} sf_parameter;
 
 typedef struct {
   sf_node_type type;
@@ -156,12 +164,24 @@ typedef struct {
   sf_ast_node *branch_do;
 } sf_while_stmt_node;
 
+typedef struct {
+  sf_ast_node base;
+  char *name;
+  sf_parameter *parameters;
+  size_t parameter_count;
+  size_t parameter_capacity;
+  sf_value_type return_type;
+  sf_ast_node *body;
+} sf_func_decl_node;
+
 void sf_print_ast(sf_ast_node *root);
 
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program,
                               sf_ast_node *stmt);
 void sf_block_add_statement(sf_arena *arena, sf_block_node *block,
                             sf_ast_node *stmt);
+void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function,
+                               sf_parameter param);
 
 sf_program_node *sf_new_program(sf_arena *arena);
 
@@ -196,3 +216,6 @@ sf_if_stmt_node *sf_new_if_stmt(sf_arena *arena, sf_ast_node *condition,
 
 sf_while_stmt_node *sf_new_while_stmt(sf_arena *arena, sf_ast_node *condition,
                                       sf_ast_node *branch_do, sf_span span);
+
+sf_func_decl_node *sf_new_func_decl(sf_arena *arena, const char *name,
+                                    sf_value_type return_type, sf_span span);

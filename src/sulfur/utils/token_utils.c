@@ -25,6 +25,9 @@ bool token_is_type(sf_token token) {
   if (token.type == SF_TOKEN_TYPE_KW_BOOL)
     return true;
 
+  if (token.type == SF_TOKEN_TYPE_KW_VOID)
+    return true;
+
   return false;
 }
 
@@ -37,9 +40,12 @@ bool token_is_block(sf_token token) {
 }
 
 bool token_is_if(sf_token token) { return (token.type == SF_TOKEN_TYPE_KW_IF); }
+
 bool token_is_while(sf_token token) {
   return (token.type == SF_TOKEN_TYPE_KW_WHILE);
 }
+
+bool token_is_fn(sf_token token) { return (token.type == SF_TOKEN_TYPE_KW_FN); }
 
 bool token_is_assignment_op(sf_token_type t) {
   switch (t) {
@@ -81,6 +87,9 @@ sf_value_type token_to_type(sf_token token) {
 
   case SF_TOKEN_TYPE_KW_BOOL:
     return SF_VAL_TYPE_BOOL;
+
+  case SF_TOKEN_TYPE_KW_VOID:
+    return SF_VAL_TYPE_VOID;
 
   default:
     return SF_VAL_TYPE_UNRESOLVED;
