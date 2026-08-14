@@ -1,73 +1,103 @@
-# Sulfur
+<p align="center">
+  <img src="assets/sulfur-banner.png">
+</p>
 
-Sulfur is a systems programming language designed for developers who want **maximum performance and low-level control** without sacrificing **ergonomics, safety, and simplicity**.
+<p align="center">
+  <a href="https://github.com/saintsHr/Sulfur/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/saintsHr/Sulfur/ci.yml?branch=main&style=flat-square&label=CI" alt="CI">
+  </a>
+  <a href="https://github.com/saintsHr/Sulfur/stargazers">
+    <img src="https://img.shields.io/github/stars/saintsHr/Sulfur?style=flat-square" alt="Stars">
+  </a>
+  <a href="https://github.com/saintsHr/Sulfur/network/members">
+    <img src="https://img.shields.io/github/forks/saintsHr/Sulfur?style=flat-square" alt="Forks">
+  </a>
+  <a href="https://github.com/saintsHr/Sulfur/issues">
+    <img src="https://img.shields.io/github/issues/saintsHr/Sulfur?style=flat-square" alt="Issues">
+  </a>
+  <a href="https://github.com/saintsHr/Sulfur/commits/main">
+    <img src="https://img.shields.io/github/last-commit/saintsHr/Sulfur?style=flat-square" alt="Last Commit">
+  </a>
+  <a href="https://github.com/saintsHr/Sulfur/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/saintsHr/Sulfur?style=flat-square" alt="License">
+  </a>
+</p>
 
-Its goal is to remain predictable and lightweight while providing modern language features that reduce boilerplate, encourage explicit behavior, and help prevent common programming mistakes.
+<h1 align="center">⟨ Sulfur ⟩</h1>
 
-## Goals
+<p align="center">
+  A low-level, systems-oriented programming language focused on
+  <strong>explicit behavior, predictable execution, and direct control over memory.</strong>
+</p>
 
-* 🚀 **Zero-cost abstractions**
-* ⚡ **High performance**
-* 🎯 **Explicit control over behavior**
-* 🛡️ **Safe by default whenever possible**
-* 🧩 **Simple and consistent syntax**
-* 📦 **Minimal language, powerful foundations**
-* 🔍 **Predictable compilation and runtime behavior**
+<p align="center">
+  Performance · Safety · Predictability · Explicitness · Determinism · Control
+</p>
 
-## Current Status
+## 🧭 Design
 
-Sulfur is currently under **active development** and is **not yet production-ready**.
+Sulfur favors:
 
-The language, compiler, standard library, and tooling are still evolving, and breaking changes are expected. APIs, syntax, semantics, and internal implementation details may change as the project matures.
+* **Explicitness over convenience**
+* **Predictability over flexibility**
+* **Control over abstraction**
+* **Clarity over cleverness**
+* **Interoperability over isolation**
 
-## Documentation
+Data is immutable by default. Mutation is explicit. Memory allocation and
+lifetime are controlled by the programmer rather than a garbage collector or
+automatic memory manager.
 
-The official documentation is available in the [`doc/`](doc/) directory.
+The compiler is responsible for enforcing what can be proven statically.
+When it cannot prove that an operation is safe, it should make that limitation
+visible rather than hiding it behind runtime behavior.
 
-Documentation is considered part of the project and may evolve alongside the language and compiler.
+For the full design rationale, see [`MANIFEST.md`](MANIFEST.md).
 
-## Example
+## 🎯 Goals
 
-```sulfur
-i32 x = 93;
-u64 y;
+* Performance suitable for systems software
+* A predictable memory and execution model
+* Explicit control over allocation, mutation, and lifetime
+* Static detection of memory-safety problems where possible
+* Straightforward interoperability with existing systems software
+* Portability across operating systems and architectures
+* A small language with composable rules
 
-y = 74;
+## 🚫 Non-Goals
 
-i16 z = ((x + y) * y) as i16;
-```
+Sulfur intentionally does not aim to provide:
 
-## Responsible Use of AI
+* Garbage collection or automatic memory management
+* Hidden runtime behavior
+* Dynamic typing
+* Implicit mutation
+* Abstractions that conceal performance or memory costs
+* Language features that exist primarily for syntactic convenience
 
-AI tools are used during the development of Sulfur as **development assistance**, primarily for tasks that are mechanical, repetitive, or supportive.
+## 🛠️ Current Status
 
-Examples include:
+Sulfur is **experimental and under active development**.
+The compiler, language specification, standard library, syntax, and
+semantics are still evolving. Breaking changes are expected,
+and current code should not be assumed to remain compatible
+with future versions.
 
-* 📚 Documentation and technical writing
-* 🧪 Test case design and test scenarios
-* 🔧 Auxiliary scripts and tooling
-* 📝 Text organization and review
-* 📋 Examples, templates, and other development artifacts
-* 🤖 Repetitive tasks where automation can improve productivity
+## 📚 Documentation
 
-### Source Code
+Project documentation is available in [`doc/`](doc/).
 
-**AI is not used to generate or directly author the real production source code of Sulfur.**
+The [`MANIFEST.md`](MANIFEST.md) describes the principles and constraints
+that guide the language's design.
 
-The language implementation, compiler, core logic, and other important parts of the project are developed and maintained by the project contributors.
+## 🤝 Contributing
 
-AI-generated suggestions or artifacts, when used, are **always reviewed by a human before being accepted or incorporated into the project**.
+Sulfur is still being shaped.
 
-The purpose of using AI is to reduce repetitive work and improve productivity, while keeping **engineering decisions, code ownership, correctness, and responsibility firmly under human control**.
+Contributions, experiments, bug reports, and technical discussion are welcome.
+Keep in mind that parts of the language and compiler are not yet stable,
+and proposed changes may affect the design itself.
 
-> **AI is a tool for assistance, not a replacement for engineering judgment or human review.**
-
-## Contributing
-
-Sulfur is an evolving project, and contributions, feedback, experiments, and discussions are welcome.
-
-Before contributing, please keep in mind that the language and its ecosystem are still experimental and may undergo significant changes.
-
-## License
+## 📄 License
 
 Sulfur is released under the **MIT License**.
