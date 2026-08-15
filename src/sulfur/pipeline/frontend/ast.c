@@ -472,8 +472,6 @@ static void print_return_stmt(const sf_ast_node *node, int indent) {
   printf("Return\n");
 
   if (ret_stmt->value != NULL) {
-    print_indent(indent + 1);
-    printf("Value\n");
-    print_ast_node(ret_stmt->value, indent + 2);
+    print_ast_node(ret_stmt->value, indent + 1);
   }
 }

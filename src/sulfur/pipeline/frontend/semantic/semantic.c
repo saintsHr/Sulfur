@@ -8,12 +8,16 @@
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/lexer.h"
 #include "sulfur/pipeline/frontend/semantic/scope.h"
+#include "sulfur/pipeline/frontend/semantic/symbol.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/type_utils.h"
 
 static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
-                         sf_scope *scope, const char *filename);
+                         sf_func_symbol_table *funcs, sf_scope *scope,
+                         const char *filename);
 static void analyze_statement(sf_ast_node *node, sf_scope *scope,
+                              sf_func_symbol_table *funcs,
+                              sf_func_decl_node *current_func,
                               const char *filename);
 
 static bool try_eval_const_uint(sf_ast_node *node, uint64_t *out_value);
@@ -28,23 +32,32 @@ static void report_undeclared(const char *name, sf_scope *scope, sf_span span,
 
 static bool check_assignment_type(sf_value_type resolved, sf_value_type target,
                                   sf_span span, const char *filename);
+static bool check_return_type(sf_value_type resolved, sf_value_type target,
+                              const char *func_name, sf_span span,
+                              const char *filename);
+
+static bool stmt_always_returns(sf_ast_node *node);
 
 void sf_analyze(sf_program_node *program, const char *filename) {
   sf_scope scope;
+  sf_func_symbol_table funcs;
 
   scope_init(&scope);
   scope_push(&scope);
+  sf_func_symbol_table_init(&funcs);
 
   for (uint64_t i = 0; i < program->statement_count; i++) {
-    analyze_statement(program->statements[i], &scope, filename);
+    analyze_statement(program->statements[i], &scope, &funcs, NULL, filename);
   }
 
   scope_pop(&scope);
   scope_free(&scope);
+  sf_func_symbol_table_free(&funcs);
 }
 
 static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
-                         sf_scope *scope, const char *filename) {
+                         sf_func_symbol_table *funcs, sf_scope *scope,
+                         const char *filename) {
   switch (node->type) {
   case SF_NODE_BINARY_EXPR: {
     sf_binary_expr_node *bin = (sf_binary_expr_node *)node;
@@ -78,7 +91,7 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
     bool swap_order = is_relational && left_is_literal && !right_is_literal;
 
     if (swap_order) {
-      if (!analyze_expr(bin->right, operand_expected, scope, filename))
+      if (!analyze_expr(bin->right, operand_expected, funcs, scope, filename))
         return false;
 
       sf_value_type left_expected = operand_expected;
@@ -87,10 +100,10 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
         left_expected = bin->right->resolved;
       }
 
-      if (!analyze_expr(bin->left, left_expected, scope, filename))
+      if (!analyze_expr(bin->left, left_expected, funcs, scope, filename))
         return false;
     } else {
-      if (!analyze_expr(bin->left, operand_expected, scope, filename))
+      if (!analyze_expr(bin->left, operand_expected, funcs, scope, filename))
         return false;
 
       sf_value_type right_expected = operand_expected;
@@ -99,7 +112,7 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
         right_expected = bin->left->resolved;
       }
 
-      if (!analyze_expr(bin->right, right_expected, scope, filename))
+      if (!analyze_expr(bin->right, right_expected, funcs, scope, filename))
         return false;
     }
 
@@ -291,7 +304,7 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
       if (!type_value_is_signed(expected))
         pass_down = SF_VAL_TYPE_I64;
 
-      if (!analyze_expr(un->operand, pass_down, scope, filename))
+      if (!analyze_expr(un->operand, pass_down, funcs, scope, filename))
         return false;
 
       sf_value_type child_type = un->operand->resolved;
@@ -312,7 +325,7 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
     }
 
     case SF_OP_TYPE_BITWISE_NOT: {
-      if (!analyze_expr(un->operand, expected, scope, filename))
+      if (!analyze_expr(un->operand, expected, funcs, scope, filename))
         return false;
 
       sf_value_type child_type = un->operand->resolved;
@@ -341,7 +354,7 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
         return false;
       }
 
-      if (!analyze_expr(un->operand, expected, scope, filename))
+      if (!analyze_expr(un->operand, expected, funcs, scope, filename))
         return false;
 
       sf_value_type child_type = un->operand->resolved;
@@ -359,7 +372,7 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
     }
 
     case SF_OP_TYPE_LOGICAL_NOT: {
-      if (!analyze_expr(un->operand, SF_VAL_TYPE_BOOL, scope, filename))
+      if (!analyze_expr(un->operand, SF_VAL_TYPE_BOOL, funcs, scope, filename))
         return false;
 
       if (un->operand->resolved != SF_VAL_TYPE_BOOL) {
@@ -390,7 +403,8 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
   case SF_NODE_CAST_EXPR: {
     sf_cast_expr_node *cast = (sf_cast_expr_node *)node;
 
-    if (!analyze_expr(cast->operand, SF_VAL_TYPE_UNRESOLVED, scope, filename))
+    if (!analyze_expr(cast->operand, SF_VAL_TYPE_UNRESOLVED, funcs, scope,
+                      filename))
       return false;
 
     sf_value_type from_type = cast->operand->resolved;
@@ -461,7 +475,7 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
 
   case SF_NODE_IDENTIFIER: {
     sf_identifier_node *id = (sf_identifier_node *)node;
-    sf_symbol *sym = scope_lookup(scope, id->name);
+    sf_var_symbol *sym = scope_lookup(scope, id->name);
 
     if (sym == NULL) {
       report_undeclared(id->name, scope, node->span, filename);
@@ -487,12 +501,14 @@ static bool analyze_expr(sf_ast_node *node, sf_value_type expected,
 }
 
 static void analyze_statement(sf_ast_node *node, sf_scope *scope,
+                              sf_func_symbol_table *funcs,
+                              sf_func_decl_node *current_func,
                               const char *filename) {
   switch (node->type) {
   case SF_NODE_VAR_DECL: {
     sf_var_decl_node *var = (sf_var_decl_node *)node;
 
-    sf_symbol sym = {
+    sf_var_symbol sym = {
         .name = var->name,
         .type = var->var_type,
         .initialized = var->value != NULL,
@@ -500,7 +516,7 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
     };
 
     if (var->value != NULL) {
-      if (!analyze_expr(var->value, var->var_type, scope, filename))
+      if (!analyze_expr(var->value, var->var_type, funcs, scope, filename))
         break;
       if (!check_assignment_type(var->value->resolved, var->var_type,
                                  var->base.span, filename))
@@ -517,7 +533,7 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
   case SF_NODE_VAR_ASSIGN: {
     sf_var_assign_node *asg = (sf_var_assign_node *)node;
 
-    sf_symbol *sym = scope_lookup(scope, asg->name);
+    sf_var_symbol *sym = scope_lookup(scope, asg->name);
 
     if (sym == NULL) {
       report_undeclared(asg->name, scope, node->span, filename);
@@ -526,7 +542,7 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
 
     asg->id = sym->id;
 
-    if (!analyze_expr(asg->value, sym->type, scope, filename))
+    if (!analyze_expr(asg->value, sym->type, funcs, scope, filename))
       break;
     if (!check_assignment_type(asg->value->resolved, sym->type, asg->base.span,
                                filename))
@@ -544,7 +560,8 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
     sf_block_node *block = (sf_block_node *)node;
 
     for (uint32_t i = 0; i < block->statement_count; i++) {
-      analyze_statement(block->statements[i], scope, filename);
+      analyze_statement(block->statements[i], scope, funcs, current_func,
+                        filename);
     }
 
     scope_pop(scope);
@@ -555,7 +572,8 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
   case SF_NODE_IF_STMT: {
     sf_if_stmt_node *if_stmt = (sf_if_stmt_node *)node;
 
-    if (!analyze_expr(if_stmt->condition, SF_VAL_TYPE_BOOL, scope, filename)) {
+    if (!analyze_expr(if_stmt->condition, SF_VAL_TYPE_BOOL, funcs, scope,
+                      filename)) {
       break;
     }
 
@@ -569,9 +587,11 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
       break;
     }
 
-    analyze_statement(if_stmt->branch_then, scope, filename);
+    analyze_statement(if_stmt->branch_then, scope, funcs, current_func,
+                      filename);
     if (if_stmt->branch_else) {
-      analyze_statement(if_stmt->branch_else, scope, filename);
+      analyze_statement(if_stmt->branch_else, scope, funcs, current_func,
+                        filename);
     }
 
     break;
@@ -580,7 +600,7 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
   case SF_NODE_WHILE_STMT: {
     sf_while_stmt_node *while_stmt = (sf_while_stmt_node *)node;
 
-    if (!analyze_expr(while_stmt->condition, SF_VAL_TYPE_BOOL, scope,
+    if (!analyze_expr(while_stmt->condition, SF_VAL_TYPE_BOOL, funcs, scope,
                       filename)) {
       break;
     }
@@ -595,13 +615,111 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
       break;
     }
 
-    analyze_statement(while_stmt->branch_do, scope, filename);
+    analyze_statement(while_stmt->branch_do, scope, funcs, current_func,
+                      filename);
+
+    break;
+  }
+
+  case SF_NODE_FUNC_DECL: {
+    sf_func_decl_node *func = (sf_func_decl_node *)node;
+
+    sf_func_symbol sym = {
+        .name = func->name,
+        .return_type = func->return_type,
+        .parameter_count = func->parameter_count,
+        .span = func->base.span,
+        .parameters = func->parameters,
+    };
+
+    sf_func_symbol_table_insert(funcs, sym, filename);
+
+    scope_push(scope);
+
+    for (size_t i = 0; i < func->parameter_count; i++) {
+      sf_parameter param = func->parameters[i];
+
+      sf_var_symbol param_sym = {.initialized = true,
+                                 .name = param.name,
+                                 .span = func->base.span,
+                                 .type = param.type};
+
+      scope_insert(scope, param_sym, filename);
+    }
+
+    analyze_statement(func->body, scope, funcs, func, filename);
+
+    if (func->return_type != SF_VAL_TYPE_VOID) {
+      if (!stmt_always_returns(func->body)) {
+        sf_log(
+            "missing return",
+            "function '%s' does not return a value of type '%s' in all paths",
+            "check all paths for missing returns", filename,
+            SF_SEMANTIC_MISSING_RETURN, func->base.span, SF_SEV_ERROR,
+            func->name, type_value_name(func->return_type));
+      }
+    }
+
+    scope_pop(scope);
+
+    break;
+  }
+
+  case SF_NODE_RETURN_STMT: {
+    sf_return_stmt_node *ret = (sf_return_stmt_node *)node;
+
+    if (current_func == NULL) {
+      sf_log("return outside function",
+             "'return' cannot be used outside of a function",
+             "move this return inside a function body, or remove it", filename,
+             SF_SEMANTIC_RETURN_OUTSIDE_FUNCTION, ret->base.span, SF_SEV_ERROR);
+      break;
+    }
+
+    if (ret->value == NULL) {
+      if (current_func->return_type != SF_VAL_TYPE_VOID) {
+        sf_log("missing return value",
+               "function '%s' expects a return value of type '%s', but this "
+               "'return' provides none",
+               "return a value of the expected type, or change the function's "
+               "return type to 'void'",
+               filename, SF_SEMANTIC_NO_VALUE_RETURN, ret->base.span,
+               SF_SEV_ERROR, current_func->name,
+               type_value_name(current_func->return_type));
+      }
+
+      break;
+    }
+
+    if (current_func->return_type == SF_VAL_TYPE_VOID) {
+      if (!analyze_expr(ret->value, SF_VAL_TYPE_UNRESOLVED, funcs, scope,
+                        filename))
+        break;
+
+      sf_log("unexpected return value",
+             "function '%s' is 'void' and should not return a value, but this "
+             "'return' provides a value of type '%s'",
+             "remove the returned value, or give the function a non-void "
+             "return type",
+             filename, SF_SEMANTIC_VOID_RETURN_VALUE, ret->base.span,
+             SF_SEV_ERROR, current_func->name,
+             type_value_name(ret->value->resolved));
+
+      break;
+    }
+
+    if (!analyze_expr(ret->value, current_func->return_type, funcs, scope,
+                      filename))
+      break;
+    if (!check_return_type(ret->value->resolved, current_func->return_type,
+                           current_func->name, ret->base.span, filename))
+      break;
 
     break;
   }
 
   default: {
-    analyze_expr(node, SF_VAL_TYPE_UNRESOLVED, scope, filename);
+    analyze_expr(node, SF_VAL_TYPE_UNRESOLVED, funcs, scope, filename);
     break;
   }
   }
@@ -1088,4 +1206,67 @@ static bool check_assignment_type(sf_value_type resolved, sf_value_type target,
   }
 
   return true;
+}
+
+static bool check_return_type(sf_value_type resolved, sf_value_type target,
+                              const char *func_name, sf_span span,
+                              const char *filename) {
+  if (resolved == SF_VAL_TYPE_UNRESOLVED)
+    return true;
+
+  if (!type_value_is_same_group(resolved, target)) {
+    sf_log("type mismatch",
+           "function '%s' expects to return '%s', but this expression has "
+           "type '%s'",
+           "make sure the returned expression matches the function's return "
+           "type, or cast it",
+           filename, SF_SEMANTIC_TYPE_MISMATCH, span, SF_SEV_ERROR, func_name,
+           type_value_name(target), type_value_name(resolved));
+    return false;
+  }
+
+  if (type_value_width_bits(resolved) > type_value_width_bits(target)) {
+    sf_log("narrowing conversion",
+           "cannot implicitly narrow '%s' to '%s' when returning from "
+           "function '%s'",
+           "cast the value explicitly, or change the function's return type",
+           filename, SF_SEMANTIC_INVALID_IMPLICIT_CAST, span, SF_SEV_ERROR,
+           type_value_name(resolved), type_value_name(target), func_name);
+    return false;
+  }
+
+  return true;
+}
+
+static bool stmt_always_returns(sf_ast_node *node) {
+  if (node == NULL)
+    return false;
+
+  switch (node->type) {
+  case SF_NODE_RETURN_STMT:
+    return true;
+
+  case SF_NODE_BLOCK: {
+    sf_block_node *block = (sf_block_node *)node;
+
+    if (block->statement_count == 0)
+      return false;
+
+    sf_ast_node *last = block->statements[block->statement_count - 1];
+    return stmt_always_returns(last);
+  }
+
+  case SF_NODE_IF_STMT: {
+    sf_if_stmt_node *if_stmt = (sf_if_stmt_node *)node;
+
+    if (if_stmt->branch_else == NULL)
+      return false;
+
+    return stmt_always_returns(if_stmt->branch_then) &&
+           stmt_always_returns(if_stmt->branch_else);
+  }
+
+  default:
+    return false;
+  }
 }

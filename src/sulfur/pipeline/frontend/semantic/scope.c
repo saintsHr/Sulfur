@@ -17,11 +17,11 @@ void scope_push(sf_scope *scope) {
   if (scope->depth >= scope->capacity) {
     scope->capacity = scope->capacity == 0 ? 8 : scope->capacity * 2;
     scope->stack =
-        realloc(scope->stack, scope->capacity * sizeof(sf_symbol_table));
+        realloc(scope->stack, scope->capacity * sizeof(sf_var_symbol_table));
   }
 
-  sf_symbol_table table;
-  symbol_table_init(&table);
+  sf_var_symbol_table table;
+  sf_var_symbol_table_init(&table);
 
   scope->stack[scope->depth] = table;
 
@@ -29,13 +29,13 @@ void scope_push(sf_scope *scope) {
 }
 
 void scope_pop(sf_scope *scope) {
-  symbol_table_free(&scope->stack[scope->depth - 1]);
+  sf_var_symbol_table_free(&scope->stack[scope->depth - 1]);
   scope->depth--;
 }
 
-sf_symbol *scope_lookup(sf_scope *scope, const char *name) {
+sf_var_symbol *scope_lookup(sf_scope *scope, const char *name) {
   for (int32_t i = scope->depth - 1; i >= 0; i--) {
-    sf_symbol *symbol = symbol_table_lookup(&scope->stack[i], name);
+    sf_var_symbol *symbol = sf_var_symbol_table_lookup(&scope->stack[i], name);
     if (symbol != NULL)
       return symbol;
   }
@@ -43,9 +43,9 @@ sf_symbol *scope_lookup(sf_scope *scope, const char *name) {
   return NULL;
 }
 
-void scope_insert(sf_scope *scope, sf_symbol symbol, const char *filename) {
-  sf_symbol *sym =
-      symbol_table_lookup(&scope->stack[scope->depth - 1], symbol.name);
+void scope_insert(sf_scope *scope, sf_var_symbol symbol, const char *filename) {
+  sf_var_symbol *sym =
+      sf_var_symbol_table_lookup(&scope->stack[scope->depth - 1], symbol.name);
 
   if (sym != NULL) {
     sf_log("symbol redefinition", "'%s' is already declared in this scope",
@@ -59,8 +59,8 @@ void scope_insert(sf_scope *scope, sf_symbol symbol, const char *filename) {
   symbol.id = scope->next_id++;
   symbol.depth = scope->depth - 1;
 
-  sf_symbol_table *table = &scope->stack[scope->depth - 1];
-  symbol_table_insert(table, symbol, filename);
+  sf_var_symbol_table *table = &scope->stack[scope->depth - 1];
+  sf_var_symbol_table_insert(table, symbol, filename);
 }
 
 void scope_free(sf_scope *scope) {
@@ -79,7 +79,7 @@ const char *scope_find_closest(sf_scope *scope, const char *name) {
 
   for (int32_t i = scope->depth - 1; i >= 0; i--) {
     for (uint32_t j = 0; j < scope->stack[i].count; j++) {
-      sf_symbol *sym = &scope->stack[i].symbols[j];
+      sf_var_symbol *sym = &scope->stack[i].symbols[j];
       uint32_t distance = levenshtein_distance(sym->name, name);
 
       if (distance < minimal_distance) {
