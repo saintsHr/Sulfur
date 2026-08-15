@@ -98,6 +98,18 @@ Contributions, experiments, bug reports, and technical discussion are welcome.
 Keep in mind that parts of the language and compiler are not yet stable,
 and proposed changes may affect the design itself.
 
+For more information, please read [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+
+## 🔒️ Security
+
+Sulfur is experimental and does not currently guarantee memory safety.
+Compiler bugs, unsafe operations, manual memory management, and FFI may
+introduce security vulnerabilities.
+
+If you discover a security vulnerability, please report it privately.
+See [`SECURITY.md`](SECURITY.md) for the reporting process and security
+policy.
+
 ## 📄 License
 
-Sulfur is released under the **MIT License**.
+Sulfur is released under the **MIT License**, found in [`LICENSE`](LICENSE).
