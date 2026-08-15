@@ -111,7 +111,7 @@ void sf_stack_populate(sf_stack_map *map, const sf_ir_program *program) {
 
   sf_stack_offset_size_t next_offset = 0;
 
-  for (uint64_t i = 0; i < program->count; i++) {
+  for (uint64_t i = 0; i < program->operation_count; i++) {
     sf_operation op = program->operations[i];
 
     if (op.operand1.type == SF_OPERAND_TYPE_VARIABLE ||

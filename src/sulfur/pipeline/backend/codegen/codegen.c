@@ -107,7 +107,7 @@ char *sf_generate_assembly(const sf_ir_program *program) {
   sf_strpush(buf, &as, &as_len, &as_capacity);
   sf_strpush("\n\n", &as, &as_len, &as_capacity);
 
-  for (uint32_t i = 0; i < program->count; i++) {
+  for (uint32_t i = 0; i < program->operation_count; i++) {
     sf_operation op = program->operations[i];
 
     switch (op.opcode) {

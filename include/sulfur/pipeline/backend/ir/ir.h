@@ -48,6 +48,7 @@ typedef enum {
   // other
   SF_OPCODE_ASSIGN,
   SF_OPCODE_CAST,
+  SF_OPCODE_RETURN,
 } sf_opcode;
 
 typedef struct {
@@ -71,11 +72,39 @@ typedef struct {
 
 typedef struct {
   sf_operation *operations;
-  uint32_t count;
-  uint32_t capacity;
+  uint32_t operation_count;
+  uint32_t operation_capacity;
+
+  sf_parameter *parameters;
+  size_t parameter_count;
+
+  sf_value_type return_type;
+
+  char *name;
+
+  uint32_t nextTemp;
+} sf_ir_function;
+
+typedef struct {
+  sf_operation *operations;
+  uint32_t operation_count;
+  uint32_t operation_capacity;
+
+  sf_ir_function *functions;
+  uint32_t function_count;
+  uint32_t function_capacity;
+
   uint32_t nextTemp;
   uint32_t nextLabel;
 } sf_ir_program;
+
+typedef struct {
+  sf_operation **operations;
+  uint32_t *operation_count;
+  uint32_t *operation_capacity;
+  uint32_t *nextTemp;
+  uint32_t *nextLabel;
+} sf_ir_context;
 
 sf_ir_program sf_generate_ir(sf_arena *arena, const sf_program_node *program);
 void sf_print_ir(const sf_ir_program *program);

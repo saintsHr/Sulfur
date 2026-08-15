@@ -9,15 +9,22 @@
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/utils/type_utils.h"
 
-static void push(sf_arena *arena, sf_ir_program *program,
+static void push(sf_arena *arena, sf_ir_context *context,
                  sf_operation operation);
 
-static void generate_statement(sf_arena *arena, sf_ir_program *program,
+static sf_ir_context context_from_program(sf_ir_program *program);
+static sf_ir_context context_from_function(sf_ir_function *function,
+                                           sf_ir_program *program);
+
+static sf_operand new_temporary(sf_ir_context *context, sf_value_type type);
+static sf_operand new_label(sf_ir_context *context);
+
+static void generate_statement(sf_arena *arena, sf_ir_context *context,
                                sf_ast_node *node, uint32_t depth);
-static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
+static sf_operand generate_expression(sf_arena *arena, sf_ir_context *context,
                                       sf_ast_node *node, uint32_t depth);
 static sf_operand generate_expression_into(sf_arena *arena,
-                                           sf_ir_program *program,
+                                           sf_ir_context *context,
                                            sf_ast_node *node, uint32_t depth,
                                            sf_operand *hint);
 
@@ -25,21 +32,23 @@ static void print_operand(sf_operand op);
 
 sf_ir_program sf_generate_ir(sf_arena *arena, const sf_program_node *program) {
   sf_ir_program ir = {
-      .capacity = 0,
-      .count = 0,
+      .operation_capacity = 0,
+      .operation_count = 0,
       .nextTemp = 0,
       .operations = NULL,
   };
 
+  sf_ir_context ctx = context_from_program(&ir);
+
   for (uint64_t i = 0; i < program->statement_count; i++) {
-    generate_statement(arena, &ir, program->statements[i], 0);
+    generate_statement(arena, &ctx, program->statements[i], 0);
   }
 
   return ir;
 }
 
 void sf_print_ir(const sf_ir_program *program) {
-  for (size_t i = 0; i < program->count; i++) {
+  for (size_t i = 0; i < program->operation_count; i++) {
     sf_operation *op = &program->operations[i];
 
     bool is_control_flow = op->opcode == SF_OPCODE_LABEL ||
@@ -209,43 +218,63 @@ void sf_print_ir(const sf_ir_program *program) {
   }
 }
 
-static void push(sf_arena *arena, sf_ir_program *program,
+static void push(sf_arena *arena, sf_ir_context *context,
                  sf_operation operation) {
-  if (program->capacity <= 0) {
-    program->operations = sf_arena_grow_array(arena, program->operations, 0, 8,
-                                              sizeof(sf_operation));
-    program->capacity = 8;
+  if (*context->operation_capacity <= 0) {
+    *context->operations = sf_arena_grow_array(arena, *context->operations, 0,
+                                               8, sizeof(sf_operation));
+    *context->operation_capacity = 8;
   }
 
-  if (program->count >= program->capacity) {
-    size_t new_capacity = program->capacity * 2;
-    program->operations =
-        sf_arena_grow_array(arena, program->operations, program->capacity,
-                            new_capacity, sizeof(sf_operation));
-    program->capacity = new_capacity;
+  if (*context->operation_count >= *context->operation_capacity) {
+    size_t new_capacity = *context->operation_capacity * 2;
+    *context->operations = sf_arena_grow_array(
+        arena, *context->operations, *context->operation_capacity, new_capacity,
+        sizeof(sf_operation));
+    *context->operation_capacity = new_capacity;
   }
 
-  program->operations[program->count++] = operation;
+  (*context->operations)[(*context->operation_count)++] = operation;
 }
 
-static sf_operand new_temporary(sf_ir_program *program, sf_value_type type) {
+static sf_ir_context context_from_program(sf_ir_program *program) {
+  return (sf_ir_context){
+      .operations = &program->operations,
+      .operation_count = &program->operation_count,
+      .operation_capacity = &program->operation_capacity,
+      .nextTemp = &program->nextTemp,
+      .nextLabel = &program->nextLabel,
+  };
+}
+
+static sf_ir_context context_from_function(sf_ir_function *function,
+                                           sf_ir_program *program) {
+  return (sf_ir_context){
+      .operations = &function->operations,
+      .operation_count = &function->operation_count,
+      .operation_capacity = &function->operation_capacity,
+      .nextTemp = &function->nextTemp,
+      .nextLabel = &program->nextLabel,
+  };
+}
+
+static sf_operand new_temporary(sf_ir_context *context, sf_value_type type) {
   sf_operand op;
   op.type = SF_OPERAND_TYPE_TEMPORARY;
   op.value_type = type;
-  op.temporary_id = program->nextTemp++;
-
+  op.temporary_id = (*context->nextTemp)++;
   return op;
 }
 
-static sf_operand new_label(sf_ir_program *program) {
+static sf_operand new_label(sf_ir_context *context) {
   sf_operand op;
   op.type = SF_OPERAND_TYPE_LABEL;
   op.value_type = SF_VAL_TYPE_UNRESOLVED;
-  op.label_id = program->nextLabel++;
+  op.label_id = (*context->nextLabel)++;
   return op;
 }
 
-static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
+static sf_operand generate_expression(sf_arena *arena, sf_ir_context *context,
                                       sf_ast_node *node, uint32_t depth) {
   sf_operand operand;
 
@@ -253,8 +282,8 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
   case SF_NODE_BINARY_EXPR: {
     sf_binary_expr_node *ex = (sf_binary_expr_node *)node;
 
-    sf_operand left = generate_expression(arena, program, ex->left, depth);
-    sf_operand right = generate_expression(arena, program, ex->right, depth);
+    sf_operand left = generate_expression(arena, context, ex->left, depth);
+    sf_operand right = generate_expression(arena, context, ex->right, depth);
 
     sf_operand folded;
     if (sf_fold_constants(arena, left, right, type_operation_to_opcode(ex->op),
@@ -263,11 +292,11 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
       break;
     }
 
-    sf_operand dst = new_temporary(program, node->resolved);
+    sf_operand dst = new_temporary(context, node->resolved);
 
     operand = dst;
 
-    push(arena, program,
+    push(arena, context,
          (sf_operation){.opcode = type_operation_to_opcode(ex->op),
                         .operand1 = dst,
                         .operand2 = left,
@@ -285,7 +314,7 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
                       un->op == SF_OP_TYPE_POSTFIX_DECREMENT;
 
     if (is_inc_dec) {
-      sf_operand op = generate_expression(arena, program, un->operand, depth);
+      sf_operand op = generate_expression(arena, context, un->operand, depth);
 
       sf_operand one = {
           .type = SF_OPERAND_TYPE_IMMEDIATE,
@@ -293,7 +322,7 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
           .immediate_value = "1",
       };
 
-      sf_operand tmp = new_temporary(program, node->resolved);
+      sf_operand tmp = new_temporary(context, node->resolved);
 
       bool is_increment = (un->op == SF_OP_TYPE_PREFIX_INCREMENT ||
                            un->op == SF_OP_TYPE_POSTFIX_INCREMENT);
@@ -306,9 +335,9 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
       sf_operand result;
 
       if (is_postfix) {
-        sf_operand old = new_temporary(program, node->resolved);
+        sf_operand old = new_temporary(context, node->resolved);
 
-        push(arena, program,
+        push(arena, context,
              (sf_operation){
                  .opcode = SF_OPCODE_ASSIGN,
                  .operand1 = old,
@@ -319,7 +348,7 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
         result = old;
       }
 
-      push(arena, program,
+      push(arena, context,
            (sf_operation){
                .opcode = opc,
                .operand1 = tmp,
@@ -327,7 +356,7 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
                .operand3 = one,
            });
 
-      push(arena, program,
+      push(arena, context,
            (sf_operation){
                .opcode = SF_OPCODE_ASSIGN,
                .operand1 = op,
@@ -343,7 +372,7 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
       break;
     }
 
-    sf_operand src = generate_expression(arena, program, un->operand, depth);
+    sf_operand src = generate_expression(arena, context, un->operand, depth);
 
     sf_operand folded;
     if (sf_fold_constants(arena, src, (sf_operand){0},
@@ -353,11 +382,11 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
       break;
     }
 
-    sf_operand dst = new_temporary(program, node->resolved);
+    sf_operand dst = new_temporary(context, node->resolved);
 
     operand = dst;
 
-    push(arena, program,
+    push(arena, context,
          (sf_operation){.opcode = type_operation_to_opcode(un->op),
                         .operand1 = dst,
                         .operand2 = src,
@@ -401,12 +430,12 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
   case SF_NODE_CAST_EXPR: {
     sf_cast_expr_node *cast = (sf_cast_expr_node *)node;
 
-    sf_operand src = generate_expression(arena, program, cast->operand, depth);
-    sf_operand dst = new_temporary(program, node->resolved);
+    sf_operand src = generate_expression(arena, context, cast->operand, depth);
+    sf_operand dst = new_temporary(context, node->resolved);
 
     operand = dst;
 
-    push(arena, program,
+    push(arena, context,
          (sf_operation){.opcode = SF_OPCODE_CAST,
                         .operand1 = dst,
                         .operand2 = src,
@@ -424,15 +453,15 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_program *program,
 }
 
 static sf_operand generate_expression_into(sf_arena *arena,
-                                           sf_ir_program *program,
+                                           sf_ir_context *context,
                                            sf_ast_node *node, uint32_t depth,
                                            sf_operand *hint) {
   switch (node->type) {
   case SF_NODE_BINARY_EXPR: {
     sf_binary_expr_node *ex = (sf_binary_expr_node *)node;
 
-    sf_operand left = generate_expression(arena, program, ex->left, depth);
-    sf_operand right = generate_expression(arena, program, ex->right, depth);
+    sf_operand left = generate_expression(arena, context, ex->left, depth);
+    sf_operand right = generate_expression(arena, context, ex->right, depth);
 
     sf_opcode opcode = type_operation_to_opcode(ex->op);
 
@@ -442,9 +471,9 @@ static sf_operand generate_expression_into(sf_arena *arena,
       return folded;
     }
 
-    sf_operand dst = hint ? *hint : new_temporary(program, node->resolved);
+    sf_operand dst = hint ? *hint : new_temporary(context, node->resolved);
 
-    push(arena, program,
+    push(arena, context,
          (sf_operation){.opcode = opcode,
                         .operand1 = dst,
                         .operand2 = left,
@@ -456,8 +485,8 @@ static sf_operand generate_expression_into(sf_arena *arena,
   case SF_NODE_UNARY_EXPR: {
     sf_unary_expr_node *un = (sf_unary_expr_node *)node;
 
-    sf_operand src = generate_expression(arena, program, un->operand, depth);
-    sf_operand dst = hint ? *hint : new_temporary(program, node->resolved);
+    sf_operand src = generate_expression(arena, context, un->operand, depth);
+    sf_operand dst = hint ? *hint : new_temporary(context, node->resolved);
 
     sf_operand folded;
     if (sf_fold_constants(arena, src, (sf_operand){0},
@@ -466,7 +495,7 @@ static sf_operand generate_expression_into(sf_arena *arena,
       return folded;
     }
 
-    push(arena, program,
+    push(arena, context,
          (sf_operation){.opcode = type_operation_to_opcode(un->op),
                         .operand1 = dst,
                         .operand2 = src,
@@ -478,10 +507,10 @@ static sf_operand generate_expression_into(sf_arena *arena,
   case SF_NODE_CAST_EXPR: {
     sf_cast_expr_node *cast = (sf_cast_expr_node *)node;
 
-    sf_operand src = generate_expression(arena, program, cast->operand, depth);
-    sf_operand dst = hint ? *hint : new_temporary(program, node->resolved);
+    sf_operand src = generate_expression(arena, context, cast->operand, depth);
+    sf_operand dst = hint ? *hint : new_temporary(context, node->resolved);
 
-    push(arena, program,
+    push(arena, context,
          (sf_operation){.opcode = SF_OPCODE_CAST,
                         .operand1 = dst,
                         .operand2 = src,
@@ -491,11 +520,11 @@ static sf_operand generate_expression_into(sf_arena *arena,
   }
 
   default:
-    return generate_expression(arena, program, node, depth);
+    return generate_expression(arena, context, node, depth);
   }
 }
 
-static void generate_statement(sf_arena *arena, sf_ir_program *program,
+static void generate_statement(sf_arena *arena, sf_ir_context *context,
                                sf_ast_node *node, uint32_t depth) {
   switch (node->type) {
   case SF_NODE_VAR_DECL: {
@@ -514,7 +543,7 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
     };
 
     sf_operand src =
-        generate_expression_into(arena, program, dcl->value, depth, &dst);
+        generate_expression_into(arena, context, dcl->value, depth, &dst);
 
     bool wrote_directly = src.type == SF_OPERAND_TYPE_VARIABLE &&
                           strcmp(src.variable_name, dst.variable_name) == 0;
@@ -527,7 +556,7 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
           .operand3 = {0},
       };
 
-      push(arena, program, op);
+      push(arena, context, op);
     }
 
     break;
@@ -547,7 +576,7 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
     };
 
     sf_operand src =
-        generate_expression_into(arena, program, as->value, depth, &dst);
+        generate_expression_into(arena, context, as->value, depth, &dst);
 
     bool wrote_directly = src.type == SF_OPERAND_TYPE_VARIABLE &&
                           strcmp(src.variable_name, dst.variable_name) == 0;
@@ -560,7 +589,7 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
           .operand3 = {0},
       };
 
-      push(arena, program, op);
+      push(arena, context, op);
     }
 
     break;
@@ -570,7 +599,7 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
     sf_block_node *block = (sf_block_node *)node;
 
     for (size_t i = 0; i < block->statement_count; i++) {
-      generate_statement(arena, program, block->statements[i], depth + 1);
+      generate_statement(arena, context, block->statements[i], depth + 1);
     }
 
     break;
@@ -580,10 +609,10 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
     sf_if_stmt_node *if_stmt = (sf_if_stmt_node *)node;
 
     sf_operand cond =
-        generate_expression(arena, program, if_stmt->condition, depth);
+        generate_expression(arena, context, if_stmt->condition, depth);
 
-    sf_operand else_id = new_label(program);
-    sf_operand end_id = new_label(program);
+    sf_operand else_id = new_label(context);
+    sf_operand end_id = new_label(context);
 
     sf_operation jmp_else = {
         .opcode = SF_OPCODE_JMP_COND, .operand1 = else_id, .operand2 = cond};
@@ -594,16 +623,16 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
 
     sf_operation end_label = {.opcode = SF_OPCODE_LABEL, .operand1 = end_id};
 
-    push(arena, program, jmp_else);
-    generate_statement(arena, program, if_stmt->branch_then, depth);
+    push(arena, context, jmp_else);
+    generate_statement(arena, context, if_stmt->branch_then, depth);
     if (if_stmt->branch_else != NULL) {
-      push(arena, program, jmp_end);
+      push(arena, context, jmp_end);
 
-      push(arena, program, else_label);
-      generate_statement(arena, program, if_stmt->branch_else, depth);
-      push(arena, program, end_label);
+      push(arena, context, else_label);
+      generate_statement(arena, context, if_stmt->branch_else, depth);
+      push(arena, context, end_label);
     } else {
-      push(arena, program, else_label);
+      push(arena, context, else_label);
     }
 
     break;
@@ -612,8 +641,8 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
   case SF_NODE_WHILE_STMT: {
     sf_while_stmt_node *while_stmt = (sf_while_stmt_node *)node;
 
-    sf_operand start_id = new_label(program);
-    sf_operand end_id = new_label(program);
+    sf_operand start_id = new_label(context);
+    sf_operand end_id = new_label(context);
 
     sf_operation jmp_start = {.opcode = SF_OPCODE_JMP_INCOND,
                               .operand1 = start_id};
@@ -622,25 +651,25 @@ static void generate_statement(sf_arena *arena, sf_ir_program *program,
                                 .operand1 = start_id};
     sf_operation end_label = {.opcode = SF_OPCODE_LABEL, .operand1 = end_id};
 
-    push(arena, program, start_label);
+    push(arena, context, start_label);
 
     sf_operand cond =
-        generate_expression(arena, program, while_stmt->condition, depth);
+        generate_expression(arena, context, while_stmt->condition, depth);
     sf_operation jmp_end = {
         .opcode = SF_OPCODE_JMP_COND, .operand1 = end_id, .operand2 = cond};
 
-    push(arena, program, jmp_end);
+    push(arena, context, jmp_end);
 
-    generate_statement(arena, program, while_stmt->branch_do, depth);
+    generate_statement(arena, context, while_stmt->branch_do, depth);
 
-    push(arena, program, jmp_start);
-    push(arena, program, end_label);
+    push(arena, context, jmp_start);
+    push(arena, context, end_label);
 
     break;
   }
 
   default: {
-    (void)generate_expression(arena, program, node, depth);
+    (void)generate_expression(arena, context, node, depth);
     break;
   }
   }
@@ -656,6 +685,9 @@ static void print_operand(sf_operand op) {
     break;
   case SF_OPERAND_TYPE_IMMEDIATE:
     printf("%s:%s", op.immediate_value, type_value_name(op.value_type));
+    break;
+  case SF_OPERAND_TYPE_LABEL:
+    printf("L%u", op.label_id);
     break;
   }
 }
