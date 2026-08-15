@@ -23,6 +23,7 @@ static void print_cast_expr(const sf_ast_node *node, int indent);
 static void print_if_stmt(const sf_ast_node *node, int indent);
 static void print_while_stmt(const sf_ast_node *node, int indent);
 static void print_func_decl(const sf_ast_node *node, int indent);
+static void print_return_stmt(const sf_ast_node *node, int indent);
 
 sf_program_node *sf_new_program(sf_arena *arena) {
   sf_program_node *program = sf_arena_alloc(arena, sizeof(sf_program_node));
@@ -35,6 +36,8 @@ sf_program_node *sf_new_program(sf_arena *arena) {
 
   return program;
 }
+
+void sf_print_ast(sf_ast_node *root) { print_ast_node(root, 0); }
 
 sf_block_node *sf_new_block(sf_arena *arena, sf_span span) {
   sf_block_node *block = sf_arena_alloc(arena, sizeof(sf_block_node));
@@ -256,7 +259,18 @@ sf_func_decl_node *sf_new_func_decl(sf_arena *arena, const char *name,
   return node;
 }
 
-void sf_print_ast(sf_ast_node *root) { print_ast_node(root, 0); }
+sf_return_stmt_node *sf_new_return_stmt(sf_arena *arena, sf_ast_node *value,
+                                        sf_span span) {
+  sf_return_stmt_node *node =
+      sf_arena_alloc(arena, sizeof(sf_return_stmt_node));
+
+  node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
+  node->base.type = SF_NODE_RETURN_STMT;
+  node->base.span = span;
+  node->value = value;
+
+  return node;
+}
 
 static void print_indent(int indent) {
   for (int i = 0; i < indent; i++)
@@ -304,6 +318,10 @@ static void print_ast_node(sf_ast_node *node, int indent) {
   case SF_NODE_FUNC_DECL:
     print_func_decl(node, indent);
     break;
+  case SF_NODE_RETURN_STMT:
+    print_return_stmt(node, indent);
+    break;
+
   default:
     break;
   }
@@ -445,4 +463,17 @@ static void print_func_decl(const sf_ast_node *node, int indent) {
   print_indent(indent + 1);
   printf("Body\n");
   print_ast_node(func_decl->body, indent + 2);
+}
+
+static void print_return_stmt(const sf_ast_node *node, int indent) {
+  sf_return_stmt_node *ret_stmt = (sf_return_stmt_node *)node;
+
+  print_indent(indent);
+  printf("Return\n");
+
+  if (ret_stmt->value != NULL) {
+    print_indent(indent + 1);
+    printf("Value\n");
+    print_ast_node(ret_stmt->value, indent + 2);
+  }
 }

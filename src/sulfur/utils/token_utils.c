@@ -47,6 +47,10 @@ bool token_is_while(sf_token token) {
 
 bool token_is_fn(sf_token token) { return (token.type == SF_TOKEN_TYPE_KW_FN); }
 
+bool token_is_return(sf_token token) {
+  return (token.type == SF_TOKEN_TYPE_KW_RETURN);
+}
+
 bool token_is_assignment_op(sf_token_type t) {
   switch (t) {
   case SF_TOKEN_TYPE_EQUAL:

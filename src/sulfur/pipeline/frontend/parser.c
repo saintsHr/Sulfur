@@ -34,8 +34,10 @@ static sf_ast_node *parse_if_stmt(sf_arena *arena, sf_token_list list,
                                   size_t *current, const char *filename);
 static sf_ast_node *parse_while_stmt(sf_arena *arena, sf_token_list list,
                                      size_t *current, const char *filename);
-static sf_ast_node *parse_func(sf_arena *arena, sf_token_list list,
-                               size_t *current, const char *filename);
+static sf_ast_node *parse_func_stmt(sf_arena *arena, sf_token_list list,
+                                    size_t *current, const char *filename);
+static sf_ast_node *parse_return_stmt(sf_arena *arena, sf_token_list list,
+                                      size_t *current, const char *filename);
 
 static sf_ast_node *parse_block(sf_arena *arena, sf_token_list list,
                                 size_t *current, const char *filename);
@@ -547,8 +549,8 @@ static sf_ast_node *parse_while_stmt(sf_arena *arena, sf_token_list list,
   return (sf_ast_node *)while_stmt;
 }
 
-static sf_ast_node *parse_func(sf_arena *arena, sf_token_list list,
-                               size_t *current, const char *filename) {
+static sf_ast_node *parse_func_stmt(sf_arena *arena, sf_token_list list,
+                                    size_t *current, const char *filename) {
   if (filename == NULL)
     return NULL;
   if (current == NULL)
@@ -649,6 +651,37 @@ static sf_ast_node *parse_func(sf_arena *arena, sf_token_list list,
   return (sf_ast_node *)func;
 }
 
+static sf_ast_node *parse_return_stmt(sf_arena *arena, sf_token_list list,
+                                      size_t *current, const char *filename) {
+  if (filename == NULL)
+    return NULL;
+  if (current == NULL)
+    return NULL;
+  if (arena == NULL)
+    return NULL;
+
+  sf_token token = advance(list, current); // get "return" token
+  sf_ast_node *value = NULL;               // return value
+
+  // gets return value if it exists
+  if (peek(list, current).type != SF_TOKEN_TYPE_SEMICOLON) {
+    value = parse_logical_or(arena, list, current, filename);
+    if (value == NULL) {
+      recover_statement(list, current);
+      return NULL;
+    }
+  }
+
+  // expects ";"
+  if (!expect(list, current, SF_TOKEN_TYPE_SEMICOLON, filename)) {
+    recover_statement(list, current);
+    return NULL;
+  }
+
+  sf_return_stmt_node *ret = sf_new_return_stmt(arena, value, token.span);
+  return (sf_ast_node *)ret;
+}
+
 static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
                                     size_t *current, const char *filename) {
   if (filename == NULL)
@@ -682,7 +715,11 @@ static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
   }
 
   if (token_is_fn(token)) {
-    return parse_func(arena, list, current, filename);
+    return parse_func_stmt(arena, list, current, filename);
+  }
+
+  if (token_is_return(token)) {
+    return parse_return_stmt(arena, list, current, filename);
   }
 
   return parse_expr_stmt(arena, list, current, filename);

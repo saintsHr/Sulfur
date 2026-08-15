@@ -20,6 +20,7 @@ typedef enum {
   SF_NODE_IF_STMT,
   SF_NODE_WHILE_STMT,
   SF_NODE_FUNC_DECL,
+  SF_NODE_RETURN_STMT,
 } sf_node_type;
 
 typedef enum {
@@ -174,6 +175,11 @@ typedef struct {
   sf_ast_node *body;
 } sf_func_decl_node;
 
+typedef struct {
+  sf_ast_node base;
+  sf_ast_node *value;
+} sf_return_stmt_node;
+
 void sf_print_ast(sf_ast_node *root);
 
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program,
@@ -219,3 +225,6 @@ sf_while_stmt_node *sf_new_while_stmt(sf_arena *arena, sf_ast_node *condition,
 
 sf_func_decl_node *sf_new_func_decl(sf_arena *arena, const char *name,
                                     sf_value_type return_type, sf_span span);
+
+sf_return_stmt_node *sf_new_return_stmt(sf_arena *arena, sf_ast_node *value,
+                                        sf_span span);
