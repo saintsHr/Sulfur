@@ -508,6 +508,13 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
   case SF_NODE_VAR_DECL: {
     sf_var_decl_node *var = (sf_var_decl_node *)node;
 
+    if (var->var_type == SF_VAL_TYPE_VOID) {
+      sf_log("invalid type", "variables cannot be 'void'",
+             "give the variable '%s' a valid type", filename,
+             SF_SEMANTIC_INVALID_TYPE, var->base.span, SF_SEV_ERROR, var->name);
+      break;
+    }
+
     sf_var_symbol sym = {
         .name = var->name,
         .type = var->var_type,
@@ -638,6 +645,14 @@ static void analyze_statement(sf_ast_node *node, sf_scope *scope,
 
     for (size_t i = 0; i < func->parameter_count; i++) {
       sf_parameter param = func->parameters[i];
+
+      if (param.type == SF_VAL_TYPE_VOID) {
+        sf_log("invalid type", "parameters cannot be 'void'",
+               "give the parameter '%s' a valid type", filename,
+               SF_SEMANTIC_INVALID_TYPE, func->base.span, SF_SEV_ERROR,
+               param.name);
+        continue;
+      }
 
       sf_var_symbol param_sym = {.initialized = true,
                                  .name = param.name,

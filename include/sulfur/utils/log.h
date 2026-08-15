@@ -70,6 +70,7 @@ typedef enum {
   SF_SEMANTIC_NO_VALUE_RETURN = 0x6010,
   SF_SEMANTIC_VOID_RETURN_VALUE = 0x6011,
   SF_SEMANTIC_MISSING_RETURN = 0x6012,
+  SF_SEMANTIC_INVALID_TYPE = 0x6013,
 } sf_error_code;
 
 void sf_log_set_source(const char *filename, const char *content);
