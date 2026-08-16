@@ -19,8 +19,12 @@ static sf_ir_context context_from_function(sf_ir_function *function,
 static sf_operand new_temporary(sf_ir_context *context, sf_value_type type);
 static sf_operand new_label(sf_ir_context *context);
 
+static void add_function(sf_arena *arena, sf_ir_program *program,
+                         sf_ir_function function);
+
 static void generate_statement(sf_arena *arena, sf_ir_context *context,
-                               sf_ast_node *node, uint32_t depth);
+                               sf_ir_program *program, sf_ast_node *node,
+                               uint32_t depth);
 static sf_operand generate_expression(sf_arena *arena, sf_ir_context *context,
                                       sf_ast_node *node, uint32_t depth);
 static sf_operand generate_expression_into(sf_arena *arena,
@@ -29,6 +33,7 @@ static sf_operand generate_expression_into(sf_arena *arena,
                                            sf_operand *hint);
 
 static void print_operand(sf_operand op);
+static void print_operations(const sf_operation *operations, uint32_t count);
 
 sf_ir_program sf_generate_ir(sf_arena *arena, const sf_program_node *program) {
   sf_ir_program ir = {
@@ -41,15 +46,15 @@ sf_ir_program sf_generate_ir(sf_arena *arena, const sf_program_node *program) {
   sf_ir_context ctx = context_from_program(&ir);
 
   for (uint64_t i = 0; i < program->statement_count; i++) {
-    generate_statement(arena, &ctx, program->statements[i], 0);
+    generate_statement(arena, &ctx, &ir, program->statements[i], 0);
   }
 
   return ir;
 }
 
-void sf_print_ir(const sf_ir_program *program) {
-  for (size_t i = 0; i < program->operation_count; i++) {
-    sf_operation *op = &program->operations[i];
+static void print_operations(const sf_operation *operations, uint32_t count) {
+  for (size_t i = 0; i < count; i++) {
+    const sf_operation *op = &operations[i];
 
     bool is_control_flow = op->opcode == SF_OPCODE_LABEL ||
                            op->opcode == SF_OPCODE_JMP_COND ||
@@ -218,6 +223,25 @@ void sf_print_ir(const sf_ir_program *program) {
   }
 }
 
+void sf_print_ir(const sf_ir_program *program) {
+  print_operations(program->operations, program->operation_count);
+
+  for (uint32_t f = 0; f < program->function_count; f++) {
+    sf_ir_function *func = &program->functions[f];
+
+    printf("\nFUNCTION %s(", func->name);
+    for (size_t p = 0; p < func->parameter_count; p++) {
+      printf("%s: %s", func->parameters[p].name,
+             type_value_name(func->parameters[p].type));
+      if (p + 1 < func->parameter_count)
+        printf(", ");
+    }
+    printf(") -> %s:\n", type_value_name(func->return_type));
+
+    print_operations(func->operations, func->operation_count);
+  }
+}
+
 static void push(sf_arena *arena, sf_ir_context *context,
                  sf_operation operation) {
   if (*context->operation_capacity <= 0) {
@@ -272,6 +296,20 @@ static sf_operand new_label(sf_ir_context *context) {
   op.value_type = SF_VAL_TYPE_UNRESOLVED;
   op.label_id = (*context->nextLabel)++;
   return op;
+}
+
+static void add_function(sf_arena *arena, sf_ir_program *program,
+                         sf_ir_function function) {
+  if (program->function_count >= program->function_capacity) {
+    program->function_capacity =
+        program->function_capacity == 0 ? 8 : program->function_capacity * 2;
+
+    program->functions =
+        sf_arena_grow_array(arena, program->functions, program->function_count,
+                            program->function_capacity, sizeof(sf_ir_function));
+  }
+
+  program->functions[program->function_count++] = function;
 }
 
 static sf_operand generate_expression(sf_arena *arena, sf_ir_context *context,
@@ -525,7 +563,8 @@ static sf_operand generate_expression_into(sf_arena *arena,
 }
 
 static void generate_statement(sf_arena *arena, sf_ir_context *context,
-                               sf_ast_node *node, uint32_t depth) {
+                               sf_ir_program *program, sf_ast_node *node,
+                               uint32_t depth) {
   switch (node->type) {
   case SF_NODE_VAR_DECL: {
     sf_var_decl_node *dcl = (sf_var_decl_node *)node;
@@ -599,7 +638,8 @@ static void generate_statement(sf_arena *arena, sf_ir_context *context,
     sf_block_node *block = (sf_block_node *)node;
 
     for (size_t i = 0; i < block->statement_count; i++) {
-      generate_statement(arena, context, block->statements[i], depth + 1);
+      generate_statement(arena, context, program, block->statements[i],
+                         depth + 1);
     }
 
     break;
@@ -624,12 +664,12 @@ static void generate_statement(sf_arena *arena, sf_ir_context *context,
     sf_operation end_label = {.opcode = SF_OPCODE_LABEL, .operand1 = end_id};
 
     push(arena, context, jmp_else);
-    generate_statement(arena, context, if_stmt->branch_then, depth);
+    generate_statement(arena, context, program, if_stmt->branch_then, depth);
     if (if_stmt->branch_else != NULL) {
       push(arena, context, jmp_end);
 
       push(arena, context, else_label);
-      generate_statement(arena, context, if_stmt->branch_else, depth);
+      generate_statement(arena, context, program, if_stmt->branch_else, depth);
       push(arena, context, end_label);
     } else {
       push(arena, context, else_label);
@@ -660,10 +700,33 @@ static void generate_statement(sf_arena *arena, sf_ir_context *context,
 
     push(arena, context, jmp_end);
 
-    generate_statement(arena, context, while_stmt->branch_do, depth);
+    generate_statement(arena, context, program, while_stmt->branch_do, depth);
 
     push(arena, context, jmp_start);
     push(arena, context, end_label);
+
+    break;
+  }
+
+  case SF_NODE_FUNC_DECL: {
+    sf_func_decl_node *func = (sf_func_decl_node *)node;
+
+    sf_ir_function func_ir = {
+        .name = func->name,
+        .parameters = func->parameters,
+        .parameter_count = func->parameter_count,
+        .return_type = func->return_type,
+        .operations = NULL,
+        .nextTemp = 0,
+        .operation_capacity = 0,
+        .operation_count = 0,
+    };
+
+    sf_ir_context ctx = context_from_function(&func_ir, program);
+
+    generate_statement(arena, &ctx, program, func->body, depth);
+
+    add_function(arena, program, func_ir);
 
     break;
   }
