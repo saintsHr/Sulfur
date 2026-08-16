@@ -16,7 +16,7 @@ find_program(CLANG_FORMAT_EXE NAMES clang-format)
 
 set(SOURCES
 	src/sulfur/main.c
-	
+
 	src/sulfur/utils/log.c
 	src/sulfur/utils/type_utils.c
 	src/sulfur/utils/token_utils.c
