@@ -56,9 +56,9 @@ static void print_operations(const sf_operation *operations, uint32_t count) {
   for (size_t i = 0; i < count; i++) {
     const sf_operation *op = &operations[i];
 
-    bool is_control_flow = op->opcode == SF_OPCODE_LABEL ||
-                           op->opcode == SF_OPCODE_JMP_COND ||
-                           op->opcode == SF_OPCODE_JMP_INCOND;
+    bool is_control_flow =
+        op->opcode == SF_OPCODE_LABEL || op->opcode == SF_OPCODE_JMP_COND ||
+        op->opcode == SF_OPCODE_JMP_INCOND || op->opcode == SF_OPCODE_RETURN;
 
     if (!is_control_flow) {
       print_operand(op->operand1);
@@ -209,6 +209,11 @@ static void print_operations(const sf_operation *operations, uint32_t count) {
     case SF_OPCODE_CAST: {
       printf("cast ");
       print_operand(op->operand2);
+      break;
+    }
+    case SF_OPCODE_RETURN: {
+      printf("return ");
+      print_operand(op->operand1);
       break;
     }
 
@@ -727,6 +732,24 @@ static void generate_statement(sf_arena *arena, sf_ir_context *context,
     generate_statement(arena, &ctx, program, func->body, depth);
 
     add_function(arena, program, func_ir);
+
+    break;
+  }
+
+  case SF_NODE_RETURN_STMT: {
+    sf_return_stmt_node *ret = (sf_return_stmt_node *)node;
+
+    sf_operand value = {0};
+
+    if (ret->value != NULL) {
+      value = generate_expression(arena, context, ret->value, depth);
+    }
+
+    push(arena, context,
+         (sf_operation){.opcode = SF_OPCODE_RETURN,
+                        .operand1 = value,
+                        .operand2 = {0},
+                        .operand3 = {0}});
 
     break;
   }
