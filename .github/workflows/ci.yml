@@ -43,8 +43,8 @@ jobs:
 
       - name: Run testcases
         run: |
-          chmod +x scripts/run_testcases.sh
-          ./scripts/run_testcases.sh
+          chmod +x scripts/testcases.sh
+          ./scripts/testcases.sh
 
   build-release:
     name: Build Release (${{ matrix.compiler }})
@@ -82,5 +82,5 @@ jobs:
 
       - name: Run testcases
         run: |
-          chmod +x scripts/run_testcases.sh
-          ./scripts/run_testcases.sh
+          chmod +x scripts/testcases.sh
+          ./scripts/testcases.sh
