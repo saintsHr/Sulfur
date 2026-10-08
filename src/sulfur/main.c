@@ -117,7 +117,7 @@ static void compilation_free(sf_compilation *c) {
     free(c->assembly);
     sf_free_tokens(&c->tokens);
     free(c->preprocessed);
-    sf_free_arena(&c->arena);
+    sf_arena_free(&c->arena);
     free(c->input_source);
 }
 
