@@ -110,7 +110,7 @@ static bool expect(sf_token_list list, size_t *current, sf_token_type type,
 
     sf_log("unexpected token", "expected '%s' but found '%s'",
            "check for a missing or misplaced token nearby", filename,
-           SF_PARSER_UNEXPECTED_TOKEN, got.span, SF_SEV_ERROR,
+           SF_LOG_PARSER_UNEXPECTED_TOKEN, got.span, SF_LOG_SEVERITY_ERROR,
            sf_token_type_name(type), got.value);
 
     return false;
@@ -286,7 +286,7 @@ static sf_ast_node *parse_primary(sf_arena *arena, sf_token_list list,
 
   sf_log("unexpected token", "expected a literal or identifier but found '%s'",
          "check for a missing or misplaced token nearby", filename,
-         SF_PARSER_UNEXPECTED_TOKEN, token.span, SF_SEV_ERROR, token.value);
+         SF_LOG_PARSER_UNEXPECTED_TOKEN, token.span, SF_LOG_SEVERITY_ERROR, token.value);
 
   recover_expression(list, current);
 
@@ -376,8 +376,8 @@ static sf_ast_node *parse_declaration(sf_arena *arena, sf_token_list list,
 
   if (type == SF_VAL_TYPE_UNRESOLVED) {
     sf_log("unexpected token", "expected a type keyword but found '%s'",
-           "use any type keyword", filename, SF_PARSER_UNEXPECTED_TOKEN,
-           type_token.span, SF_SEV_ERROR, type_token.value);
+           "use any type keyword", filename, SF_LOG_PARSER_UNEXPECTED_TOKEN,
+           type_token.span, SF_LOG_SEVERITY_ERROR, type_token.value);
 
     recover_statement(list, current);
     return NULL;
@@ -388,7 +388,7 @@ static sf_ast_node *parse_declaration(sf_arena *arena, sf_token_list list,
   if (name_token.type != SF_TOKEN_TYPE_IDENTIFIER) {
     sf_log("unexpected token", "expected an identifier but found '%s'",
            "variable names cannot be reserved keywords, symbols, or numbers",
-           filename, SF_PARSER_UNEXPECTED_TOKEN, name_token.span, SF_SEV_ERROR,
+           filename, SF_LOG_PARSER_UNEXPECTED_TOKEN, name_token.span, SF_LOG_SEVERITY_ERROR,
            name_token.value);
 
     recover_statement(list, current);
@@ -433,7 +433,7 @@ static sf_ast_node *parse_assign(sf_arena *arena, sf_token_list list,
   if (!token_is_assignment_op(op_token.type)) {
     sf_log("unexpected token", "expected assignment operator but found '%s'",
            "use '=' or compound assignment like '+='", filename,
-           SF_PARSER_UNEXPECTED_TOKEN, op_token.span, SF_SEV_ERROR,
+           SF_LOG_PARSER_UNEXPECTED_TOKEN, op_token.span, SF_LOG_SEVERITY_ERROR,
            op_token.value);
     recover_statement(list, current);
     return NULL;
@@ -564,8 +564,8 @@ static sf_ast_node *parse_func_stmt(sf_arena *arena, sf_token_list list,
   sf_token name_token = advance(list, current);
   if (name_token.type != SF_TOKEN_TYPE_IDENTIFIER) {
     sf_log("unexpected token", "expected a function name but found '%s'",
-           "follow the language syntax", filename, SF_PARSER_UNEXPECTED_TOKEN,
-           name_token.span, SF_SEV_ERROR, name_token.value);
+           "follow the language syntax", filename, SF_LOG_PARSER_UNEXPECTED_TOKEN,
+           name_token.span, SF_LOG_SEVERITY_ERROR, name_token.value);
 
     recover_statement(list, current);
     return NULL;
@@ -588,7 +588,7 @@ static sf_ast_node *parse_func_stmt(sf_arena *arena, sf_token_list list,
       if (token_to_type(type_token) == SF_VAL_TYPE_UNRESOLVED) {
         sf_log("unexpected token", "expected a type name but found '%s'",
                "follow the language syntax", filename,
-               SF_PARSER_UNEXPECTED_TOKEN, type_token.span, SF_SEV_ERROR,
+               SF_LOG_PARSER_UNEXPECTED_TOKEN, type_token.span, SF_LOG_SEVERITY_ERROR,
                type_token.value);
 
         recover_statement(list, current);
@@ -599,7 +599,7 @@ static sf_ast_node *parse_func_stmt(sf_arena *arena, sf_token_list list,
       if (name_token.type != SF_TOKEN_TYPE_IDENTIFIER) {
         sf_log("unexpected token", "expected a identifier but found '%s'",
                "follow the language syntax", filename,
-               SF_PARSER_UNEXPECTED_TOKEN, name_token.span, SF_SEV_ERROR,
+               SF_LOG_PARSER_UNEXPECTED_TOKEN, name_token.span, SF_LOG_SEVERITY_ERROR,
                name_token.value);
 
         recover_statement(list, current);
@@ -630,8 +630,8 @@ static sf_ast_node *parse_func_stmt(sf_arena *arena, sf_token_list list,
       advance(list, current);
     } else {
       sf_log("unexpected token", "expected '{' or type name but found '%s'",
-             "follow the language syntax", filename, SF_PARSER_UNEXPECTED_TOKEN,
-             ret_token.span, SF_SEV_ERROR, ret_token.value);
+             "follow the language syntax", filename, SF_LOG_PARSER_UNEXPECTED_TOKEN,
+             ret_token.span, SF_LOG_SEVERITY_ERROR, ret_token.value);
 
       recover_statement(list, current);
       return NULL;
@@ -806,8 +806,8 @@ static sf_ast_node *parse_cast(sf_arena *arena, sf_token_list list,
     if (target_type == SF_VAL_TYPE_UNRESOLVED) {
       sf_log("unexpected token",
              "expected a type keyword after 'as' but found '%s'",
-             "use any type keyword", filename, SF_PARSER_UNEXPECTED_TOKEN,
-             type_token.span, SF_SEV_ERROR, type_token.value);
+             "use any type keyword", filename, SF_LOG_PARSER_UNEXPECTED_TOKEN,
+             type_token.span, SF_LOG_SEVERITY_ERROR, type_token.value);
 
       recover_expression(list, current);
 

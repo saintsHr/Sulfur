@@ -1,399 +1,246 @@
 #include "sulfur/utils/log.h"
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-static void emit_log(sf_log_info info, va_list args);
-static void sf_log_internal(sf_log_info info, ...);
-static void print_source_snippet(sf_span span, const char *msg);
-static const char *find_line(const char *content, uint32_t target_line,
-                             size_t *out_len);
-static void format_into(char *buf, size_t buf_size, size_t *buf_pos,
-                        const char *fmt, va_list args);
+#define SF_LOG_BUFFER_SIZE (1024 * 4)
 
 static const char *g_source_filename = NULL;
 static const char *g_source_content = NULL;
+
 static bool g_had_fatal = false;
-static uint8_t g_error_count = 0;
+static size_t g_error_count = 0;
+
+static void emit_log(sf_log_info info, va_list args);
+
+static const char *severity_label(sf_log_severity sev);
+static void format_message(char *buf, size_t size, const char *fmt, va_list args);
+static const char *find_line(const char *content, size_t target_line, size_t *out_len);
+
+static void print_source_snippet(sf_span span, const char *msg);
+static void print_highlighted_line(
+    const char *line_num, const char *line,
+    size_t line_len, size_t col_start, size_t col_end
+);
+static void print_underline(
+    int gutter, const char *line, size_t line_len,
+    size_t col, size_t carets, const char *msg
+);
 
 void sf_log_set_source(const char *filename, const char *content) {
-  g_source_filename = filename;
-  g_source_content = content;
+    g_source_filename = filename;
+    g_source_content = content;
 }
 
-void sf_log(const char *title, const char *desc, const char *hint,
-            const char *file, uint16_t code, sf_span span, sf_severity sev,
-            ...) {
-  sf_log_info l = {.title = title,
-                   .desc = desc,
-                   .hint = hint,
-                   .file = file,
-                   .code = code,
-                   .span = span,
-                   .sev = sev};
+void sf_log(
+    const char *title, const char *desc, const char *hint, const char *file,
+    sf_log_error_code_num code, sf_span span, sf_log_severity sev, ...
+) {
+    sf_log_info info = {
+        .title = title,
+        .desc = desc,
+        .hint = hint,
+        .file = file,
+        .code = code,
+        .span = span,
+        .sev = sev,
+    };
 
-  va_list args;
-  va_start(args, sev);
-  emit_log(l, args);
-  va_end(args);
+    va_list args;
+    va_start(args, sev);
+    emit_log(info, args);
+    va_end(args);
 }
 
-void sf_log_init(void) { g_had_fatal = false; }
-
-bool sf_log_had_fatal(void) { return g_had_fatal; }
-
-bool sf_log_had_errors(void) { return g_error_count > 0; };
-
-static const char *find_line(const char *content, uint32_t target_line,
-                             size_t *out_len) {
-  if (!content)
-    return NULL;
-
-  const char *p = content;
-  uint32_t current_line = 1;
-
-  while (current_line < target_line) {
-    const char *nl = strchr(p, '\n');
-    if (!nl)
-      return NULL;
-    p = nl + 1;
-    current_line++;
-  }
-
-  const char *nl = strchr(p, '\n');
-  *out_len = nl ? (size_t)(nl - p) : strlen(p);
-  return p;
+void sf_log_init(void) {
+    g_had_fatal = false;
+    g_error_count = 0;
 }
 
-static void print_source_snippet(sf_span span, const char *msg) {
-  if (span.line == 0 || !g_source_content)
-    return;
+bool sf_log_had_fatal(void) {
+    return g_had_fatal;
+}
 
-  size_t line_len = 0;
-  const char *line_start = find_line(g_source_content, span.line, &line_len);
-  if (!line_start)
-    return;
-
-  char line_num_str[16];
-  snprintf(line_num_str, sizeof(line_num_str), "%u", span.line);
-  int gutter_width = (int)strlen(line_num_str);
-
-  printf(SF_COLOR_BBLUE "%*s| \n" SF_COLOR_RESET, gutter_width + 1, "");
-
-  uint32_t col_start = span.col > 0 ? span.col - 1 : 0;
-  uint8_t carets = span.len > 0 ? span.len : 1;
-  uint32_t col_end = col_start + carets;
-  if (col_end > line_len)
-    col_end = (uint32_t)line_len;
-
-  printf(SF_COLOR_BBLUE "%s | " SF_COLOR_RESET, line_num_str);
-
-  if (col_start > 0) {
-    printf("%.*s", (int)col_start, line_start);
-  }
-
-  if (col_end > col_start) {
-    printf(SF_COLOR_BRED "%.*s" SF_COLOR_RESET, (int)(col_end - col_start),
-           line_start + col_start);
-  }
-
-  if (col_end < line_len) {
-    printf("%.*s", (int)(line_len - col_end), line_start + col_end);
-  }
-
-  printf("\n");
-
-  printf(SF_COLOR_BBLUE "%*s| " SF_COLOR_RESET, gutter_width + 1, "");
-  for (uint32_t i = 1; i < span.col; i++) {
-    putchar((i - 1 < line_len && line_start[i - 1] == '\t') ? '\t' : ' ');
-  }
-
-  printf(SF_COLOR_BRED);
-  for (uint8_t i = 0; i < carets; i++)
-    putchar('^');
-  printf(SF_COLOR_RESET);
-
-  if (msg && msg[0] != '\0')
-    printf(" %s", msg);
-  printf("\n");
-
-  printf(SF_COLOR_BBLUE "%*s |\n" SF_COLOR_RESET, gutter_width, "");
+bool sf_log_had_errors(void) {
+    return g_error_count > 0;
 }
 
 static void emit_log(sf_log_info info, va_list args) {
-  const char *sevStr = "";
+    char title[SF_LOG_BUFFER_SIZE];
+    char desc[SF_LOG_BUFFER_SIZE];
+    char hint[SF_LOG_BUFFER_SIZE];
 
-  switch (info.sev) {
-  case SF_SEV_INFO:
-    sevStr = SF_COLOR_BCYAN "info" SF_COLOR_RESET;
-    break;
-  case SF_SEV_WARNING:
-    sevStr = SF_COLOR_BMAGENTA "warning" SF_COLOR_RESET;
-    break;
-  case SF_SEV_ERROR:
-    sevStr = SF_COLOR_BRED "error" SF_COLOR_RESET;
-    break;
-  case SF_SEV_FATAL:
-    sevStr = SF_COLOR_RED "fatal" SF_COLOR_RESET;
-    break;
-  }
+    format_message(title, sizeof(title), info.title, args);
+    format_message(desc, sizeof(desc), info.desc, args);
+    format_message(hint, sizeof(hint), info.hint, args);
 
-  char titleBuffer[1024];
-  char descBuffer[1024];
-  char hintBuffer[1024];
+    const char *file = info.file ? info.file : g_source_filename;
+    if (file == NULL) {
+        file = "<unknown>";
+    }
 
-  size_t pos;
+    printf(
+        "%s " SF_LOG_COLOR_BRIGHT_BLACK "[0x%04x]" SF_LOG_COLOR_RESET ": %s\n",
+        severity_label(info.sev), (unsigned int)info.code, title
+    );
 
-  pos = 0;
-  if (info.title) {
-    va_list args_copy;
-    va_copy(args_copy, args);
-    format_into(titleBuffer, sizeof(titleBuffer), &pos, info.title, args_copy);
-    va_end(args_copy);
-  } else {
-    titleBuffer[0] = '\0';
-  }
+    if (info.span.line > 0) {
+        printf(
+            SF_LOG_COLOR_BRIGHT_BLUE "  --> from: " SF_LOG_COLOR_RESET "%s:%u:%u\n",
+            file, info.span.line, info.span.col
+        );
 
-  pos = 0;
-  if (info.desc) {
-    va_list args_copy;
-    va_copy(args_copy, args);
-    format_into(descBuffer, sizeof(descBuffer), &pos, info.desc, args_copy);
-    va_end(args_copy);
-  } else {
-    descBuffer[0] = '\0';
-  }
+        print_source_snippet(info.span, info.desc ? desc : NULL);
+    } else if (info.desc) {
+        printf("  %s\n", desc);
+    }
 
-  pos = 0;
-  if (info.hint) {
-    va_list args_copy;
-    va_copy(args_copy, args);
-    format_into(hintBuffer, sizeof(hintBuffer), &pos, info.hint, args_copy);
-    va_end(args_copy);
-  } else {
-    hintBuffer[0] = '\0';
-  }
+    if (info.hint) {
+        printf(SF_LOG_COLOR_BRIGHT_GREEN "  --> hint: " SF_LOG_COLOR_RESET "%s\n", hint);
+    }
 
-  printf("%s " SF_COLOR_BBLACK "[0x%04x]" SF_COLOR_RESET ": %s\n", sevStr,
-         info.code, titleBuffer);
+    printf("\n");
 
-  if (info.span.line > 0) {
-    printf(SF_COLOR_BBLUE "  --> from: " SF_COLOR_RESET "%s:%u:%u\n", info.file,
-           info.span.line, info.span.col);
-    print_source_snippet(info.span, info.desc ? descBuffer : NULL);
-  } else if (info.desc) {
-    printf("  %s\n", descBuffer);
-  }
+    if (info.sev == SF_LOG_SEVERITY_ERROR || info.sev == SF_LOG_SEVERITY_FATAL) {
+        g_error_count++;
+    }
 
-  if (info.hint) {
-    printf(SF_COLOR_BGREEN "  --> hint: " SF_COLOR_RESET "%s\n", hintBuffer);
-  }
-
-  printf("\n");
-
-  if (info.sev == SF_SEV_ERROR || info.sev == SF_SEV_FATAL)
-    g_error_count++;
-  if (info.sev == SF_SEV_FATAL)
-    g_had_fatal = true;
+    if (info.sev == SF_LOG_SEVERITY_FATAL) {
+        g_had_fatal = true;
+    }
 }
 
-static void sf_log_internal(sf_log_info info, ...) {
-  va_list args;
-  va_start(args, info);
-  emit_log(info, args);
-  va_end(args);
+static const char *severity_label(sf_log_severity sev) {
+    switch (sev) {
+        case SF_LOG_SEVERITY_INFO: {
+            return SF_LOG_COLOR_BRIGHT_CYAN "info" SF_LOG_COLOR_RESET;
+        }
+        case SF_LOG_SEVERITY_WARNING: {
+            return SF_LOG_COLOR_BRIGHT_MAGENTA "warning" SF_LOG_COLOR_RESET;
+        }
+        case SF_LOG_SEVERITY_ERROR: {
+            return SF_LOG_COLOR_BRIGHT_RED "error" SF_LOG_COLOR_RESET;
+        }
+        case SF_LOG_SEVERITY_FATAL: {
+            return SF_LOG_COLOR_RED "fatal" SF_LOG_COLOR_RESET;
+        }
+    }
+
+    return "";
 }
 
-static void format_into(char *buf, size_t buf_size, size_t *buf_pos,
-                        const char *fmt, va_list args) {
-  if (!fmt)
-    return;
-  char num_buf[64];
-  char spec_buf[32];
-
-  for (const char *p = fmt; *p != '\0'; p++) {
-    if (*p != '%') {
-      if (*buf_pos < buf_size - 1)
-        buf[(*buf_pos)++] = *p;
-      continue;
+static void format_message(char *buf, size_t size, const char *fmt, va_list args) {
+    if (fmt == NULL) {
+        buf[0] = '\0';
+        return;
     }
 
-    const char *spec_start = p;
-    p++;
-    if (*p == '\0')
-      break;
+    va_list copy;
 
-    while (*p == '-' || *p == '0' || *p == '+' || *p == ' ' || *p == '#')
-      p++;
+    va_copy(copy, args);
+    vsnprintf(buf, size, fmt, copy);
+    va_end(copy);
+}
 
-    while (*p >= '0' && *p <= '9')
-      p++;
-
-    if (*p == '.') {
-      p++;
-      while (*p >= '0' && *p <= '9')
-        p++;
+static const char *find_line(const char *content, size_t target_line, size_t *out_len) {
+    if (content == NULL) {
+        return NULL;
     }
 
-    int len_mod = 0;
-    if (*p == 'l') {
-      p++;
-      if (*p == 'l') {
-        len_mod = 2;
-        p++;
-      } else
-        len_mod = 1;
-    } else if (*p == 'h') {
-      p++;
-      if (*p == 'h') {
-        len_mod = -2;
-        p++;
-      } else
-        len_mod = -1;
-    } else if (*p == 'z') {
-      len_mod = 3;
-      p++;
+    const char *p = content;
+
+    for (size_t line = 1; line < target_line; line++) {
+        const char *newline = strchr(p, '\n');
+
+        if (newline == NULL) {
+            return NULL;
+        }
+
+        p = newline + 1;
     }
 
-    if (*p == '\0')
-      break;
+    const char *newline = strchr(p, '\n');
+    *out_len = newline ? (size_t)(newline - p) : strlen(p);
 
-    size_t prefix_len = (size_t)(p - spec_start);
-    char flags_width_prec[24];
-    {
-      const char *q = spec_start + 1;
-      size_t k = 0;
-      while ((*q == '-' || *q == '0' || *q == '+' || *q == ' ' || *q == '#' ||
-              (*q >= '0' && *q <= '9') || *q == '.') &&
-             k < sizeof(flags_width_prec) - 1) {
-        flags_width_prec[k++] = *q;
-        q++;
-      }
-      flags_width_prec[k] = '\0';
+    return p;
+}
+
+static void print_source_snippet(sf_span span, const char *msg) {
+    if (span.line == 0 || g_source_content == NULL) {
+        return;
     }
 
-    switch (*p) {
-    case 's': {
-      const char *s = va_arg(args, const char *);
-      if (!s)
-        s = "(null)";
-      snprintf(spec_buf, sizeof(spec_buf), "%%%ss", flags_width_prec);
-      int n = snprintf(num_buf, sizeof(num_buf), spec_buf, s);
-      size_t space = buf_size - 1 - *buf_pos;
-      size_t to_copy = (size_t)n < space ? (size_t)n : space;
-      memcpy(buf + *buf_pos, num_buf, to_copy);
-      *buf_pos += to_copy;
-      break;
+    size_t line_len = 0;
+    const char *line = find_line(g_source_content, span.line, &line_len);
+    if (line == NULL) {
+        return;
     }
 
-    case 'd':
-    case 'i': {
-      int n;
-      if (len_mod == 2) {
-        long long v = va_arg(args, long long);
-        snprintf(spec_buf, sizeof(spec_buf), "%%%slld", flags_width_prec);
-        n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
-      } else if (len_mod == 1) {
-        long v = va_arg(args, long);
-        snprintf(spec_buf, sizeof(spec_buf), "%%%sld", flags_width_prec);
-        n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
-      } else if (len_mod == 3) {
-        ptrdiff_t v = va_arg(args, ptrdiff_t);
-        snprintf(spec_buf, sizeof(spec_buf), "%%%std", flags_width_prec);
-        n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
-      } else {
-        int v = va_arg(args, int);
-        snprintf(spec_buf, sizeof(spec_buf), "%%%sd", flags_width_prec);
-        n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
-      }
-      size_t space = buf_size - 1 - *buf_pos;
-      size_t to_copy = (size_t)n < space ? (size_t)n : space;
-      memcpy(buf + *buf_pos, num_buf, to_copy);
-      *buf_pos += to_copy;
-      break;
+    char line_num[16];
+    snprintf(line_num, sizeof(line_num), "%u", span.line);
+    int gutter = (int)strlen(line_num);
+
+    size_t col_start = span.col > 0 ? span.col - 1 : 0;
+    size_t carets = span.len > 0 ? span.len : 1;
+    size_t col_end = col_start + carets;
+
+    if (col_start > line_len) {
+        col_start = line_len;
+    }
+    if (col_end > line_len) {
+        col_end = line_len;
     }
 
-    case 'u':
-    case 'x':
-    case 'X':
-    case 'o': {
-      char conv = *p;
-      int n;
-      if (len_mod == 2) {
-        unsigned long long v = va_arg(args, unsigned long long);
-        snprintf(spec_buf, sizeof(spec_buf), "%%%sll%c", flags_width_prec,
-                 conv);
-        n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
-      } else if (len_mod == 1) {
-        unsigned long v = va_arg(args, unsigned long);
-        snprintf(spec_buf, sizeof(spec_buf), "%%%sl%c", flags_width_prec, conv);
-        n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
-      } else if (len_mod == 3) {
-        size_t v = va_arg(args, size_t);
-        snprintf(spec_buf, sizeof(spec_buf), "%%%sz%c", flags_width_prec, conv);
-        n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
-      } else {
-        unsigned int v = va_arg(args, unsigned int);
-        snprintf(spec_buf, sizeof(spec_buf), "%%%s%c", flags_width_prec, conv);
-        n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
-      }
-      size_t space = buf_size - 1 - *buf_pos;
-      size_t to_copy = (size_t)n < space ? (size_t)n : space;
-      memcpy(buf + *buf_pos, num_buf, to_copy);
-      *buf_pos += to_copy;
-      break;
+    printf(SF_LOG_COLOR_BRIGHT_BLUE "%*s| \n" SF_LOG_COLOR_RESET, gutter + 1, "");
+    print_highlighted_line(line_num, line, line_len, col_start, col_end);
+    print_underline(gutter, line, line_len, span.col, carets, msg);
+    printf(SF_LOG_COLOR_BRIGHT_BLUE "%*s |\n" SF_LOG_COLOR_RESET, gutter, "");
+}
+
+static void print_highlighted_line(
+    const char *line_num, const char *line,
+    size_t line_len, size_t col_start, size_t col_end
+) {
+    printf(SF_LOG_COLOR_BRIGHT_BLUE "%s | " SF_LOG_COLOR_RESET, line_num);
+
+    printf("%.*s", (int)col_start, line);
+
+    if (col_end > col_start) {
+        printf(
+            SF_LOG_COLOR_BRIGHT_RED "%.*s" SF_LOG_COLOR_RESET,
+            (int)(col_end - col_start), line + col_start
+        );
     }
 
-    case 'f':
-    case 'e':
-    case 'E':
-    case 'g':
-    case 'G': {
-      double v = va_arg(args, double);
-      snprintf(spec_buf, sizeof(spec_buf), "%%%s%c", flags_width_prec, *p);
-      int n = snprintf(num_buf, sizeof(num_buf), spec_buf, v);
-      size_t space = buf_size - 1 - *buf_pos;
-      size_t to_copy = (size_t)n < space ? (size_t)n : space;
-      memcpy(buf + *buf_pos, num_buf, to_copy);
-      *buf_pos += to_copy;
-      break;
+    if (col_end < line_len) {
+        printf("%.*s", (int)(line_len - col_end), line + col_end);
     }
 
-    case 'p': {
-      void *v = va_arg(args, void *);
-      int n = snprintf(num_buf, sizeof(num_buf), "%p", v);
-      size_t space = buf_size - 1 - *buf_pos;
-      size_t to_copy = (size_t)n < space ? (size_t)n : space;
-      memcpy(buf + *buf_pos, num_buf, to_copy);
-      *buf_pos += to_copy;
-      break;
+    printf("\n");
+}
+
+static void print_underline(
+    int gutter, const char *line, size_t line_len,
+    size_t col, size_t carets, const char *msg
+) {
+    printf(SF_LOG_COLOR_BRIGHT_BLUE "%*s| " SF_LOG_COLOR_RESET, gutter + 1, "");
+
+    for (size_t i = 1; i < col; i++) {
+        putchar((i - 1 < line_len && line[i - 1] == '\t') ? '\t' : ' ');
     }
 
-    case 'c': {
-      int v = va_arg(args, int);
-      if (*buf_pos < buf_size - 1)
-        buf[(*buf_pos)++] = (char)v;
-      break;
+    printf(SF_LOG_COLOR_BRIGHT_RED);
+    for (size_t i = 0; i < carets; i++) {
+        putchar('^');
+    }
+    printf(SF_LOG_COLOR_RESET);
+
+    if (msg && msg[0] != '\0') {
+        printf(" %s", msg);
     }
 
-    case '%': {
-      if (*buf_pos < buf_size - 1)
-        buf[(*buf_pos)++] = '%';
-      break;
-    }
-
-    default: {
-      if (*buf_pos < buf_size - 1)
-        buf[(*buf_pos)++] = '%';
-      if (*buf_pos < buf_size - 1)
-        buf[(*buf_pos)++] = *p;
-      break;
-    }
-    }
-  }
-
-  buf[*buf_pos < buf_size ? *buf_pos : buf_size - 1] = '\0';
+    printf("\n");
 }

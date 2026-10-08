@@ -50,7 +50,7 @@ void scope_insert(sf_scope *scope, sf_var_symbol symbol, const char *filename) {
   if (sym != NULL) {
     sf_log("symbol redefinition", "'%s' is already declared in this scope",
            "rename the new variable, or remove the duplicate declaration",
-           filename, SF_SEMANTIC_REDECLARATION, symbol.span, SF_SEV_ERROR,
+           filename, SF_LOG_SEMANTIC_REDECLARATION, symbol.span, SF_LOG_SEVERITY_ERROR,
            symbol.name);
 
     return;

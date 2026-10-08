@@ -64,7 +64,7 @@ void sf_program_add_statement(sf_arena *arena, sf_program_node *program,
     if (!new_statements) {
       sf_log("Insufficient Memory.", "Cannot allocate memory for compiling.",
              "Free some memory and try again.", NULL,
-             SF_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_SEV_FATAL);
+             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL);
     }
 
     program->statements = new_statements;
@@ -86,7 +86,7 @@ void sf_block_add_statement(sf_arena *arena, sf_block_node *block,
     if (!new_statements) {
       sf_log("Insufficient Memory.", "Cannot allocate memory for compiling.",
              "Free some memory and try again.", NULL,
-             SF_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_SEV_FATAL);
+             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL);
     }
 
     block->statements = new_statements;
@@ -109,7 +109,7 @@ void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function,
     if (!new_parameters) {
       sf_log("Insufficient Memory.", "Cannot allocate memory for compiling.",
              "Free some memory and try again.", NULL,
-             SF_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_SEV_FATAL);
+             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL);
     }
 
     function->parameters = new_parameters;

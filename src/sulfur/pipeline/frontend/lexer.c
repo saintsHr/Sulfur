@@ -127,7 +127,7 @@ static void undefined(sf_token_list *list, const char *input, int *i, int *col,
   sf_log("undefined token", "unrecognized token '%s' in source file",
          "check for typos or invalid characters, and follow the language "
          "grammar",
-         filename, SF_LEXER_UNDEFINED_TOKEN, tk.span, SF_SEV_ERROR, tk.value);
+         filename, SF_LOG_LEXER_UNDEFINED_TOKEN, tk.span, SF_LOG_SEVERITY_ERROR, tk.value);
 }
 
 static void add_token(sf_token_list *list, sf_token token) {
@@ -140,7 +140,7 @@ static void add_token(sf_token_list *list, sf_token token) {
     if (new_tokens == NULL) {
       sf_log("Insufficient Memory.", "Cannot allocate memory for compiling.",
              "Free some memory and try again.", NULL,
-             SF_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_SEV_FATAL);
+             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL);
     }
 
     list->tokens = new_tokens;

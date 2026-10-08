@@ -14,7 +14,7 @@ char *sf_preprocess(const char *src, long src_size, const char *filename) {
   if (!out) {
     sf_log("Insufficient Memory.", "Cannot allocate memory for compiling.",
            "Free some memory and try again.", NULL,
-           SF_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_SEV_FATAL);
+           SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL);
   }
 
   memcpy(out, src, src_size);

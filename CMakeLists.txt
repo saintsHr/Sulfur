@@ -15,13 +15,15 @@ find_program(CCACHE_PROGRAM ccache)
 find_program(CLANG_FORMAT_EXE NAMES clang-format)
 
 set(SOURCES
-	src/sulfur/main.c
+    src/sulfur/driver/main.c
+	src/sulfur/driver/flags.c
 
 	src/sulfur/utils/log.c
 	src/sulfur/utils/type_utils.c
 	src/sulfur/utils/token_utils.c
 	src/sulfur/utils/string.c
 	src/sulfur/utils/arena.c
+	src/sulfur/utils/file.c
 
 	src/sulfur/pipeline/frontend/ast.c
 	src/sulfur/pipeline/frontend/lexer.c

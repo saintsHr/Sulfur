@@ -66,7 +66,7 @@ void sf_func_symbol_table_insert(sf_func_symbol_table *table,
   if (existing != NULL) {
     sf_log("symbol redefinition", "'%s' is already declared",
            "rename the new function, or remove the duplicate declaration",
-           filename, SF_SEMANTIC_REDECLARATION, func.span, SF_SEV_ERROR,
+           filename, SF_LOG_SEMANTIC_REDECLARATION, func.span, SF_LOG_SEVERITY_ERROR,
            func.name);
     return;
   }
