@@ -194,7 +194,7 @@ static sf_ast_node *parse_unary(sf_arena *arena, sf_token_list list,
     return NULL;
 
   sf_token token = peek(list, current);
-  sf_operation_type op_type = token_to_unary_op(token);
+  sf_operation_type op_type = sf_token_to_unary_op(token);
 
   if (op_type != SF_OP_TYPE_UNRESOLVED) {
     advance(list, current);
@@ -227,7 +227,7 @@ static sf_ast_node *parse_postfix(sf_arena *arena, sf_token_list list,
          peek(list, current).type == SF_TOKEN_TYPE_MINUS_MINUS) {
     sf_token op = advance(list, current);
 
-    sf_operation_type op_type = token_to_postfix_op(op);
+    sf_operation_type op_type = sf_token_to_postfix_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -315,7 +315,7 @@ static sf_ast_node *parse_multiplicative(sf_arena *arena, sf_token_list list,
     if (right == NULL)
       return NULL;
 
-    sf_operation_type op_type = token_to_binary_op(op);
+    sf_operation_type op_type = sf_token_to_binary_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -349,7 +349,7 @@ static sf_ast_node *parse_additive(sf_arena *arena, sf_token_list list,
     if (right == NULL)
       return NULL;
 
-    sf_operation_type op_type = token_to_binary_op(op);
+    sf_operation_type op_type = sf_token_to_binary_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -372,7 +372,7 @@ static sf_ast_node *parse_declaration(sf_arena *arena, sf_token_list list,
     return NULL;
 
   sf_token type_token = advance(list, current);
-  sf_value_type type = token_to_type(type_token);
+  sf_value_type type = sf_token_to_type(type_token);
 
   if (type == SF_VAL_TYPE_UNRESOLVED) {
     sf_log("unexpected token", "expected a type keyword but found '%s'",
@@ -430,7 +430,7 @@ static sf_ast_node *parse_assign(sf_arena *arena, sf_token_list list,
     return NULL;
 
   sf_token op_token = advance(list, current);
-  if (!token_is_assignment_op(op_token.type)) {
+  if (!sf_token_is_assignment_op(op_token.type)) {
     sf_log("unexpected token", "expected assignment operator but found '%s'",
            "use '=' or compound assignment like '+='", filename,
            SF_LOG_PARSER_UNEXPECTED_TOKEN, op_token.span, SF_LOG_SEVERITY_ERROR,
@@ -448,7 +448,7 @@ static sf_ast_node *parse_assign(sf_arena *arena, sf_token_list list,
   sf_ast_node *value = rhs;
 
   if (op_token.type != SF_TOKEN_TYPE_EQUAL) {
-    sf_operation_type bop = token_assign_to_binary_op(op_token.type);
+    sf_operation_type bop = sf_token_assign_to_binary_op(op_token.type);
     if (bop == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -585,7 +585,7 @@ static sf_ast_node *parse_func_stmt(sf_arena *arena, sf_token_list list,
   if (peek(list, current).type != SF_TOKEN_TYPE_RPAREN) {
     while (true) {
       sf_token type_token = advance(list, current);
-      if (token_to_type(type_token) == SF_VAL_TYPE_UNRESOLVED) {
+      if (sf_token_to_type(type_token) == SF_VAL_TYPE_UNRESOLVED) {
         sf_log("unexpected token", "expected a type name but found '%s'",
                "follow the language syntax", filename,
                SF_LOG_PARSER_UNEXPECTED_TOKEN, type_token.span, SF_LOG_SEVERITY_ERROR,
@@ -606,8 +606,8 @@ static sf_ast_node *parse_func_stmt(sf_arena *arena, sf_token_list list,
         return NULL;
       }
 
-      sf_parameter param = {.name = sf_strdup_arena(arena, name_token.value),
-                            .type = token_to_type(type_token)};
+      sf_parameter param = {.name = sf_string_dup_arena(arena, name_token.value),
+                            .type = sf_token_to_type(type_token)};
 
       sf_function_add_parameter(arena, func, param);
 
@@ -625,8 +625,8 @@ static sf_ast_node *parse_func_stmt(sf_arena *arena, sf_token_list list,
   // gets the return type
   sf_token ret_token = peek(list, current);
   if (ret_token.type != SF_TOKEN_TYPE_LBRACE) {
-    if (token_is_type(ret_token)) {
-      func->return_type = token_to_type(ret_token);
+    if (sf_token_is_type(ret_token)) {
+        func->return_type = sf_token_to_type(ret_token);
       advance(list, current);
     } else {
       sf_log("unexpected token", "expected '{' or type name but found '%s'",
@@ -693,32 +693,32 @@ static sf_ast_node *parse_statement(sf_arena *arena, sf_token_list list,
 
   sf_token token = peek(list, current);
 
-  if (token_is_type(token)) {
+  if (sf_token_is_type(token)) {
     return parse_declaration(arena, list, current, filename);
   }
 
-  if (token_is_ident(token) &&
-      token_is_assignment_op(peek_next(list, current).type)) {
+  if (sf_token_is_ident(token) &&
+      sf_token_is_assignment_op(peek_next(list, current).type)) {
     return parse_assign(arena, list, current, filename);
   }
 
-  if (token_is_block(token)) {
+  if (sf_token_is_block(token)) {
     return parse_block(arena, list, current, filename);
   }
 
-  if (token_is_if(token)) {
+  if (sf_token_is_if(token)) {
     return parse_if_stmt(arena, list, current, filename);
   }
 
-  if (token_is_while(token)) {
+  if (sf_token_is_while(token)) {
     return parse_while_stmt(arena, list, current, filename);
   }
 
-  if (token_is_fn(token)) {
+  if (sf_token_is_fn(token)) {
     return parse_func_stmt(arena, list, current, filename);
   }
 
-  if (token_is_return(token)) {
+  if (sf_token_is_return(token)) {
     return parse_return_stmt(arena, list, current, filename);
   }
 
@@ -801,7 +801,7 @@ static sf_ast_node *parse_cast(sf_arena *arena, sf_token_list list,
       break;
 
     sf_token type_token = advance(list, current);
-    sf_value_type target_type = token_to_type(type_token);
+    sf_value_type target_type = sf_token_to_type(type_token);
 
     if (target_type == SF_VAL_TYPE_UNRESOLVED) {
       sf_log("unexpected token",
@@ -843,7 +843,7 @@ static sf_ast_node *parse_shift(sf_arena *arena, sf_token_list list,
     if (right == NULL)
       return NULL;
 
-    sf_operation_type op_type = token_to_binary_op(op);
+    sf_operation_type op_type = sf_token_to_binary_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -876,7 +876,7 @@ static sf_ast_node *parse_bitwise_and(sf_arena *arena, sf_token_list list,
     if (right == NULL)
       return NULL;
 
-    sf_operation_type op_type = token_to_binary_op(op);
+    sf_operation_type op_type = sf_token_to_binary_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -909,7 +909,7 @@ static sf_ast_node *parse_bitwise_xor(sf_arena *arena, sf_token_list list,
     if (right == NULL)
       return NULL;
 
-    sf_operation_type op_type = token_to_binary_op(op);
+    sf_operation_type op_type = sf_token_to_binary_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -942,7 +942,7 @@ static sf_ast_node *parse_bitwise_or(sf_arena *arena, sf_token_list list,
     if (right == NULL)
       return NULL;
 
-    sf_operation_type op_type = token_to_binary_op(op);
+    sf_operation_type op_type = sf_token_to_binary_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -979,7 +979,7 @@ static sf_ast_node *parse_relational(sf_arena *arena, sf_token_list list,
     if (right == NULL)
       return NULL;
 
-    sf_operation_type op_type = token_to_binary_op(op);
+    sf_operation_type op_type = sf_token_to_binary_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -1012,7 +1012,7 @@ static sf_ast_node *parse_logical_and(sf_arena *arena, sf_token_list list,
     if (right == NULL)
       return NULL;
 
-    sf_operation_type op_type = token_to_binary_op(op);
+    sf_operation_type op_type = sf_token_to_binary_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 
@@ -1045,7 +1045,7 @@ static sf_ast_node *parse_logical_or(sf_arena *arena, sf_token_list list,
     if (right == NULL)
       return NULL;
 
-    sf_operation_type op_type = token_to_binary_op(op);
+    sf_operation_type op_type = sf_token_to_binary_op(op);
     if (op_type == SF_OP_TYPE_UNRESOLVED)
       return NULL;
 

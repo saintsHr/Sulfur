@@ -125,7 +125,7 @@ sf_identifier_node *sf_new_identifier(sf_arena *arena, const char *name,
   node->base.type = SF_NODE_IDENTIFIER;
   node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
   node->base.span = span;
-  node->name = sf_strdup_arena(arena, name);
+  node->name = sf_string_dup_arena(arena, name);
 
   return node;
 }
@@ -138,7 +138,7 @@ sf_literal_node *sf_new_literal(sf_arena *arena, const char *value,
   node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
   node->base.span = span;
   node->token_type = token_type;
-  node->value = sf_strdup_arena(arena, value);
+  node->value = sf_string_dup_arena(arena, value);
 
   return node;
 }
@@ -193,7 +193,7 @@ sf_var_decl_node *sf_new_var_decl(sf_arena *arena, const char *name,
   node->base.type = SF_NODE_VAR_DECL;
   node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
   node->base.span = span;
-  node->name = sf_strdup_arena(arena, name);
+  node->name = sf_string_dup_arena(arena, name);
   node->var_type = type;
   node->value = value;
 
@@ -207,7 +207,7 @@ sf_var_assign_node *sf_new_var_assign(sf_arena *arena, const char *name,
   node->base.type = SF_NODE_VAR_ASSIGN;
   node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
   node->base.span = span;
-  node->name = sf_strdup_arena(arena, name);
+  node->name = sf_string_dup_arena(arena, name);
   node->value = value;
 
   return node;
@@ -249,7 +249,7 @@ sf_func_decl_node *sf_new_func_decl(sf_arena *arena, const char *name,
   node->base.resolved = SF_VAL_TYPE_UNRESOLVED;
   node->base.span = span;
 
-  node->name = sf_strdup_arena(arena, name);
+  node->name = sf_string_dup_arena(arena, name);
   node->return_type = return_type;
   node->parameters = NULL;
   node->parameter_capacity = 0;
@@ -340,7 +340,7 @@ static void print_var_decl(const sf_ast_node *node, int indent) {
   sf_var_decl_node *var = (sf_var_decl_node *)node;
 
   print_indent(indent);
-  printf("VarDecl %s : %s\n", var->name, type_value_name(var->var_type));
+  printf("VarDecl %s : %s\n", var->name, sf_type_value_name(var->var_type));
 
   print_ast_node(var->value, indent + 1);
 }
@@ -374,7 +374,7 @@ static void print_binary_expr(const sf_ast_node *node, int indent) {
   sf_binary_expr_node *bin = (sf_binary_expr_node *)node;
 
   print_indent(indent);
-  printf("Binary %s\n", type_operation_name(bin->op));
+  printf("Binary %s\n", sf_type_operation_name(bin->op));
 
   print_ast_node(bin->left, indent + 1);
   print_ast_node(bin->right, indent + 1);
@@ -384,7 +384,7 @@ static void print_unary_expr(const sf_ast_node *node, int indent) {
   sf_unary_expr_node *un = (sf_unary_expr_node *)node;
 
   print_indent(indent);
-  printf("Unary %s\n", type_operation_name(un->op));
+  printf("Unary %s\n", sf_type_operation_name(un->op));
 
   print_ast_node(un->operand, indent + 1);
 }
@@ -404,7 +404,7 @@ static void print_cast_expr(const sf_ast_node *node, int indent) {
   sf_cast_expr_node *cast = (sf_cast_expr_node *)node;
 
   print_indent(indent);
-  printf("Cast : %s\n", type_value_name(cast->target_type));
+  printf("Cast : %s\n", sf_type_value_name(cast->target_type));
 
   print_ast_node(cast->operand, indent + 1);
 }
@@ -450,14 +450,14 @@ static void print_func_decl(const sf_ast_node *node, int indent) {
 
   print_indent(indent);
   printf("Function %s : %s\n", func_decl->name,
-         type_value_name(func_decl->return_type));
+         sf_type_value_name(func_decl->return_type));
 
   print_indent(indent + 1);
   printf("Parameters\n");
   for (size_t i = 0; i < func_decl->parameter_count; i++) {
     print_indent(indent + 2);
     printf("%s : %s\n", func_decl->parameters[i].name,
-           type_value_name(func_decl->parameters[i].type));
+           sf_type_value_name(func_decl->parameters[i].type));
   }
 
   print_indent(indent + 1);

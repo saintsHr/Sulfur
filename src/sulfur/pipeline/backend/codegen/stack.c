@@ -70,10 +70,10 @@ void sf_stack_register_operand(sf_stack_map *map, sf_operand op,
 
     if (offset == 0) {
       *next_offset = next_aligned_offset(*next_offset,
-                                         type_value_width_bytes(op.value_type));
+                                         sf_type_value_width_bytes(op.value_type));
 
       sf_stack_entry entry = {
-          .name = sf_strdup(name),
+          .name = sf_string_dup(name),
           .offset = *next_offset,
           .type = op.value_type,
       };
@@ -90,7 +90,7 @@ void sf_stack_register_operand(sf_stack_map *map, sf_operand op,
 
     if (offset == 0) {
       *next_offset = next_aligned_offset(*next_offset,
-                                         type_value_width_bytes(op.value_type));
+                                         sf_type_value_width_bytes(op.value_type));
 
       sf_stack_entry entry = {
           .name = name,

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <stdint.h>
+#include <stddef.h>
 
 typedef struct {
-  uint32_t line;
-  uint32_t col;
-  uint8_t len;
+  size_t line;
+  size_t col;
+  size_t len;
 } sf_span;

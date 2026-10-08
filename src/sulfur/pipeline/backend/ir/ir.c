@@ -237,11 +237,11 @@ void sf_print_ir(const sf_ir_program *program) {
     printf("\nFUNCTION %s(", func->name);
     for (size_t p = 0; p < func->parameter_count; p++) {
       printf("%s: %s", func->parameters[p].name,
-             type_value_name(func->parameters[p].type));
+             sf_type_value_name(func->parameters[p].type));
       if (p + 1 < func->parameter_count)
         printf(", ");
     }
-    printf(") -> %s:\n", type_value_name(func->return_type));
+    printf(") -> %s:\n", sf_type_value_name(func->return_type));
 
     print_operations(func->operations, func->operation_count);
   }
@@ -329,7 +329,7 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_context *context,
     sf_operand right = generate_expression(arena, context, ex->right, depth);
 
     sf_operand folded;
-    if (sf_fold_constants(arena, left, right, type_operation_to_opcode(ex->op),
+    if (sf_fold_constants(arena, left, right, sf_type_operation_to_opcode(ex->op),
                           node->resolved, &folded)) {
       operand = folded;
       break;
@@ -340,7 +340,7 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_context *context,
     operand = dst;
 
     push(arena, context,
-         (sf_operation){.opcode = type_operation_to_opcode(ex->op),
+         (sf_operation){.opcode = sf_type_operation_to_opcode(ex->op),
                         .operand1 = dst,
                         .operand2 = left,
                         .operand3 = right});
@@ -419,7 +419,7 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_context *context,
 
     sf_operand folded;
     if (sf_fold_constants(arena, src, (sf_operand){0},
-                          type_operation_to_opcode(un->op), node->resolved,
+                          sf_type_operation_to_opcode(un->op), node->resolved,
                           &folded)) {
       operand = folded;
       break;
@@ -430,7 +430,7 @@ static sf_operand generate_expression(sf_arena *arena, sf_ir_context *context,
     operand = dst;
 
     push(arena, context,
-         (sf_operation){.opcode = type_operation_to_opcode(un->op),
+         (sf_operation){.opcode = sf_type_operation_to_opcode(un->op),
                         .operand1 = dst,
                         .operand2 = src,
                         .operand3 = {0}});
@@ -506,7 +506,7 @@ static sf_operand generate_expression_into(sf_arena *arena,
     sf_operand left = generate_expression(arena, context, ex->left, depth);
     sf_operand right = generate_expression(arena, context, ex->right, depth);
 
-    sf_opcode opcode = type_operation_to_opcode(ex->op);
+    sf_opcode opcode = sf_type_operation_to_opcode(ex->op);
 
     sf_operand folded;
     if (sf_fold_constants(arena, left, right, opcode, node->resolved,
@@ -533,13 +533,13 @@ static sf_operand generate_expression_into(sf_arena *arena,
 
     sf_operand folded;
     if (sf_fold_constants(arena, src, (sf_operand){0},
-                          type_operation_to_opcode(un->op), node->resolved,
+                          sf_type_operation_to_opcode(un->op), node->resolved,
                           &folded)) {
       return folded;
     }
 
     push(arena, context,
-         (sf_operation){.opcode = type_operation_to_opcode(un->op),
+         (sf_operation){.opcode = sf_type_operation_to_opcode(un->op),
                         .operand1 = dst,
                         .operand2 = src,
                         .operand3 = {0}});
@@ -764,13 +764,13 @@ static void generate_statement(sf_arena *arena, sf_ir_context *context,
 static void print_operand(sf_operand op) {
   switch (op.type) {
   case SF_OPERAND_TYPE_TEMPORARY:
-    printf("t%u:%s", op.temporary_id, type_value_name(op.value_type));
+    printf("t%u:%s", op.temporary_id, sf_type_value_name(op.value_type));
     break;
   case SF_OPERAND_TYPE_VARIABLE:
-    printf("%s:%s", op.variable_name, type_value_name(op.value_type));
+    printf("%s:%s", op.variable_name, sf_type_value_name(op.value_type));
     break;
   case SF_OPERAND_TYPE_IMMEDIATE:
-    printf("%s:%s", op.immediate_value, type_value_name(op.value_type));
+    printf("%s:%s", op.immediate_value, sf_type_value_name(op.value_type));
     break;
   case SF_OPERAND_TYPE_LABEL:
     printf("L%u", op.label_id);

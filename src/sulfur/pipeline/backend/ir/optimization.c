@@ -195,8 +195,8 @@ bool sf_fold_constants(sf_arena *arena, sf_operand left, sf_operand right,
   bool is_logical =
       (opcode == SF_OPCODE_LOGICAL_AND || opcode == SF_OPCODE_LOGICAL_OR);
 
-  bool is_signed = is_relational ? type_value_is_signed(left.value_type)
-                                 : type_value_is_signed(result_type);
+  bool is_signed = is_relational ? sf_type_value_is_signed(left.value_type)
+                                 : sf_type_value_is_signed(result_type);
 
   bool is_bitwise =
       (opcode == SF_OPCODE_BITWISE_AND || opcode == SF_OPCODE_BITWISE_OR ||
