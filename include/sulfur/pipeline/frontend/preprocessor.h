@@ -1,3 +1,5 @@
 #pragma once
 
-char *sf_preprocess(const char *source, long srcSize, const char *filename);
+#include <stddef.h>
+
+char *sf_preprocess(const char *source, size_t srcSize, const char *filename);
