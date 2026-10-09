@@ -1,6 +1,7 @@
 #include "sulfur/pipeline/frontend/semantic/scope.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 #include "sulfur/utils/log.h"
 

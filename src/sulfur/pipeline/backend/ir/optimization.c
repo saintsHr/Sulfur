@@ -1,6 +1,7 @@
 #include "sulfur/pipeline/backend/ir/optimization.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "sulfur/pipeline/backend/ir/ir.h"
 #include "sulfur/utils/type_utils.h"

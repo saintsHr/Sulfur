@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "sulfur/utils/string.h"
 #include "sulfur/utils/type_utils.h"

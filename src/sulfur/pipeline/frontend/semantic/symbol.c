@@ -2,6 +2,7 @@
 #include "sulfur/utils/log.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 void sf_var_symbol_table_init(sf_var_symbol_table *table) {
   table->symbols = NULL;
