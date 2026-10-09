@@ -69,16 +69,16 @@ static bool compilation_run(const sf_compiler_options *options, sf_compilation *
     c->assembly = sf_generate_assembly(&c->ir);
     if (sf_log_had_fatal()) return false;
 
-    if (options->debug_dump_stages) debug_dump_stages(c);
-
     if (sf_log_had_errors()) return false;
+
+    if (options->debug_dump_stages) debug_dump_stages(c);
 
     return sf_file_write(options->file_output, c->assembly);
 }
 
 static void compilation_free(sf_compilation *c) {
     free(c->assembly);
-    sf_free_tokens(&c->tokens);
+    sf_tokens_free(&c->tokens);
     free(c->preprocessed);
     sf_arena_free(&c->arena);
     free(c->input_source);
@@ -87,7 +87,7 @@ static void compilation_free(sf_compilation *c) {
 static void debug_dump_stages(sf_compilation *c) {
     printf("%s", c->input_source);
     printf("\n");
-    sf_print_tokens(&c->tokens);
+    sf_tokens_print(&c->tokens);
     printf("\n");
     sf_print_ast((sf_ast_node *)c->ast);
     printf("\n");

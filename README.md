@@ -26,7 +26,7 @@
 <h1 align="center">⟨ Sulfur ⟩</h1>
 
 <p align="center">
-  A low-level, systems-oriented programming language focused on
+  A mid-level, systems-oriented programming language focused on
   <strong>explicit behavior, predictable execution, and direct control over memory.</strong>
 </p>
 
