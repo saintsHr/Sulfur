@@ -12,7 +12,7 @@
 #include "sulfur/pipeline/backend/ir/ir.h"
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/lexer.h"
-#include "sulfur/pipeline/frontend/parser.h"
+#include "sulfur/pipeline/frontend/parser/parser.h"
 #include "sulfur/pipeline/frontend/preprocessor.h"
 #include "sulfur/pipeline/frontend/semantic/semantic.h"
 #include "sulfur/utils/arena.h"

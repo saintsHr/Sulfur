@@ -9,7 +9,7 @@ but changes should remain consistent with the project's design principles.
 ## Before Contributing
 
 Before making a significant change, especially one involving the language,
-compiler architecture, or semantics, read [`MANIFEST.md`](MANIFEST.md).
+compiler architecture, or semantics, read [`doc/manifest.md`](doc/manifest.md).
 
 The Manifest describes the principles that guide Sulfur, including:
 
@@ -241,7 +241,7 @@ A Pull Request should explain:
 * Any relevant design decisions
 * Whether the change affects language semantics
 
-For language changes, explain how the proposal fits the principles defined in `MANIFEST.md`.
+For language changes, explain how the proposal fits the principles defined in [`doc/manifest.md`](doc/manifest.md).
 
 Pull Requests must target `main` and must come from a separate branch.
 
@@ -315,4 +315,4 @@ Contributions do not need to preserve every existing implementation detail, but 
 
 ## License
 
-By contributing to Sulfur, you agree that your contributions are made under the project's [MIT License](LICENSE).
+By contributing to Sulfur, you agree that your contributions are made under the project's [license](LICENSE).

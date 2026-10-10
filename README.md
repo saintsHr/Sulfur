@@ -52,7 +52,7 @@ The compiler is responsible for enforcing what can be proven statically.
 When it cannot prove that an operation is safe, it should make that limitation
 visible rather than hiding it behind runtime behavior.
 
-For the full design rationale, see [`MANIFEST.md`](MANIFEST.md).
+For the full design rationale, see [`doc/manifest.md`](doc/manifest.md).
 
 ## 🎯 Goals
 
@@ -87,7 +87,7 @@ with future versions.
 
 Project documentation is available in [`doc/`](doc/).
 
-The [`MANIFEST.md`](MANIFEST.md) describes the principles and constraints
+The [`doc/manifest.md`](doc/manifest.md) describes the principles and constraints
 that guide the language's design.
 
 ## 🤝 Contributing

@@ -27,7 +27,9 @@ set(SOURCES
 
 	src/sulfur/pipeline/frontend/ast.c
 	src/sulfur/pipeline/frontend/lexer.c
-	src/sulfur/pipeline/frontend/parser.c
+	src/sulfur/pipeline/frontend/parser/parser.c
+	src/sulfur/pipeline/frontend/parser/parser_stmt.c
+	src/sulfur/pipeline/frontend/parser/parser_expr.c
 	src/sulfur/pipeline/frontend/preprocessor.c
 	src/sulfur/pipeline/frontend/semantic/semantic.c
 	src/sulfur/pipeline/frontend/semantic/scope.c
