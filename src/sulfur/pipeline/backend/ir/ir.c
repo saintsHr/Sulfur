@@ -187,7 +187,7 @@ static void print_operations(const sf_operation *operations, uint32_t count) {
 
     // control flow
     case SF_OPCODE_LABEL: {
-      printf("LABEL L%u:", op->operand1.label_id);
+      printf("label .L%u:", op->operand1.label_id);
       break;
     }
     case SF_OPCODE_JMP_COND: {
@@ -234,7 +234,7 @@ void sf_print_ir(const sf_ir_program *program) {
   for (uint32_t f = 0; f < program->function_count; f++) {
     sf_ir_function *func = &program->functions[f];
 
-    printf("\nFUNCTION %s(", func->name);
+    printf("\nfunction %s(", func->name);
     for (size_t p = 0; p < func->parameter_count; p++) {
       printf("%s: %s", func->parameters[p].name,
              sf_type_value_name(func->parameters[p].type));

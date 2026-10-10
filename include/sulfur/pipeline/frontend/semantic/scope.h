@@ -1,12 +1,15 @@
 #pragma once
 
+#include <stddef.h>
+
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
 
 typedef struct {
-  sf_var_symbol_table *stack;
-  uint32_t depth;
-  uint32_t capacity;
-  uint32_t next_id;
+    sf_var_symbol_table *stack;
+    size_t depth;
+    size_t capacity;
+    size_t next_id;
+    size_t failed_pushes;
 } sf_scope;
 
 void scope_init(sf_scope *scope);
