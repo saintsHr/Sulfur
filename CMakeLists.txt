@@ -32,6 +32,8 @@ set(SOURCES
 	src/sulfur/pipeline/frontend/parser/parser_expr.c
 	src/sulfur/pipeline/frontend/preprocessor.c
 	src/sulfur/pipeline/frontend/semantic/semantic.c
+	src/sulfur/pipeline/frontend/semantic/semantic_expr.c
+	src/sulfur/pipeline/frontend/semantic/semantic_const.c
 	src/sulfur/pipeline/frontend/semantic/scope.c
 	src/sulfur/pipeline/frontend/semantic/symbol.c
 
