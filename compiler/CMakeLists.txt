@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(sulfur
-	VERSION 0.1.0
-	LANGUAGES C
-)
+project(sulfur-compiler VERSION 0.0.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED TRUE)
@@ -12,7 +9,6 @@ set(CMAKE_C_EXTENSIONS FALSE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 find_program(CCACHE_PROGRAM ccache)
-find_program(CLANG_FORMAT_EXE NAMES clang-format)
 
 set(SOURCES
     src/sulfur/driver/main.c
@@ -43,38 +39,23 @@ set(SOURCES
 	src/sulfur/pipeline/backend/codegen/stack.c
 )
 
-add_executable(sulfur ${SOURCES})
+add_executable(sulfur-compiler ${SOURCES})
 
-target_include_directories(sulfur PRIVATE
+target_include_directories(sulfur-compiler PRIVATE
     include
 )
 
 option(ENABLE_SANITIZERS "Enable Sanitizers" OFF)
 
 if(ENABLE_SANITIZERS)
-    target_compile_options(sulfur PRIVATE
+    target_compile_options(sulfur-compiler PRIVATE
         -fsanitize=address,undefined,leak
         -fno-omit-frame-pointer
     )
 
-    target_link_options(sulfur PRIVATE
+    target_link_options(sulfur-compiler PRIVATE
         -fsanitize=address,undefined,leak
     )
-endif()
-
-if(CLANG_FORMAT_EXE)
-    file(GLOB_RECURSE ALL_SOURCE_FILES
-        ${CMAKE_SOURCE_DIR}/src/sulfur/*.c
-        ${CMAKE_SOURCE_DIR}/include/sulfur/*.h
-    )
-
-    add_custom_target(format
-        COMMAND ${CLANG_FORMAT_EXE} -i -style=file ${ALL_SOURCE_FILES}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Formatting Files."
-    )
-else()
-    message(WARNING "clang-format Not Found.")
 endif()
 
 if(CCACHE_PROGRAM)

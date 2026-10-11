@@ -1,4 +1,4 @@
-name: CI
+name: CI (Compiler)
 
 on:
   push:
@@ -20,12 +20,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake make ccache ${{ matrix.compiler }}
 
-      - name: Cache ccache
+      - name: Cache Setup
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
@@ -34,17 +34,17 @@ jobs:
             ccache-debug-${{ matrix.compiler }}-${{ github.ref }}-
             ccache-debug-${{ matrix.compiler }}-
 
-      - name: Run build_debug.sh
+      - name: Build
         run: |
-          chmod +x scripts/build_debug.sh
-          ./scripts/build_debug.sh
+          chmod +x scripts/compiler/build_debug.sh
+          ./scripts/compiler/build_debug.sh
         env:
           CCACHE_DIR: ~/.cache/ccache
 
       - name: Run testcases
         run: |
-          chmod +x scripts/testcases.sh
-          ./scripts/testcases.sh
+          chmod +x scripts/compiler/testcases.sh
+          ./scripts/compiler/testcases.sh
 
   build-release:
     name: Build Release (${{ matrix.compiler }})
@@ -59,12 +59,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake make ccache ${{ matrix.compiler }}
 
-      - name: Cache ccache
+      - name: Cache Setup
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
@@ -73,14 +73,14 @@ jobs:
             ccache-release-${{ matrix.compiler }}-${{ github.ref }}-
             ccache-release-${{ matrix.compiler }}-
 
-      - name: Run build_release.sh
+      - name: Build
         run: |
-          chmod +x scripts/build_release.sh
-          ./scripts/build_release.sh
+          chmod +x scripts/compiler/build_release.sh
+          ./scripts/compiler/build_release.sh
         env:
           CCACHE_DIR: ~/.cache/ccache
 
-      - name: Run testcases
+      - name: Run Test Cases
         run: |
-          chmod +x scripts/testcases.sh
-          ./scripts/testcases.sh
+          chmod +x scripts/compiler/testcases.sh
+          ./scripts/compiler/testcases.sh

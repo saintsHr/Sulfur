@@ -2,8 +2,8 @@
 
 shopt -s nullglob
 
-BIN="./build/sulfur"
-CASES_DIR="./testcases"
+BIN="./build/compiler/sulfur-compiler"
+CASES_DIR="./testcases/compiler"
 TMP_OUT="/tmp/testcases.asm"
 
 trap 'rm -f "$TMP_OUT"' EXIT
@@ -16,17 +16,17 @@ print_pass() {
 cat << "EOF"
     ____   ___    _____ _____
    / __ \ /   |  / ___// ___/
-  / /_/ // /| |  \__ \ \__ \ 
- / ____// ___ | ___/ /___/ / 
-/_/    /_/  |_|/____//____/  
+  / /_/ // /| |  \__ \ \__ \
+ / ____// ___ | ___/ /___/ /
+/_/    /_/  |_|/____//____/
 EOF
 }
 
 print_fail() {
 cat << "EOF"
-    ______ ___     ____ __ 
-   / ____//   |   /  _// / 
-  / /_   / /| |   / / / /  
+    ______ ___     ____ __
+   / ____//   |   /  _// /
+  / /_   / /| |   / / / /
  / __/  / ___ | _/ / / /___
 /_/    /_/  |_|/___//_____/
 EOF

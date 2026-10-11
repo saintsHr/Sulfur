@@ -9,7 +9,7 @@ but changes should remain consistent with the project's design principles.
 ## Before Contributing
 
 Before making a significant change, especially one involving the language,
-compiler architecture, or semantics, read [`doc/manifest.md`](doc/manifest.md).
+compiler architecture, or semantics, read [`MANIFEST.md`](MANIFEST.md).
 
 The Manifest describes the principles that guide Sulfur, including:
 
@@ -86,32 +86,8 @@ Build:
 cmake --build build
 ```
 
-The repository also contains development scripts in [`scripts/`](scripts/),
-including build, formatting, cleaning, and testcase helpers.
-
-## Project Structure
-
-The main project structure is:
-
-```
-Sulfur/
-├── .github/        	# GitHub configuration and workflows
-├── assets/         	# Project assets
-├── doc/            	# Language documentation
-├── include/        	# Public headers
-├── scripts/        	# Development scripts
-├── src/            	# Compiler implementation
-├── testcases/      	# Language test cases
-├── .clang-format   	# Format rules
-├── .gitignore        	# Ignored files/folders
-├── CMakeLists.txt  	# Build configuration
-├── CODE_OF_CONDUCT.md  # Code of conduct
-├── CONTRIBUTING.md 	# Contributing guide
-├── LICENSE             # License
-└── README.md           # Read me
-```
-
-The structure may change as the project develops.
+The repository also contains development scripts in [`scripts`](scripts),
+including build, formatting, cleaning, and other helpers.
 
 ## Compiler Development
 
@@ -124,16 +100,14 @@ The frontend currently contains components such as:
 * Parser
 * AST
 * Semantic analysis
-* Scope and symbol handling
+* Scope and Symbol
 
 The backend currently contains components such as:
 
-* Intermediate representation
-* IR optimization
-* Code generation
-* Stack handling
-
-Shared functionality is located under `utils/`.
+* IR
+* Optimization
+* Codegen
+* Stack
 
 When modifying the compiler, keep responsibilities separated and avoid introducing unnecessary coupling between pipeline stages.
 
@@ -149,7 +123,7 @@ Before proposing a new feature, consider:
 4. Does it make memory or execution behavior harder to understand?
 5. Does it introduce unnecessary special cases?
 6. Can the compiler reason about its behavior statically?
-7. Does it fit the principles described in `MANIFEST.md`?
+7. Does it fit the principles described in [`MANIFEST.md`](MANIFEST.md)?
 
 Language features should not be added simply for convenience.
 
@@ -157,7 +131,7 @@ If a proposed change affects the language's semantics or design, discuss it thro
 
 ## Tests
 
-Sulfur has a collection of language test cases in [`testcases/`](testcases/).
+Sulfur has a collection of language test cases in [`testcases`](testcases).
 
 Test cases cover areas including:
 
@@ -180,7 +154,7 @@ Run the relevant tests before opening a Pull Request.
 
 ## Documentation
 
-Documentation is part of the project and is located in [`doc/`](doc/).
+Documentation is part of the project and is located in [`doc`](doc).
 
 If a change affects:
 
@@ -241,7 +215,7 @@ A Pull Request should explain:
 * Any relevant design decisions
 * Whether the change affects language semantics
 
-For language changes, explain how the proposal fits the principles defined in [`doc/manifest.md`](doc/manifest.md).
+For language changes, explain how the proposal fits the principles defined in [`MANIFEST.md`](MANIFEST.md).
 
 Pull Requests must target `main` and must come from a separate branch.
 
@@ -315,4 +289,4 @@ Contributions do not need to preserve every existing implementation detail, but 
 
 ## License
 
-By contributing to Sulfur, you agree that your contributions are made under the project's [license](LICENSE).
+By contributing to Sulfur, you agree that your contributions are made under the project's [LICENSE](LICENSE).

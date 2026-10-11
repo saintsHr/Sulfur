@@ -1,6 +1,6 @@
 # Directories
-/build/
-/.cache/
-/test/
+build
+test
+.cache
 
 # Files

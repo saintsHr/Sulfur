@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/saintsHr/Sulfur/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/saintsHr/Sulfur/ci.yml?branch=main&style=flat-square&label=CI" alt="CI">
+    <img src="https://img.shields.io/github/actions/workflow/status/saintsHr/Sulfur/compiler_ci.yml?branch=main&style=flat-square&label=compiler" alt="Compiler">
   </a>
   <a href="https://github.com/saintsHr/Sulfur/stargazers">
     <img src="https://img.shields.io/github/stars/saintsHr/Sulfur?style=flat-square" alt="Stars">
@@ -52,7 +52,7 @@ The compiler is responsible for enforcing what can be proven statically.
 When it cannot prove that an operation is safe, it should make that limitation
 visible rather than hiding it behind runtime behavior.
 
-For the full design rationale, see [`doc/manifest.md`](doc/manifest.md).
+For the full design rationale, see [`MANIFEST.md`](MANIFEST.md).
 
 ## 🎯 Goals
 
@@ -85,9 +85,9 @@ with future versions.
 
 ## 📚 Documentation
 
-Project documentation is available in [`doc/`](doc/).
+Project documentation is available in [`doc`](doc).
 
-The [`doc/manifest.md`](doc/manifest.md) describes the principles and constraints
+The [`MANIFEST.md`](MANIFEST.md) describes the principles and constraints
 that guide the language's design.
 
 ## 🤝 Contributing
