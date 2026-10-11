@@ -1,12 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(sulfur-compiler VERSION 0.0.0 LANGUAGES C)
-
-set(CMAKE_C_STANDARD 17)
-set(CMAKE_C_STANDARD_REQUIRED TRUE)
-set(CMAKE_C_EXTENSIONS FALSE)
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+project(sulfur-compiler
+    VERSION 0.0.0
+    LANGUAGES C
+)
 
 find_program(CCACHE_PROGRAM ccache)
 

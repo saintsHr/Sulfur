@@ -2,7 +2,6 @@
 
 shopt -s nullglob
 
-BIN="./build/compiler/sulfur-compiler"
 CASES_DIR="./testcases/compiler"
 TMP_OUT="/tmp/testcases.asm"
 
@@ -11,6 +10,7 @@ trap 'rm -f "$TMP_OUT"' EXIT
 total=0
 passed=0
 failed_names=()
+BINS=()
 
 print_pass() {
 cat << "EOF"
@@ -32,17 +32,27 @@ cat << "EOF"
 EOF
 }
 
-mapfile -t files < <(find "$CASES_DIR" -type f -name "*.slfr" | sort)
+for mode in debug release; do
+    bin="./build/$mode/sulfur-compiler/sulfur-compiler"
+
+    if [[ -x "$bin" ]]; then
+        BINS+=("$mode:$bin")
+    fi
+done
 
 echo ""
 
-if [[ ${#files[@]} -eq 0 ]]; then
-    echo "No test cases found in $CASES_DIR."
+if [[ ${#BINS[@]} -eq 0 ]]; then
+    echo "No compiler found in build/debug or build/release."
     exit 1
 fi
 
-if [[ ! -x "$BIN" ]]; then
-    echo "No compiler found in $BIN"
+mapfile -t files < <(
+    find "$CASES_DIR" -type f -name "*.slfr" | sort
+)
+
+if [[ ${#files[@]} -eq 0 ]]; then
+    echo "No test cases found in $CASES_DIR."
     exit 1
 fi
 
@@ -63,42 +73,60 @@ if [[ $invalid -eq 1 ]]; then
     exit 1
 fi
 
-for file in "${files[@]}"; do
-    ((total++))
-    name=$(basename "$file")
+for entry in "${BINS[@]}"; do
+    mode="${entry%%:*}"
+    BIN="${entry#*:}"
 
-    "$BIN" -i "$file" -o "$TMP_OUT" > /dev/null 2>&1
-    exit_code=$?
+    echo "========================================"
+    echo " Running $mode: $BIN"
+    echo "========================================"
 
-    if [[ "$name" == *_fail* ]]; then
-        expected="fail"
-    elif [[ "$name" == *_pass* ]]; then
-        expected="pass"
-    else
-        echo "invalid name: $name (use the suffix _fail or _pass)"
-        exit 1
+    mode_total=0
+    mode_passed=0
+    mode_failed=()
+
+    for file in "${files[@]}"; do
+        ((mode_total++))
+        name=$(basename "$file")
+
+        if [[ "$name" == *_fail* ]]; then
+            expected="fail"
+        else
+            expected="pass"
+        fi
+
+        "$BIN" -i "$file" -o "$TMP_OUT" \
+            > /dev/null 2>&1
+        exit_code=$?
+
+        if [[ "$expected" == "pass" && $exit_code -eq 0 ]] ||
+           [[ "$expected" == "fail" && $exit_code -ne 0 ]]; then
+            echo "[PASS] [$mode] $name"
+            ((mode_passed++))
+        else
+            echo "[FAIL] [$mode] $name"
+            mode_failed+=("$name")
+        fi
+    done
+
+    echo ""
+    echo "[$mode] Total: $mode_total | Pass: $mode_passed | Fail: $((mode_total - mode_passed))"
+
+    if [[ ${#mode_failed[@]} -ne 0 ]]; then
+        echo "[$mode] Failed tests:"
+        printf ' - %s\n' "${mode_failed[@]}"
     fi
 
-    if [[ "$expected" == "pass" && $exit_code -eq 0 ]]; then
-        echo "[PASS] $name"
-        ((passed++))
-    elif [[ "$expected" == "fail" && $exit_code -ne 0 ]]; then
-        echo "[PASS] $name"
-        ((passed++))
-    else
-        echo "[FAIL] $name"
-        failed_names+=("$name")
-    fi
+    total=$((total + mode_total))
+    passed=$((passed + mode_passed))
+    failed_names+=("${mode_failed[@]}")
+    echo ""
 done
 
-if [[ ${#failed_names[@]} -ne 0 ]]; then
-    echo ""
-    echo "Failed Tests:"
-    printf ' - %s\n' "${failed_names[@]}"
-fi
-
-echo ""
-echo "Total: $total | Pass: $passed | Fail: $((total-passed))"
+echo "========================================"
+echo " Final Summary"
+echo "========================================"
+echo "Total: $total | Pass: $passed | Fail: $((total - passed))"
 echo ""
 
 if [[ ${#failed_names[@]} -eq 0 ]]; then
@@ -108,3 +136,9 @@ else
 fi
 
 echo ""
+
+if [[ ${#failed_names[@]} -ne 0 ]]; then
+    exit 1
+fi
+
+exit 0
