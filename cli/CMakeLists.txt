@@ -9,6 +9,7 @@ find_program(CCACHE_PROGRAM ccache)
 
 set(SOURCES
     src/sulfur/main.c
+    src/sulfur/file.c
 )
 
 add_executable(sulfur ${SOURCES})
