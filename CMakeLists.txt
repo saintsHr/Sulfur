@@ -12,7 +12,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 include(GNUInstallDirs)
 
+enable_testing()
+
 add_subdirectory(compiler)
 add_subdirectory(cli)
-
-enable_testing()

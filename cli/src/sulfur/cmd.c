@@ -5,6 +5,15 @@
 
 #include "sulfur/file.h"
 
+#define SF_COLOR_RESET "\033[0m"
+#define SF_COLOR_BOLD "\033[1m"
+
+#define SF_COLOR_CYAN "\033[36m"
+#define SF_COLOR_GREEN "\033[32m"
+#define SF_COLOR_YELLOW "\033[33m"
+#define SF_COLOR_RED "\033[31m"
+#define SF_COLOR_GRAY "\033[37m"
+
 #define PATH_BUFFER_SIZE 256
 
 #define CMD_STRING_HELP "--help"
@@ -57,21 +66,25 @@ bool cmd_parse(int argc, char **argv) {
 
 void cmd_print_usage(void) {
     printf(
-        "\n"
-        "------------------------------------------------\n"
-        "                  Sulfur Help\n"
-        "------------------------------------------------\n"
-        "Usage:\n"
+        SF_COLOR_BOLD SF_COLOR_CYAN "Usage:\n" SF_COLOR_RESET
         "   sulfur <command> [arguments]\n"
-        "------------------------------------------------\n"
-        "Commands:\n"
-        "   new <name> - Creates a new project folder.\n"
-        "   build      - Builds the project.\n"
-        "   clean      - Cleans build artifacts.\n"
-        "   --version  - Display compiler information.\n"
-        "   --help     - Display this help message.\n"
-        "------------------------------------------------\n"
-        "\n"
+
+        SF_COLOR_BOLD SF_COLOR_CYAN "Commands:\n" SF_COLOR_RESET
+
+        "   " SF_COLOR_GREEN "new" SF_COLOR_RESET
+        " <name> - Creates a new project folder.\n"
+
+        "   " SF_COLOR_GREEN "build" SF_COLOR_RESET
+        "      - Builds the project.\n"
+
+        "   " SF_COLOR_GREEN "clean" SF_COLOR_RESET
+        "      - Cleans build artifacts.\n"
+
+        "   " SF_COLOR_YELLOW "--version" SF_COLOR_RESET
+        "  - Display compiler information.\n"
+
+        "   " SF_COLOR_YELLOW "--help" SF_COLOR_RESET
+        "     - Display this help message.\n"
     );
 }
 
@@ -138,13 +151,8 @@ static void command_clean(int argc, char **argv) {
 
 static void print_version(void) {
     printf(
-        "\n"
-        "---------------------------------\n"
-        "         Sulfur v0.0.0\n"
-        "---------------------------------\n"
-        "Copyright (C) 2026 saintsHr\n"
-        "Licensed under the MIT license\n"
-        "---------------------------------\n"
-        "\n"
+        SF_COLOR_CYAN "Version v0.0.0\n" SF_COLOR_RESET
+        "Copyright (C) 2026 " SF_COLOR_GREEN "saintsHr\n" SF_COLOR_RESET
+        "Licensed under the " SF_COLOR_YELLOW "MIT license\n" SF_COLOR_RESET
     );
 }

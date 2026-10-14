@@ -4,22 +4,22 @@
 
 <p align="center">
   <a href="https://github.com/saintsHr/Sulfur/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/saintsHr/Sulfur/compiler_ci.yml?branch=main&style=flat-square&label=compiler" alt="Compiler">
+    <img src="https://img.shields.io/github/actions/workflow/status/saintsHr/Sulfur/ci.yml?branch=main&style=flat-square&label=CI" alt="CI">
   </a>
   <a href="https://github.com/saintsHr/Sulfur/stargazers">
-    <img src="https://img.shields.io/github/stars/saintsHr/Sulfur?style=flat-square" alt="Stars">
+    <img src="https://img.shields.io/github/stars/saintsHr/Sulfur?style=flat-square&label=Stars" alt="Stars">
   </a>
   <a href="https://github.com/saintsHr/Sulfur/network/members">
-    <img src="https://img.shields.io/github/forks/saintsHr/Sulfur?style=flat-square" alt="Forks">
+    <img src="https://img.shields.io/github/forks/saintsHr/Sulfur?style=flat-square&label=Forks" alt="Forks">
   </a>
   <a href="https://github.com/saintsHr/Sulfur/issues">
-    <img src="https://img.shields.io/github/issues/saintsHr/Sulfur?style=flat-square" alt="Issues">
+    <img src="https://img.shields.io/github/issues/saintsHr/Sulfur?style=flat-square&label=Issues" alt="Issues">
   </a>
   <a href="https://github.com/saintsHr/Sulfur/commits/main">
-    <img src="https://img.shields.io/github/last-commit/saintsHr/Sulfur?style=flat-square" alt="Last Commit">
+    <img src="https://img.shields.io/github/last-commit/saintsHr/Sulfur?style=flat-square&label=Last%20Commit" alt="Last Commit">
   </a>
   <a href="https://github.com/saintsHr/Sulfur/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/saintsHr/Sulfur?style=flat-square" alt="License">
+    <img src="https://img.shields.io/github/license/saintsHr/Sulfur?style=flat-square&label=License" alt="License">
   </a>
 </p>
 
