@@ -1,4 +1,4 @@
-name: CI (Compiler)
+name: CI
 
 on:
   push:
@@ -20,12 +20,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake make ccache ${{ matrix.compiler }}
+          sudo apt-get install -y \
+            cmake \
+            make \
+            ccache \
+            ${{ matrix.compiler }}
 
-      - name: Cache Setup
+      - name: Cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
@@ -36,15 +40,10 @@ jobs:
 
       - name: Build
         run: |
-          chmod +x scripts/compiler/build_debug.sh
-          ./scripts/compiler/build_debug.sh
+          chmod +x scripts/build.sh
+          ./scripts/build.sh debug all
         env:
           CCACHE_DIR: ~/.cache/ccache
-
-      - name: Run testcases
-        run: |
-          chmod +x scripts/compiler/testcases.sh
-          ./scripts/compiler/testcases.sh
 
   build-release:
     name: Build Release (${{ matrix.compiler }})
@@ -59,12 +58,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake make ccache ${{ matrix.compiler }}
+          sudo apt-get install -y \
+            cmake \
+            make \
+            ccache \
+            ${{ matrix.compiler }}
 
-      - name: Cache Setup
+      - name: Cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
@@ -75,12 +78,7 @@ jobs:
 
       - name: Build
         run: |
-          chmod +x scripts/compiler/build_release.sh
-          ./scripts/compiler/build_release.sh
+          chmod +x scripts/build.sh
+          ./scripts/build.sh debug all
         env:
           CCACHE_DIR: ~/.cache/ccache
-
-      - name: Run Test Cases
-        run: |
-          chmod +x scripts/compiler/testcases.sh
-          ./scripts/compiler/testcases.sh
