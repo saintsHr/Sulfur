@@ -34,3 +34,8 @@ endif()
 if(CCACHE_PROGRAM)
     set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
 endif()
+
+install(TARGETS sulfur
+    RUNTIME DESTINATION bin
+    COMPONENT cli
+)

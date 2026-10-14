@@ -6,11 +6,13 @@
 #define PATH_BUFFER_SIZE 256
 
 #define CMD_STRING_NEW "new"
+#define CMD_STRING_VERSION "--version"
 
 static void print_usage(void);
 static void parse_cmd(int argc, char **argv);
 
 static void cmd_new(int argc, char **argv);
+static void cmd_version(int argc, char **argv);
 
 int main(int argc, char **argv) {
     if (argc < 2) return EXIT_FAILURE;
@@ -25,6 +27,9 @@ static void parse_cmd(int argc, char **argv) {
 
     if (strcmp(cmd, CMD_STRING_NEW) == 0) {
         cmd_new(argc, argv);
+    }
+    if (strcmp(cmd, CMD_STRING_VERSION) == 0) {
+        cmd_version(argc, argv);
     }
 }
 
@@ -61,6 +66,21 @@ static void cmd_new(int argc, char **argv) {
     sf_create_file(toml_file_path);
 
     sf_write_file(main_file_path, main_file_content);
+}
+
+static void cmd_version(int argc, char **argv) {
+    if (argc != 2) {
+        print_usage();
+        return;
+    }
+
+    printf(
+        "\n"
+        "sulfur (Sulfur) v0.0.0\n"
+        "Copyright (C) 2026 saintsHr\n"
+        "Licensed under the MIT license\n"
+        "\n"
+    );
 }
 
 static void print_usage(void) {
