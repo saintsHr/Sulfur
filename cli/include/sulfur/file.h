@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 bool sf_create_folder(const char *path);
+bool sf_create_folders(const char *path);
 bool sf_delete_folder(const char *path);
 
 bool sf_create_file(const char *path);

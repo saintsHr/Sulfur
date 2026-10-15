@@ -1,3 +1,4 @@
+#include <stddef.h>
 #define _DEFAULT_SOURCE
 
 #include "sulfur/cmd.h"
@@ -20,6 +21,7 @@
 #define SF_COLOR_GRAY "\033[37m"
 
 #define PATH_BUFFER_SIZE 256
+#define CMD_BUFFER_SIZE 1024
 
 #define CMD_STRING_HELP "--help"
 #define CMD_STRING_VERSION "--version"
@@ -181,7 +183,61 @@ static void command_build(int argc, char **argv) {
         return;
     }
 
-    // compile here
+    for (size_t i = 0; i < files.count; i++) {
+        const char *input = files.paths[i];
+        const char *relative = input;
+
+        if (strncmp(input, "src/", 4) == 0) {
+            relative = input + 4;
+        }
+
+        char output[PATH_BUFFER_SIZE];
+        char cmd[CMD_BUFFER_SIZE];
+
+        snprintf(output, sizeof(output), "build/%s.asm", relative);
+
+
+        char *last_slash = strrchr(output, '/');
+
+        if (last_slash != NULL) {
+            *last_slash = '\0';
+
+            if (!sf_create_folders(output)) {
+                fprintf(stderr, "Failed to create directory: %s\n", output);
+
+                free_slfr_files(&files);
+                return;
+            }
+
+            *last_slash = '/';
+        }
+
+        snprintf(
+            cmd, sizeof(cmd),
+            "sulfur-compiler -i \"%s\" -o \"%s\"",
+            input, output
+        );
+
+        int result = system(cmd);
+
+        if (result != 0) {
+            printf(
+                SF_COLOR_RED "Build failed.\n"
+                SF_COLOR_RESET "   Failed to compile %s.\n",
+                input
+            );
+
+            free_slfr_files(&files);
+            return;
+        }
+
+        printf(
+            SF_COLOR_CYAN "[Compiled] "
+            SF_COLOR_RESET "%s -> %s\n",
+            input,
+            output
+        );
+    }
 
     free_slfr_files(&files);
 

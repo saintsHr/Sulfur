@@ -14,6 +14,7 @@
 #include <limits.h>
 
 #define PERMS 0755
+#define PATH_BUFFER_SIZE 256
 
 bool sf_create_folder(const char *path) {
     if (mkdir(path, PERMS) == 0) {
@@ -26,6 +27,34 @@ bool sf_create_folder(const char *path) {
     }
 
     return false;
+}
+
+bool sf_create_folders(const char *path) {
+    char buffer[PATH_BUFFER_SIZE];
+
+    if (strlen(path) >= sizeof(buffer)) {
+        return false;
+    }
+
+    strcpy(buffer, path);
+
+    for (char *p = buffer + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+
+            if (mkdir(buffer, 0755) != 0 && errno != EEXIST) {
+                return false;
+            }
+
+            *p = '/';
+        }
+    }
+
+    if (mkdir(buffer, 0755) != 0 && errno != EEXIST) {
+        return false;
+    }
+
+    return true;
 }
 
 bool sf_delete_folder(const char *path) {
