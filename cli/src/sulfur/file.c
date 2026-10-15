@@ -1,3 +1,5 @@
+#define _DEFAULT_SOURCE
+
 #include "sulfur/file.h"
 
 #include <sys/stat.h>
@@ -7,14 +9,85 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <dirent.h>
+#include <string.h>
+#include <limits.h>
 
 #define PERMS 0755
 
 bool sf_create_folder(const char *path) {
-    return mkdir(path, PERMS) == 0;
+    if (mkdir(path, PERMS) == 0) {
+        return true;
+    }
+
+    if (errno == EEXIST) {
+        struct stat st;
+        return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+    }
+
+    return false;
 }
 
 bool sf_delete_folder(const char *path) {
+    if (path == NULL) {
+        return false;
+    }
+
+    DIR *dir = opendir(path);
+    if (dir == NULL) {
+        return false;
+    }
+
+    struct dirent *entry;
+    bool success = true;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        char fullpath[PATH_MAX];
+
+        int len = snprintf(
+            fullpath,
+            sizeof(fullpath),
+            "%s/%s",
+            path,
+            entry->d_name
+        );
+
+        if (len < 0 || (size_t)len >= sizeof(fullpath)) {
+            success = false;
+            continue;
+        }
+
+        struct stat st;
+
+        if (lstat(fullpath, &st) != 0) {
+            success = false;
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            if (!sf_delete_folder(fullpath)) {
+                success = false;
+            }
+        } else {
+            if (!sf_delete_file(fullpath)) {
+                success = false;
+            }
+        }
+    }
+
+    if (closedir(dir) != 0) {
+        success = false;
+    }
+
+    if (!success) {
+        return false;
+    }
+
     return rmdir(path) == 0;
 }
 

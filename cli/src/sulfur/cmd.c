@@ -1,7 +1,12 @@
+#define _DEFAULT_SOURCE
+
 #include "sulfur/cmd.h"
 
 #include <string.h>
 #include <stdio.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <stdlib.h>
 
 #include "sulfur/file.h"
 
@@ -23,6 +28,11 @@
 #define CMD_STRING_BUILD "build"
 #define CMD_STRING_CLEAN "clean"
 
+typedef struct {
+    char **paths;
+    size_t count;
+} source_files_t;
+
 static void command_help(int argc);
 static void command_version(int argc);
 
@@ -31,6 +41,11 @@ static void command_build(int argc, char **argv);
 static void command_clean(int argc, char **argv);
 
 static void print_version(void);
+
+static bool has_slfr_extension(const char *name);
+
+static bool collect_slfr_files(const char *path, source_files_t *files);
+static void free_slfr_files(source_files_t *files);
 
 bool cmd_parse(int argc, char **argv) {
     if (argc < 2) {
@@ -142,11 +157,56 @@ static void command_new(int argc, char **argv) {
 }
 
 static void command_build(int argc, char **argv) {
+    static const char *build_folder_path = "build";
 
+    source_files_t files = {0};
+
+    if (!collect_slfr_files("src", &files)) {
+        printf(
+            SF_COLOR_RED "Build failed.\n"
+            SF_COLOR_RESET "   Failed to collect .slfr files in source folder.\n"
+        );
+
+        free_slfr_files(&files);
+        return;
+    }
+
+    if (!sf_create_folder(build_folder_path)) {
+        printf(
+            SF_COLOR_RED "Build failed.\n"
+            SF_COLOR_RESET "   Failed to create directory for artifacts.\n"
+        );
+
+        free_slfr_files(&files);
+        return;
+    }
+
+    // compile here
+
+    free_slfr_files(&files);
+
+    printf(
+        SF_COLOR_GREEN "Build done.\n"
+        SF_COLOR_RESET
+    );
 }
 
 static void command_clean(int argc, char **argv) {
+    static const char* build_folder_path = "build";
 
+    if (sf_delete_folder(build_folder_path)) {
+        printf(
+            SF_COLOR_GREEN "Clean done.\n"
+            SF_COLOR_RESET
+        );
+    } else {
+        printf(
+            SF_COLOR_RED "Clean failed.\n"
+            SF_COLOR_RESET "   Check if theres any build artifacts on current directory.\n"
+        );
+
+        return;
+    }
 }
 
 static void print_version(void) {
@@ -155,4 +215,86 @@ static void print_version(void) {
         "Copyright (C) 2026 " SF_COLOR_GREEN "saintsHr\n" SF_COLOR_RESET
         "Licensed under the " SF_COLOR_YELLOW "MIT license\n" SF_COLOR_RESET
     );
+}
+
+static void free_slfr_files(source_files_t *files) {
+    for (size_t i = 0; i < files->count; i++) {
+        free(files->paths[i]);
+    }
+
+    free(files->paths);
+    files->paths = NULL;
+    files->count = 0;
+}
+
+static bool has_slfr_extension(const char *name) {
+    const char *ext = strrchr(name, '.');
+    return ext != NULL && strcmp(ext, ".slfr") == 0;
+}
+
+static bool collect_slfr_files(const char *dir_path, source_files_t *files) {
+    DIR *dir = opendir(dir_path);
+
+    if (dir == NULL) {
+        return false;
+    }
+
+    struct dirent *entry;
+    bool success = true;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        size_t len = strlen(dir_path) + strlen(entry->d_name) + 2;
+        char *path = malloc(len);
+
+        if (path == NULL) {
+            success = false;
+            break;
+        }
+
+        snprintf(path, len, "%s/%s", dir_path, entry->d_name);
+
+        struct stat st;
+
+        if (lstat(path, &st) != 0) {
+            free(path);
+            success = false;
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            if (!collect_slfr_files(path, files)) {
+                success = false;
+            }
+
+            free(path);
+        } else if (S_ISREG(st.st_mode) &&
+                   has_slfr_extension(entry->d_name)) {
+            char **new_paths = realloc(
+                files->paths,
+                (files->count + 1) * sizeof(*files->paths)
+            );
+
+            if (new_paths == NULL) {
+                free(path);
+                success = false;
+                break;
+            }
+
+            files->paths = new_paths;
+            files->paths[files->count++] = path;
+        } else {
+            free(path);
+        }
+    }
+
+    if (closedir(dir) != 0) {
+        success = false;
+    }
+
+    return success;
 }
