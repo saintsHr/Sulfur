@@ -33,7 +33,7 @@ EOF
 }
 
 for mode in debug release; do
-    bin="./build/$mode/sulfur-compiler/sulfur-compiler"
+    bin="./build/$mode/compiler/sulfur-compiler"
 
     if [[ -x "$bin" ]]; then
         BINS+=("$mode:$bin")
@@ -43,7 +43,7 @@ done
 echo ""
 
 if [[ ${#BINS[@]} -eq 0 ]]; then
-    echo "No compiler found in build/debug or build/release."
+    echo "No compiler found in debug or release builds."
     exit 1
 fi
 

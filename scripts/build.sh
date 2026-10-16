@@ -48,12 +48,27 @@ esac
 
 BUILD_DIR="$ROOT_DIR/build/$MODE"
 
+update_compile_commands() {
+    local SOURCE="$BUILD_DIR/compile_commands.json"
+
+    if [[ "$TARGET" != "all" ]]; then
+        SOURCE="$BUILD_DIR/$TARGET/compile_commands.json"
+    fi
+
+    if [[ -f "$SOURCE" ]]; then
+        ln -sfn "$(realpath --relative-to="$ROOT_DIR/build" "$SOURCE")" \
+            "$ROOT_DIR/build/compile_commands.json"
+    fi
+}
+
 if [[ "$TARGET" == "all" ]]; then
     echo "==> Configuring all modules ($MODE)"
 
     cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
         -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
         -DENABLE_SANITIZERS="$SANITIZERS"
+
+    update_compile_commands
 
     echo "==> Building all modules"
 

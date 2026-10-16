@@ -63,7 +63,7 @@ static bool compilation_run(const sf_compiler_options *options, sf_compilation *
     sf_analyze(c->ast, options->file_input);
     if (sf_log_had_fatal()) return false;
 
-    c->ir = sf_generate_ir(&c->arena, c->ast);
+    c->ir = sf_ir_generate(&c->arena, c->ast);
     if (sf_log_had_fatal()) return false;
 
     c->assembly = sf_generate_assembly(&c->ir);
@@ -91,7 +91,7 @@ static void debug_dump_stages(sf_compilation *c) {
     printf("\n");
     sf_print_ast((sf_ast_node *)c->ast);
     printf("\n");
-    sf_print_ir(&c->ir);
+    sf_ir_print(&c->ir);
     printf("\n");
     printf("%s", c->assembly);
 }

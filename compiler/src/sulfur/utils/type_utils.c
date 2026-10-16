@@ -344,9 +344,7 @@ sf_opcode sf_type_operation_to_opcode(sf_operation_type type) {
         }
 
         default: {
-            break;
+            return SF_OPCODE_INVALID;
         }
     }
-
-    return (sf_opcode)0;
 }
