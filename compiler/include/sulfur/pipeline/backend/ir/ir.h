@@ -58,7 +58,7 @@ typedef struct {
         uint32_t temporary_id;
         uint32_t label_id;
         char *variable_name;
-        char *immediate_value;
+        const char *immediate_value;
     };
 } sf_operand;
 

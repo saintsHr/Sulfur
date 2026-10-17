@@ -1,5 +1,6 @@
 #include "sulfur/pipeline/backend/codegen/codegen.h"
 
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -9,796 +10,870 @@
 
 #include "sulfur/pipeline/backend/codegen/stack.h"
 #include "sulfur/pipeline/backend/ir/ir.h"
+#include "sulfur/utils/log.h"
 #include "sulfur/utils/string.h"
 #include "sulfur/utils/type_utils.h"
 
-static void format_operand(char *dst_str, size_t max_len, sf_operand op,
-                           const sf_stack_map *map);
+typedef enum {
+    SF_REGISTER_RAX,
+    SF_REGISTER_EAX,
+    SF_REGISTER_AX,
+    SF_REGISTER_AL,
+} sf_register;
 
-static void emitf(char **buff, size_t *len, size_t *capacity,
-                  const char *format, ...);
+typedef enum {
+    SF_PREFIX_BYTE,
+    SF_PREFIX_WORD,
+    SF_PREFIX_DWORD,
+    SF_PREFIX_QWORD,
+} sf_size_prefix;
 
-static void emit_add(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map);
-static void emit_sub(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map);
-static void emit_mult(char **buff, size_t *len, size_t *capacity,
-                      sf_operation op, const sf_stack_map *map);
-static void emit_div(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map);
-static void emit_neg(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map);
+static const size_t k_initial_capacity = 4096;
 
-static void emit_cast(char **buff, size_t *len, size_t *capacity,
-                      sf_operation op, const sf_stack_map *map);
-static void emit_assign(char **buff, size_t *len, size_t *capacity,
-                        sf_operation op, const sf_stack_map *map);
+static void format_operand(
+    char *dst_str, size_t max_len, sf_operand op, const sf_stack_map *map
+);
 
-static void emit_and(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map);
-static void emit_or(char **buff, size_t *len, size_t *capacity, sf_operation op,
-                    const sf_stack_map *map);
-static void emit_xor(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map);
-static void emit_rshift(char **buff, size_t *len, size_t *capacity,
-                        sf_operation op, const sf_stack_map *map);
-static void emit_lshift(char **buff, size_t *len, size_t *capacity,
-                        sf_operation op, const sf_stack_map *map);
-static void emit_not(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map);
+static void emitf(
+    char **buff, size_t *len, size_t *capacity, const char *format, ...
+);
 
-static void emit_relational(char **buff, size_t *len, size_t *capacity,
-                            sf_operation op, const sf_stack_map *map);
+static sf_stack_offset_size_t stack_offset(
+    const sf_stack_map *map, const char *name
+);
+static void load_large_immediate(
+    char **buff, size_t *len, size_t *capacity, sf_operand operand,
+    uint8_t size, char *fmt, size_t fmt_size
+);
 
-static void emit_label(char **buff, size_t *len, size_t *capacity,
-                       sf_operation op, const sf_stack_map *map);
-static void emit_jmp_incond(char **buff, size_t *len, size_t *capacity,
-                            sf_operation op, const sf_stack_map *map);
-static void emit_jmp_cond(char **buff, size_t *len, size_t *capacity,
-                          sf_operation op, const sf_stack_map *map);
+static void emit_binary(
+    char **buff, size_t *len, size_t *capacity, const char *mnemonic,
+    sf_operation op, const sf_stack_map *map
+);
+static void emit_mult(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+static void emit_div(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+static void emit_dividend_extension(
+    char **buff, size_t *len, size_t *capacity, uint8_t size, bool is_signed
+);
+static void emit_neg(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+static void emit_not(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+static void emit_not_on(
+    char **buff, size_t *len, size_t *capacity, sf_opcode opcode, const char *target
+);
+
+static void emit_shift(
+    char **buff, size_t *len, size_t *capacity, const char *mnemonic,
+    sf_operation op, const sf_stack_map *map
+);
+static void emit_rshift(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+static void emit_lshift(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+
+static void emit_convert(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const char *src_fmt, const char *dst_fmt
+);
+static void emit_assign(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+static void emit_cast(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+
+static void emit_relational(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+
+static void emit_label(char **buff, size_t *len, size_t *capacity, sf_operation op);
+static void emit_jmp_incond(
+    char **buff, size_t *len, size_t *capacity, sf_operation op
+);
+static void emit_jmp_cond(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
 
 static sf_register register_from_size(uint8_t size);
 static sf_size_prefix prefix_from_size(uint8_t size);
+static const char *counter_register(uint8_t size);
 
 static const char *register_to_string(sf_register reg);
 static const char *prefix_to_string(sf_size_prefix prefix);
 
 char *sf_generate_assembly(const sf_ir_program *program) {
-  uint64_t as_capacity = 4096;
-  uint64_t as_len = 0;
-  char *as = malloc(as_capacity);
-  if (as == NULL)
-    return NULL;
-  as[0] = '\0';
-
-  sf_stack_map map = {
-      .entries = NULL,
-      .capacity = 0,
-      .count = 0,
-  };
-
-  sf_stack_populate(&map, program);
-
-  sf_string_push("bits 64\n\n", &as, &as_len, &as_capacity);
-  sf_string_push("section .data\n", &as, &as_len, &as_capacity);
-
-  sf_string_push("section .text\n", &as, &as_len, &as_capacity);
-  sf_string_push("\tglobal _start\n\n", &as, &as_len, &as_capacity);
-
-  sf_string_push("_start:\n", &as, &as_len, &as_capacity);
-
-  sf_string_push("\tpush rbp\n", &as, &as_len, &as_capacity);
-  sf_string_push("\tmov rbp, rsp\n", &as, &as_len, &as_capacity);
-
-  sf_stack_offset_size_t stack_size = 0;
-  for (sf_stack_map_size_t i = 0; i < map.count; i++) {
-    sf_stack_offset_size_t abs_offset =
-        (sf_stack_offset_size_t)(-map.entries[i].offset);
-    if (abs_offset > stack_size)
-      stack_size = abs_offset;
-  }
-
-  stack_size = (stack_size + 15) / 16 * 16;
-
-  char buf[32];
-  snprintf(buf, sizeof(buf), "%ld", stack_size);
-
-  sf_string_push("\tsub rsp, ", &as, &as_len, &as_capacity);
-  sf_string_push(buf, &as, &as_len, &as_capacity);
-  sf_string_push("\n\n", &as, &as_len, &as_capacity);
-
-  for (uint32_t i = 0; i < program->operation_count; i++) {
-    sf_operation op = program->operations[i];
-
-    switch (op.opcode) {
-    // arithmetic
-    case SF_OPCODE_ADD:
-      emit_add(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_SUB:
-      emit_sub(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_MULT:
-      emit_mult(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_DIV:
-      emit_div(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_NEGATE:
-      emit_neg(&as, &as_len, &as_capacity, op, &map);
-      break;
-
-    // bitwise
-    case SF_OPCODE_BITWISE_AND:
-      emit_and(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_BITWISE_OR:
-      emit_or(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_BITWISE_XOR:
-      emit_xor(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_BITWISE_RSHIFT:
-      emit_rshift(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_BITWISE_LSHIFT:
-      emit_lshift(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_BITWISE_NOT:
-      emit_not(&as, &as_len, &as_capacity, op, &map);
-      break;
-
-    // logical
-    case SF_OPCODE_LOGICAL_AND:
-      emit_and(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_LOGICAL_OR:
-      emit_or(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_LOGICAL_NOT:
-      emit_not(&as, &as_len, &as_capacity, op, &map);
-      break;
-
-    // relational
-    case SF_OPCODE_RELATIONAL_EQUAL:
-    case SF_OPCODE_RELATIONAL_NOT_EQUAL:
-    case SF_OPCODE_RELATIONAL_LESS:
-    case SF_OPCODE_RELATIONAL_LESS_EQUAL:
-    case SF_OPCODE_RELATIONAL_GREATER:
-    case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
-      emit_relational(&as, &as_len, &as_capacity, op, &map);
-      break;
-
-    // flow control
-    case SF_OPCODE_LABEL:
-      emit_label(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_JMP_INCOND:
-      emit_jmp_incond(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_JMP_COND:
-      emit_jmp_cond(&as, &as_len, &as_capacity, op, &map);
-      break;
-
-    // other
-    case SF_OPCODE_ASSIGN:
-      emit_assign(&as, &as_len, &as_capacity, op, &map);
-      break;
-    case SF_OPCODE_CAST:
-      emit_cast(&as, &as_len, &as_capacity, op, &map);
-      break;
-
-    // fallback
-    default:
-      break;
+    if (program == NULL) {
+        return NULL;
     }
 
-    sf_string_push("\n", &as, &as_len, &as_capacity);
-  }
+    size_t as_capacity = k_initial_capacity;
+    size_t as_len = 0;
+    char *as = malloc(as_capacity);
 
-  sf_string_push("\tmov rsp, rbp\n", &as, &as_len, &as_capacity);
-  sf_string_push("\tpop rbp\n\n", &as, &as_len, &as_capacity);
+    if (as == NULL) {
+        return NULL;
+    }
 
-  sf_string_push("\tmov rax, 60\n", &as, &as_len, &as_capacity);
-  sf_string_push("\txor rdi, rdi\n", &as, &as_len, &as_capacity);
-  sf_string_push("\tsyscall\n", &as, &as_len, &as_capacity);
+    as[0] = '\0';
 
-  sf_stack_free(&map);
+    sf_stack_map map = {
+        .entries = NULL,
+        .capacity = 0,
+        .count = 0,
+    };
 
-  return as;
+    sf_stack_populate(&map, program);
+
+    sf_string_push("bits 64\n\n", &as, &as_len, &as_capacity);
+    sf_string_push("section .data\n", &as, &as_len, &as_capacity);
+
+    sf_string_push("section .text\n", &as, &as_len, &as_capacity);
+    sf_string_push("\tglobal _start\n\n", &as, &as_len, &as_capacity);
+
+    sf_string_push("_start:\n", &as, &as_len, &as_capacity);
+
+    sf_string_push("\tpush rbp\n", &as, &as_len, &as_capacity);
+    sf_string_push("\tmov rbp, rsp\n", &as, &as_len, &as_capacity);
+
+    sf_stack_offset_size_t stack_size = 0;
+
+    for (sf_stack_map_size_t i = 0; i < map.count; i++) {
+        sf_stack_offset_size_t abs_offset = -map.entries[i].offset;
+
+        if (abs_offset > stack_size) {
+            stack_size = abs_offset;
+        }
+    }
+
+    stack_size = (stack_size + 15) / 16 * 16;
+
+    emitf(&as, &as_len, &as_capacity, "\tsub rsp, %" PRId64 "\n\n", stack_size);
+
+    for (uint32_t i = 0; i < program->operation_count; i++) {
+        sf_operation op = program->operations[i];
+
+        switch (op.opcode) {
+            case SF_OPCODE_ADD: {
+                emit_binary(&as, &as_len, &as_capacity, "add", op, &map);
+                break;
+            }
+            case SF_OPCODE_SUB: {
+                emit_binary(&as, &as_len, &as_capacity, "sub", op, &map);
+                break;
+            }
+            case SF_OPCODE_MULT: {
+                emit_mult(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+            case SF_OPCODE_DIV: {
+                emit_div(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+            case SF_OPCODE_NEGATE: {
+                emit_neg(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+
+            case SF_OPCODE_BITWISE_AND:
+            case SF_OPCODE_LOGICAL_AND: {
+                emit_binary(&as, &as_len, &as_capacity, "and", op, &map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_OR:
+            case SF_OPCODE_LOGICAL_OR: {
+                emit_binary(&as, &as_len, &as_capacity, "or", op, &map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_XOR: {
+                emit_binary(&as, &as_len, &as_capacity, "xor", op, &map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_RSHIFT: {
+                emit_rshift(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_LSHIFT: {
+                emit_lshift(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_NOT:
+            case SF_OPCODE_LOGICAL_NOT: {
+                emit_not(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+
+            case SF_OPCODE_RELATIONAL_EQUAL:
+            case SF_OPCODE_RELATIONAL_NOT_EQUAL:
+            case SF_OPCODE_RELATIONAL_LESS:
+            case SF_OPCODE_RELATIONAL_LESS_EQUAL:
+            case SF_OPCODE_RELATIONAL_GREATER:
+            case SF_OPCODE_RELATIONAL_GREATER_EQUAL: {
+                emit_relational(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+
+            case SF_OPCODE_LABEL: {
+                emit_label(&as, &as_len, &as_capacity, op);
+                break;
+            }
+            case SF_OPCODE_JMP_INCOND: {
+                emit_jmp_incond(&as, &as_len, &as_capacity, op);
+                break;
+            }
+            case SF_OPCODE_JMP_COND: {
+                emit_jmp_cond(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+
+            case SF_OPCODE_ASSIGN: {
+                emit_assign(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+            case SF_OPCODE_CAST: {
+                emit_cast(&as, &as_len, &as_capacity, op, &map);
+                break;
+            }
+
+            default: {
+                break;
+            }
+        }
+
+        sf_string_push("\n", &as, &as_len, &as_capacity);
+    }
+
+    sf_string_push("\tmov rsp, rbp\n", &as, &as_len, &as_capacity);
+    sf_string_push("\tpop rbp\n\n", &as, &as_len, &as_capacity);
+
+    sf_string_push("\tmov rax, 60\n", &as, &as_len, &as_capacity);
+    sf_string_push("\txor rdi, rdi\n", &as, &as_len, &as_capacity);
+    sf_string_push("\tsyscall\n", &as, &as_len, &as_capacity);
+
+    sf_stack_free(&map);
+
+    return as;
 }
 
-static void format_operand(char *dst_str, size_t max_len, sf_operand op,
-                           const sf_stack_map *map) {
-  if (op.type == SF_OPERAND_TYPE_IMMEDIATE) {
-    snprintf(dst_str, max_len, "%s", op.immediate_value);
-  } else {
+static void format_operand(
+    char *dst_str, size_t max_len, sf_operand op, const sf_stack_map *map
+) {
+    dst_str[0] = '\0';
+
     uint8_t size = sf_type_value_width_bytes(op.value_type);
-    const char *pre_str = prefix_to_string(prefix_from_size(size));
+    const char *prefix = prefix_to_string(prefix_from_size(size));
 
-    if (op.type == SF_OPERAND_TYPE_VARIABLE) {
-      snprintf(dst_str, max_len, "%s [rbp%li]", pre_str,
-               sf_stack_lookup(map, op.variable_name));
-    } else if (op.type == SF_OPERAND_TYPE_TEMPORARY) {
-      char temp_name[32];
-      snprintf(temp_name, sizeof(temp_name), "t%u", op.temporary_id);
-      snprintf(dst_str, max_len, "%s [rbp%li]", pre_str,
-               sf_stack_lookup(map, temp_name));
+    switch (op.type) {
+        case SF_OPERAND_TYPE_IMMEDIATE: {
+            snprintf(dst_str, max_len, "%s", op.immediate_value);
+            break;
+        }
+        case SF_OPERAND_TYPE_VARIABLE: {
+            snprintf(
+                dst_str, max_len, "%s [rbp%" PRId64 "]", prefix,
+                stack_offset(map, op.variable_name)
+            );
+            break;
+        }
+        case SF_OPERAND_TYPE_TEMPORARY: {
+            char temp_name[32];
+            snprintf(temp_name, sizeof(temp_name), "t%u", op.temporary_id);
+
+            snprintf(
+                dst_str, max_len, "%s [rbp%" PRId64 "]", prefix,
+                stack_offset(map, temp_name)
+            );
+            break;
+        }
+
+        default: {
+            break;
+        }
     }
-  }
 }
 
-static void emitf(char **buff, size_t *len, size_t *capacity,
-                  const char *format, ...) {
-  char temp[512];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(temp, sizeof(temp), format, args);
-  va_end(args);
-  sf_string_push(temp, buff, len, capacity);
-}
+static void emitf(
+    char **buff, size_t *len, size_t *capacity, const char *format, ...
+) {
+    char stack_buffer[512];
 
-static void emit_assign(char **buff, size_t *len, size_t *capacity,
-                        sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_ASSIGN)
-    return;
+    va_list args;
+    va_list args_copy;
+    va_start(args, format);
+    va_copy(args_copy, args);
 
-  char src1_fmt[256], dst_fmt[256];
+    int needed = vsnprintf(stack_buffer, sizeof(stack_buffer), format, args);
 
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+    va_end(args);
 
-  if (strcmp(src1_fmt, dst_fmt) == 0)
-    return;
+    if (needed < 0) {
+        va_end(args_copy);
 
-  uint8_t src1_size = sf_type_value_width_bytes(op.operand2.value_type);
-  uint8_t dst_size = sf_type_value_width_bytes(op.operand1.value_type);
-
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *dst_reg_str = register_to_string(register_from_size(size));
-
-  if (op.operand2.type == SF_OPERAND_TYPE_IMMEDIATE) {
-    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_reg_str, src1_fmt);
-    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
-  } else {
-    if (src1_size == dst_size) {
-      emitf(buff, len, capacity, "\tmov %s, %s\n", dst_reg_str, src1_fmt);
-      emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
-    } else if (src1_size < dst_size) {
-      if (sf_type_value_is_signed(op.operand2.value_type)) {
-        emitf(buff, len, capacity, "\tmovsx %s, %s\n", dst_reg_str, src1_fmt);
-      } else {
-        emitf(buff, len, capacity, "\tmovzx %s, %s\n", dst_reg_str, src1_fmt);
-      }
-      emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
-    } else {
-      const char *src_reg_str =
-          register_to_string(register_from_size(src1_size));
-      emitf(buff, len, capacity, "\tmov %s, %s\n", src_reg_str, src1_fmt);
-      emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
+        return;
     }
-  }
+
+    if ((size_t)needed < sizeof(stack_buffer)) {
+        va_end(args_copy);
+        sf_string_push(stack_buffer, buff, len, capacity);
+
+        return;
+    }
+
+    char *heap_buffer = malloc((size_t)needed + 1);
+
+    if (heap_buffer == NULL) {
+        va_end(args_copy);
+
+        sf_log(
+            "Insufficient Memory.", "Cannot allocate memory for compiling.",
+            "Free some memory and try again.", NULL,
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+        );
+
+        return;
+    }
+
+    vsnprintf(heap_buffer, (size_t)needed + 1, format, args_copy);
+    va_end(args_copy);
+
+    sf_string_push(heap_buffer, buff, len, capacity);
+    free(heap_buffer);
 }
 
-static void emit_add(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_ADD)
-    return;
+static sf_stack_offset_size_t stack_offset(
+    const sf_stack_map *map, const char *name
+) {
+    sf_stack_offset_size_t offset = sf_stack_lookup(map, name);
 
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    if (offset == 0) {
+        fprintf(
+            stderr,
+            "internal compiler error: '%s' has no stack slot "
+            "(this is a bug in the codegen, not in the user's code)\n",
+            name
+        );
 
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+        abort();
+    }
 
-  if (strcmp(dst_fmt, src1_fmt) == 0 &&
-      op.operand3.type != SF_OPERAND_TYPE_VARIABLE &&
-      op.operand3.type != SF_OPERAND_TYPE_TEMPORARY) {
-    emitf(buff, len, capacity, "\tadd %s, %s\n", dst_fmt, src2_fmt);
-    return;
-  }
-
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-  emitf(buff, len, capacity, "\tadd %s, %s\n", reg_str, src2_fmt);
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+    return offset;
 }
 
-static void emit_sub(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_SUB)
-    return;
+// 64-bit immediates outside the signed 32-bit range cannot be encoded in most
+// instructions, so they are loaded into rcx and the operand text becomes "rcx".
+static void load_large_immediate(
+    char **buff, size_t *len, size_t *capacity, sf_operand operand,
+    uint8_t size, char *fmt, size_t fmt_size
+) {
+    if (operand.type != SF_OPERAND_TYPE_IMMEDIATE || size < 8) {
+        return;
+    }
 
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    long long value = strtoll(operand.immediate_value, NULL, 10);
 
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+    if (value >= INT32_MIN && value <= INT32_MAX) {
+        return;
+    }
 
-  if (strcmp(dst_fmt, src1_fmt) == 0 &&
-      op.operand3.type != SF_OPERAND_TYPE_VARIABLE &&
-      op.operand3.type != SF_OPERAND_TYPE_TEMPORARY) {
-    emitf(buff, len, capacity, "\tsub %s, %s\n", dst_fmt, src2_fmt);
-    return;
-  }
-
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-  emitf(buff, len, capacity, "\tsub %s, %s\n", reg_str, src2_fmt);
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+    emitf(buff, len, capacity, "\tmov rcx, %s\n", fmt);
+    snprintf(fmt, fmt_size, "rcx");
 }
 
-static void emit_mult(char **buff, size_t *len, size_t *capacity,
-                      sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_MULT)
-    return;
+static void emit_binary(
+    char **buff, size_t *len, size_t *capacity, const char *mnemonic,
+    sf_operation op, const sf_stack_map *map
+) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
 
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+    uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
 
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  bool signed_type = sf_type_value_is_signed(op.operand1.value_type);
-  const char *mul_instr = signed_type ? "imul" : "mul";
+    load_large_immediate(
+        buff, len, capacity, op.operand3, size, src2_fmt, sizeof(src2_fmt)
+    );
 
-  if (size == 1) {
-    emitf(buff, len, capacity, "\tmov al, %s\n", src1_fmt);
-    emitf(buff, len, capacity, "\t%s %s\n", mul_instr, src2_fmt);
-    emitf(buff, len, capacity, "\tmov %s, al\n", dst_fmt);
-  } else {
+    bool src2_in_memory = op.operand3.type == SF_OPERAND_TYPE_VARIABLE ||
+                          op.operand3.type == SF_OPERAND_TYPE_TEMPORARY;
+
+    if (strcmp(dst_fmt, src1_fmt) == 0 && !src2_in_memory) {
+        emitf(buff, len, capacity, "\t%s %s, %s\n", mnemonic, dst_fmt, src2_fmt);
+        return;
+    }
+
     const char *reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emitf(buff, len, capacity, "\t%s %s, %s\n", mnemonic, reg_str, src2_fmt);
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_mult(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+
+    format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+
+    uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
+
+    if (size == 1) {
+        const char *mul_instr =
+            sf_type_value_is_signed(op.operand1.value_type) ? "imul" : "mul";
+
+        emitf(buff, len, capacity, "\tmov al, %s\n", src1_fmt);
+
+        // The one-operand mul/imul forms do not accept immediates.
+        if (op.operand3.type == SF_OPERAND_TYPE_IMMEDIATE) {
+            emitf(buff, len, capacity, "\tmov cl, %s\n", src2_fmt);
+            emitf(buff, len, capacity, "\t%s cl\n", mul_instr);
+        } else {
+            emitf(buff, len, capacity, "\t%s %s\n", mul_instr, src2_fmt);
+        }
+
+        emitf(buff, len, capacity, "\tmov %s, al\n", dst_fmt);
+        return;
+    }
+
+    load_large_immediate(
+        buff, len, capacity, op.operand3, size, src2_fmt, sizeof(src2_fmt)
+    );
+
+    const char *reg_str = register_to_string(register_from_size(size));
+
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
     emitf(buff, len, capacity, "\timul %s, %s\n", reg_str, src2_fmt);
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
-  }
 }
 
-static void emit_div(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_DIV)
-    return;
+static void emit_div(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
 
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+    uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
+    bool is_signed = sf_type_value_is_signed(op.operand1.value_type);
+    const char *div_instr = is_signed ? "idiv" : "div";
 
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  bool signed_type = sf_type_value_is_signed(op.operand1.value_type);
-  const char *div_instr = signed_type ? "idiv" : "div";
+    const char *reg_str = register_to_string(register_from_size(size));
 
-  const char *reg_str = register_to_string(register_from_size(size));
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emit_dividend_extension(buff, len, capacity, size, is_signed);
 
-  const char *reg_cx = "rcx";
-  if (size == 4)
-    reg_cx = "ecx";
-  if (size == 2)
-    reg_cx = "cx";
-  if (size == 1)
-    reg_cx = "cl";
+    if (op.operand3.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        const char *reg_cx = counter_register(size);
 
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-
-  if (signed_type) {
-    if (size == 8)
-      emitf(buff, len, capacity, "\tcqo\n");
-    if (size == 4)
-      emitf(buff, len, capacity, "\tcdq\n");
-    if (size == 2)
-      emitf(buff, len, capacity, "\tcwd\n");
-    if (size == 1)
-      emitf(buff, len, capacity, "\tcbw\n");
-  } else {
-    if (size == 8)
-      emitf(buff, len, capacity, "\txor rdx, rdx\n");
-    if (size == 4)
-      emitf(buff, len, capacity, "\txor edx, edx\n");
-    if (size == 2)
-      emitf(buff, len, capacity, "\txor dx, dx\n");
-    if (size == 1)
-      emitf(buff, len, capacity, "\tmov ah, 0\n");
-  }
-
-  if (op.operand3.type == SF_OPERAND_TYPE_IMMEDIATE) {
-    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_cx, src2_fmt);
-    emitf(buff, len, capacity, "\t%s %s\n", div_instr, reg_cx);
-  } else {
-    emitf(buff, len, capacity, "\t%s %s\n", div_instr, src2_fmt);
-  }
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
-}
-
-static void emit_neg(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_NEGATE)
-    return;
-
-  char src1_fmt[256], dst_fmt[256];
-
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
-
-  if (strcmp(dst_fmt, src1_fmt) == 0) {
-    emitf(buff, len, capacity, "\tneg %s\n", dst_fmt);
-    return;
-  }
-
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-  emitf(buff, len, capacity, "\tneg %s\n", reg_str);
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
-}
-
-static void emit_cast(char **buff, size_t *len, size_t *capacity,
-                      sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_CAST)
-    return;
-
-  char src1_fmt[256], dst_fmt[256];
-
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
-
-  uint8_t src1_size = sf_type_value_width_bytes(op.operand2.value_type);
-  uint8_t dst_size = sf_type_value_width_bytes(op.operand1.value_type);
-
-  uint8_t size = dst_size;
-  const char *dst_reg_str = register_to_string(register_from_size(size));
-
-  if (op.operand2.type == SF_OPERAND_TYPE_IMMEDIATE) {
-    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_reg_str, src1_fmt);
-    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
-  } else if (src1_size == dst_size) {
-    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_reg_str, src1_fmt);
-    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
-  } else if (src1_size < dst_size) {
-    if (sf_type_value_is_signed(op.operand2.value_type)) {
-      emitf(buff, len, capacity, "\tmovsx %s, %s\n", dst_reg_str, src1_fmt);
+        emitf(buff, len, capacity, "\tmov %s, %s\n", reg_cx, src2_fmt);
+        emitf(buff, len, capacity, "\t%s %s\n", div_instr, reg_cx);
+    } else {
+        emitf(buff, len, capacity, "\t%s %s\n", div_instr, src2_fmt);
     }
-    if (!sf_type_value_is_signed(op.operand2.value_type)) {
-      emitf(buff, len, capacity, "\tmovzx %s, %s\n", dst_reg_str, src1_fmt);
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_dividend_extension(
+    char **buff, size_t *len, size_t *capacity, uint8_t size, bool is_signed
+) {
+    switch (size) {
+        case 8: {
+            emitf(buff, len, capacity, is_signed ? "\tcqo\n" : "\txor rdx, rdx\n");
+            break;
+        }
+        case 4: {
+            emitf(buff, len, capacity, is_signed ? "\tcdq\n" : "\txor edx, edx\n");
+            break;
+        }
+        case 2: {
+            emitf(buff, len, capacity, is_signed ? "\tcwd\n" : "\txor dx, dx\n");
+            break;
+        }
+        case 1: {
+            emitf(buff, len, capacity, is_signed ? "\tcbw\n" : "\tmov ah, 0\n");
+            break;
+        }
+
+        default: {
+            break;
+        }
     }
+}
+
+static void emit_neg(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    char src1_fmt[256], dst_fmt[256];
+
+    format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+
+    if (strcmp(dst_fmt, src1_fmt) == 0) {
+        emitf(buff, len, capacity, "\tneg %s\n", dst_fmt);
+        return;
+    }
+
+    uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
+    const char *reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emitf(buff, len, capacity, "\tneg %s\n", reg_str);
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_not(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    char src1_fmt[256], dst_fmt[256];
+
+    format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+
+    if (strcmp(dst_fmt, src1_fmt) == 0) {
+        emit_not_on(buff, len, capacity, op.opcode, dst_fmt);
+        return;
+    }
+
+    uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
+    const char *reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emit_not_on(buff, len, capacity, op.opcode, reg_str);
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_not_on(
+    char **buff, size_t *len, size_t *capacity, sf_opcode opcode, const char *target
+) {
+    if (opcode == SF_OPCODE_BITWISE_NOT) {
+        emitf(buff, len, capacity, "\tnot %s\n", target);
+    } else {
+        emitf(buff, len, capacity, "\txor %s, 1\n", target);
+    }
+}
+
+static void emit_shift(
+    char **buff, size_t *len, size_t *capacity, const char *mnemonic,
+    sf_operation op, const sf_stack_map *map
+) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+
+    format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+
+    uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
+    const char *reg_str = register_to_string(register_from_size(size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+
+    if (op.operand3.type == SF_OPERAND_TYPE_IMMEDIATE) {
+        emitf(buff, len, capacity, "\t%s %s, %s\n", mnemonic, reg_str, src2_fmt);
+    } else {
+        uint8_t src2_size = sf_type_value_width_bytes(op.operand3.value_type);
+        const char *reg_cx = counter_register(src2_size);
+
+        emitf(buff, len, capacity, "\tmov %s, %s\n", reg_cx, src2_fmt);
+        emitf(buff, len, capacity, "\t%s %s, cl\n", mnemonic, reg_str);
+    }
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+}
+
+static void emit_rshift(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    const char *mnemonic =
+        sf_type_value_is_signed(op.operand1.value_type) ? "sar" : "shr";
+
+    emit_shift(buff, len, capacity, mnemonic, op, map);
+}
+
+static void emit_lshift(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    emit_shift(buff, len, capacity, "shl", op, map);
+}
+
+static void emit_convert(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const char *src_fmt, const char *dst_fmt
+) {
+    uint8_t src_size = sf_type_value_width_bytes(op.operand2.value_type);
+    uint8_t dst_size = sf_type_value_width_bytes(op.operand1.value_type);
+
+    const char *dst_reg_str = register_to_string(register_from_size(dst_size));
+
+    if (op.operand2.type == SF_OPERAND_TYPE_IMMEDIATE || src_size == dst_size) {
+        emitf(buff, len, capacity, "\tmov %s, %s\n", dst_reg_str, src_fmt);
+        emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
+        return;
+    }
+
+    if (src_size < dst_size) {
+        bool is_signed = sf_type_value_is_signed(op.operand2.value_type);
+
+        if (is_signed && src_size == 4) {
+            // movsx has no 32-bit source form.
+            emitf(buff, len, capacity, "\tmovsxd %s, %s\n", dst_reg_str, src_fmt);
+        } else if (is_signed) {
+            emitf(buff, len, capacity, "\tmovsx %s, %s\n", dst_reg_str, src_fmt);
+        } else if (src_size == 4) {
+            // Writing eax already zero-extends into rax.
+            const char *eax = register_to_string(SF_REGISTER_EAX);
+
+            emitf(buff, len, capacity, "\tmov %s, %s\n", eax, src_fmt);
+        } else {
+            emitf(buff, len, capacity, "\tmovzx %s, %s\n", dst_reg_str, src_fmt);
+        }
+
+        emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
+        return;
+    }
+
+    const char *src_reg_str = register_to_string(register_from_size(src_size));
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", src_reg_str, src_fmt);
     emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
-  } else if (src1_size > dst_size) {
-    const char *src_reg_str = register_to_string(register_from_size(src1_size));
-    emitf(buff, len, capacity, "\tmov %s, %s\n", src_reg_str, src1_fmt);
-    emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, dst_reg_str);
-  }
 }
 
-static void emit_and(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_BITWISE_AND && op.opcode != SF_OPCODE_LOGICAL_AND)
-    return;
+static void emit_assign(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    char src_fmt[256], dst_fmt[256];
 
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src_fmt, sizeof(src_fmt), op.operand2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+    if (strcmp(src_fmt, dst_fmt) == 0) {
+        return;
+    }
 
-  if (strcmp(dst_fmt, src1_fmt) == 0 &&
-      op.operand3.type != SF_OPERAND_TYPE_VARIABLE &&
-      op.operand3.type != SF_OPERAND_TYPE_TEMPORARY) {
-    emitf(buff, len, capacity, "\tand %s, %s\n", dst_fmt, src2_fmt);
-    return;
-  }
-
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-  emitf(buff, len, capacity, "\tand %s, %s\n", reg_str, src2_fmt);
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+    emit_convert(buff, len, capacity, op, src_fmt, dst_fmt);
 }
 
-static void emit_or(char **buff, size_t *len, size_t *capacity, sf_operation op,
-                    const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_BITWISE_OR && op.opcode != SF_OPCODE_LOGICAL_OR)
-    return;
+static void emit_cast(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    char src_fmt[256], dst_fmt[256];
 
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src_fmt, sizeof(src_fmt), op.operand2, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
-
-  if (strcmp(dst_fmt, src1_fmt) == 0 &&
-      op.operand3.type != SF_OPERAND_TYPE_VARIABLE &&
-      op.operand3.type != SF_OPERAND_TYPE_TEMPORARY) {
-    emitf(buff, len, capacity, "\tor %s, %s\n", dst_fmt, src2_fmt);
-    return;
-  }
-
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-  emitf(buff, len, capacity, "\tor %s, %s\n", reg_str, src2_fmt);
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+    emit_convert(buff, len, capacity, op, src_fmt, dst_fmt);
 }
 
-static void emit_xor(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_BITWISE_XOR)
-    return;
+static void emit_relational(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
 
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
+    format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
+    format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+    uint8_t size = sf_type_value_width_bytes(op.operand2.value_type);
+    const char *reg_str = register_to_string(register_from_size(size));
 
-  if (strcmp(dst_fmt, src1_fmt) == 0 &&
-      op.operand3.type != SF_OPERAND_TYPE_VARIABLE &&
-      op.operand3.type != SF_OPERAND_TYPE_TEMPORARY) {
-    emitf(buff, len, capacity, "\txor %s, %s\n", dst_fmt, src2_fmt);
-    return;
-  }
+    load_large_immediate(
+        buff, len, capacity, op.operand3, size, src2_fmt, sizeof(src2_fmt)
+    );
 
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
+    bool is_signed = sf_type_value_is_signed(op.operand2.value_type);
 
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-  emitf(buff, len, capacity, "\txor %s, %s\n", reg_str, src2_fmt);
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+    const char *set_instr = NULL;
+
+    switch (op.opcode) {
+        case SF_OPCODE_RELATIONAL_EQUAL: {
+            set_instr = "sete";
+            break;
+        }
+        case SF_OPCODE_RELATIONAL_NOT_EQUAL: {
+            set_instr = "setne";
+            break;
+        }
+        case SF_OPCODE_RELATIONAL_LESS: {
+            set_instr = is_signed ? "setl" : "setb";
+            break;
+        }
+        case SF_OPCODE_RELATIONAL_LESS_EQUAL: {
+            set_instr = is_signed ? "setle" : "setbe";
+            break;
+        }
+        case SF_OPCODE_RELATIONAL_GREATER: {
+            set_instr = is_signed ? "setg" : "seta";
+            break;
+        }
+        case SF_OPCODE_RELATIONAL_GREATER_EQUAL: {
+            set_instr = is_signed ? "setge" : "setae";
+            break;
+        }
+
+        default: {
+            fprintf(
+                stderr,
+                "internal compiler error: unreachable opcode %d in "
+                "emit_relational "
+                "(this is a bug in the codegen, not in the user's code)\n",
+                op.opcode
+            );
+
+            abort();
+        }
+    }
+
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
+    emitf(buff, len, capacity, "\tcmp %s, %s\n", reg_str, src2_fmt);
+    emitf(buff, len, capacity, "\t%s al\n", set_instr);
+    emitf(buff, len, capacity, "\tmov %s, al\n", dst_fmt);
 }
 
-static void emit_rshift(char **buff, size_t *len, size_t *capacity,
-                        sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_BITWISE_RSHIFT)
-    return;
-
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
-
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
-
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  const char *shift_instr =
-      sf_type_value_is_signed(op.operand1.value_type) ? "sar" : "shr";
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-
-  if (op.operand3.type == SF_OPERAND_TYPE_IMMEDIATE) {
-    emitf(buff, len, capacity, "\t%s %s, %s\n", shift_instr, reg_str, src2_fmt);
-  } else {
-    uint8_t src2_size = sf_type_value_width_bytes(op.operand3.value_type);
-    const char *rcx_variant = (src2_size == 8)   ? "rcx"
-                              : (src2_size == 4) ? "ecx"
-                              : (src2_size == 2) ? "cx"
-                                                 : "cl";
-
-    emitf(buff, len, capacity, "\tmov %s, %s\n", rcx_variant, src2_fmt);
-    emitf(buff, len, capacity, "\t%s %s, cl\n", shift_instr, reg_str);
-  }
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+static void emit_label(char **buff, size_t *len, size_t *capacity, sf_operation op) {
+    emitf(buff, len, capacity, ".L%u:\n", op.operand1.label_id);
 }
 
-static void emit_lshift(char **buff, size_t *len, size_t *capacity,
-                        sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_BITWISE_LSHIFT)
-    return;
-
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
-
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
-
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-
-  if (op.operand3.type == SF_OPERAND_TYPE_IMMEDIATE) {
-    emitf(buff, len, capacity, "\tshl %s, %s\n", reg_str, src2_fmt);
-  } else {
-    uint8_t src2_size = sf_type_value_width_bytes(op.operand3.value_type);
-    const char *rcx_variant = (src2_size == 8)   ? "rcx"
-                              : (src2_size == 4) ? "ecx"
-                              : (src2_size == 2) ? "cx"
-                                                 : "cl";
-
-    emitf(buff, len, capacity, "\tmov %s, %s\n", rcx_variant, src2_fmt);
-    emitf(buff, len, capacity, "\tshl %s, cl\n", reg_str);
-  }
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
+static void emit_jmp_incond(
+    char **buff, size_t *len, size_t *capacity, sf_operation op
+) {
+    emitf(buff, len, capacity, "\tjmp .L%u\n", op.operand1.label_id);
 }
 
-static void emit_not(char **buff, size_t *len, size_t *capacity,
-                     sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_BITWISE_NOT && op.opcode != SF_OPCODE_LOGICAL_NOT)
-    return;
+static void emit_jmp_cond(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    char cond_fmt[256];
 
-  char src1_fmt[256], dst_fmt[256];
+    format_operand(cond_fmt, sizeof(cond_fmt), op.operand2, map);
 
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
+    uint8_t size = sf_type_value_width_bytes(op.operand2.value_type);
+    const char *reg_str = register_to_string(register_from_size(size));
 
-  if (strcmp(dst_fmt, src1_fmt) == 0) {
-    if (op.opcode == SF_OPCODE_BITWISE_NOT)
-      emitf(buff, len, capacity, "\tnot %s\n", dst_fmt);
-
-    if (op.opcode == SF_OPCODE_LOGICAL_NOT)
-      emitf(buff, len, capacity, "\txor %s, 1\n", dst_fmt);
-
-    return;
-  }
-
-  uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-
-  if (op.opcode == SF_OPCODE_BITWISE_NOT)
-    emitf(buff, len, capacity, "\tnot %s\n", reg_str);
-  if (op.opcode == SF_OPCODE_LOGICAL_NOT)
-    emitf(buff, len, capacity, "\txor %s, 1\n", reg_str);
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", dst_fmt, reg_str);
-}
-
-static void emit_relational(char **buff, size_t *len, size_t *capacity,
-                            sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_RELATIONAL_EQUAL &&
-      op.opcode != SF_OPCODE_RELATIONAL_NOT_EQUAL &&
-      op.opcode != SF_OPCODE_RELATIONAL_LESS &&
-      op.opcode != SF_OPCODE_RELATIONAL_LESS_EQUAL &&
-      op.opcode != SF_OPCODE_RELATIONAL_GREATER &&
-      op.opcode != SF_OPCODE_RELATIONAL_GREATER_EQUAL)
-    return;
-
-  char src1_fmt[256], src2_fmt[256], dst_fmt[256];
-
-  format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
-  format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
-  format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
-
-  uint8_t size = sf_type_value_width_bytes(op.operand2.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  bool is_signed = sf_type_value_is_signed(op.operand2.value_type);
-
-  const char *set_instr;
-
-  switch (op.opcode) {
-  case SF_OPCODE_RELATIONAL_EQUAL:
-    set_instr = "sete";
-    break;
-  case SF_OPCODE_RELATIONAL_NOT_EQUAL:
-    set_instr = "setne";
-    break;
-  case SF_OPCODE_RELATIONAL_LESS:
-    set_instr = is_signed ? "setl" : "setb";
-    break;
-  case SF_OPCODE_RELATIONAL_LESS_EQUAL:
-    set_instr = is_signed ? "setle" : "setbe";
-    break;
-  case SF_OPCODE_RELATIONAL_GREATER:
-    set_instr = is_signed ? "setg" : "seta";
-    break;
-  case SF_OPCODE_RELATIONAL_GREATER_EQUAL:
-    set_instr = is_signed ? "setge" : "setae";
-    break;
-
-  default: {
-    fprintf(stderr,
-            "internal compiler error: unreachable opcode %d in "
-            "emit_relational "
-            "(this is a bug in the codegen, not in the user's code)\n",
-            op.opcode);
-
-    abort();
-    break;
-  }
-  }
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
-  emitf(buff, len, capacity, "\tcmp %s, %s\n", reg_str, src2_fmt);
-  emitf(buff, len, capacity, "\t%s al\n", set_instr);
-  emitf(buff, len, capacity, "\tmov %s, al\n", dst_fmt);
-}
-
-static void emit_label(char **buff, size_t *len, size_t *capacity,
-                       sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_LABEL)
-    return;
-
-  emitf(buff, len, capacity, ".L%u:\n", op.operand1.label_id);
-}
-
-static void emit_jmp_incond(char **buff, size_t *len, size_t *capacity,
-                            sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_JMP_INCOND)
-    return;
-
-  emitf(buff, len, capacity, "\tjmp .L%u\n", op.operand1.label_id);
-}
-
-static void emit_jmp_cond(char **buff, size_t *len, size_t *capacity,
-                          sf_operation op, const sf_stack_map *map) {
-  if (op.opcode != SF_OPCODE_JMP_COND)
-    return;
-
-  char label_fmt[256], cond_fmt[256];
-
-  snprintf(label_fmt, sizeof(label_fmt), ".L%u", op.operand1.label_id);
-  format_operand(cond_fmt, sizeof(cond_fmt), op.operand2, map);
-
-  uint8_t size = sf_type_value_width_bytes(op.operand2.value_type);
-  const char *reg_str = register_to_string(register_from_size(size));
-
-  emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, cond_fmt);
-  emitf(buff, len, capacity, "\tcmp %s, 0\n", reg_str);
-  emitf(buff, len, capacity, "\tje %s\n", label_fmt);
+    emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, cond_fmt);
+    emitf(buff, len, capacity, "\tcmp %s, 0\n", reg_str);
+    emitf(buff, len, capacity, "\tje .L%u\n", op.operand1.label_id);
 }
 
 static sf_register register_from_size(uint8_t size) {
-  if (size <= 1)
-    return SF_REGISTER_AL;
-  if (size <= 2)
-    return SF_REGISTER_AX;
-  if (size <= 4)
-    return SF_REGISTER_EAX;
-  if (size <= 8)
+    if (size <= 1) {
+        return SF_REGISTER_AL;
+    }
+
+    if (size <= 2) {
+        return SF_REGISTER_AX;
+    }
+
+    if (size <= 4) {
+        return SF_REGISTER_EAX;
+    }
+
     return SF_REGISTER_RAX;
-  return SF_REGISTER_RAX;
 }
 
 static sf_size_prefix prefix_from_size(uint8_t size) {
-  if (size <= 1)
-    return SF_PREFIX_BYTE;
-  if (size <= 2)
-    return SF_PREFIX_WORD;
-  if (size <= 4)
-    return SF_PREFIX_DWORD;
-  if (size <= 8)
+    if (size <= 1) {
+        return SF_PREFIX_BYTE;
+    }
+
+    if (size <= 2) {
+        return SF_PREFIX_WORD;
+    }
+
+    if (size <= 4) {
+        return SF_PREFIX_DWORD;
+    }
+
     return SF_PREFIX_QWORD;
-  return SF_PREFIX_QWORD;
+}
+
+static const char *counter_register(uint8_t size) {
+    if (size <= 1) {
+        return "cl";
+    }
+
+    if (size <= 2) {
+        return "cx";
+    }
+
+    if (size <= 4) {
+        return "ecx";
+    }
+
+    return "rcx";
 }
 
 static const char *register_to_string(sf_register reg) {
-  switch (reg) {
-  case SF_REGISTER_AL:
-    return "al";
-  case SF_REGISTER_AX:
-    return "ax";
-  case SF_REGISTER_EAX:
-    return "eax";
-  case SF_REGISTER_RAX:
-    return "rax";
-  default:
-    return "rax";
-  }
+    switch (reg) {
+        case SF_REGISTER_AL: {
+            return "al";
+        }
+        case SF_REGISTER_AX: {
+            return "ax";
+        }
+        case SF_REGISTER_EAX: {
+            return "eax";
+        }
+        case SF_REGISTER_RAX: {
+            return "rax";
+        }
+
+        default: {
+            return "rax";
+        }
+    }
 }
 
 static const char *prefix_to_string(sf_size_prefix prefix) {
-  switch (prefix) {
-  case SF_PREFIX_BYTE:
-    return "BYTE";
-  case SF_PREFIX_WORD:
-    return "WORD";
-  case SF_PREFIX_DWORD:
-    return "DWORD";
-  case SF_PREFIX_QWORD:
-    return "QWORD";
-  default:
-    return "QWORD";
-  }
+    switch (prefix) {
+        case SF_PREFIX_BYTE: {
+            return "BYTE";
+        }
+        case SF_PREFIX_WORD: {
+            return "WORD";
+        }
+        case SF_PREFIX_DWORD: {
+            return "DWORD";
+        }
+        case SF_PREFIX_QWORD: {
+            return "QWORD";
+        }
+
+        default: {
+            return "QWORD";
+        }
+    }
 }

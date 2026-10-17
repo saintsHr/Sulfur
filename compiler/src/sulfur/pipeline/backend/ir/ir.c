@@ -11,7 +11,7 @@
 #include "sulfur/utils/type_utils.h"
 
 static const sf_operand k_no_operand = {0};
-static char empty_name[] = "";
+static char k_empty_name[] = "";
 
 static void push(sf_arena *arena, sf_ir_context *context, sf_operation operation);
 static void emit(
@@ -26,7 +26,7 @@ static sf_ir_context context_from_function(
 
 static sf_operand new_temporary(sf_ir_context *context, sf_value_type type);
 static sf_operand new_label(sf_ir_context *context);
-static sf_operand new_immediate(sf_value_type type, char *value);
+static sf_operand new_immediate(sf_value_type type, const char *value);
 static char *mangle_name(sf_arena *arena, const char *name, uint32_t id);
 
 static void add_function(
@@ -103,12 +103,13 @@ sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program) {
         .operation_capacity = 0,
         .operation_count = 0,
         .next_temp = 0,
+        .next_label = 0,
         .operations = NULL,
     };
 
     sf_ir_context ctx = context_from_program(&ir);
 
-    for (uint64_t i = 0; i < program->statement_count; i++) {
+    for (size_t i = 0; i < program->statement_count; i++) {
         generate_statement(arena, &ctx, &ir, program->statements[i]);
     }
 
@@ -119,7 +120,7 @@ void sf_ir_print(const sf_ir_program *program) {
     print_operations(program->operations, program->operation_count);
 
     for (uint32_t f = 0; f < program->function_count; f++) {
-        sf_ir_function *func = &program->functions[f];
+        const sf_ir_function *func = &program->functions[f];
 
         printf("\nfunction %s(", func->name);
 
@@ -222,7 +223,7 @@ static sf_operand new_label(sf_ir_context *context) {
     return op;
 }
 
-static sf_operand new_immediate(sf_value_type type, char *value) {
+static sf_operand new_immediate(sf_value_type type, const char *value) {
     sf_operand op = {0};
     op.type = SF_OPERAND_TYPE_IMMEDIATE;
     op.value_type = type;
@@ -242,7 +243,7 @@ static char *mangle_name(sf_arena *arena, const char *name, uint32_t id) {
             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
         );
 
-        return empty_name;
+        return k_empty_name;
     }
 
     snprintf(mangled, length, "%s@%u", name, id);
@@ -283,6 +284,10 @@ static void generate_statement(
     sf_arena *arena, sf_ir_context *context,
     sf_ir_program *program, sf_ast_node *node
 ) {
+    if (node == NULL) {
+        return;
+    }
+
     switch (node->type) {
         case SF_NODE_VAR_DECL: {
             generate_var_decl(arena, context, (sf_var_decl_node *)node);
@@ -377,12 +382,18 @@ static void generate_if(
     sf_operand cond = generate_expression(arena, context, if_stmt->condition);
 
     sf_operand else_id = new_label(context);
-    sf_operand end_id = new_label(context);
+    sf_operand end_id = k_no_operand;
+
+    bool has_else = if_stmt->branch_else != NULL;
+
+    if (has_else) {
+        end_id = new_label(context);
+    }
 
     emit(arena, context, SF_OPCODE_JMP_COND, else_id, cond, k_no_operand);
     generate_statement(arena, context, program, if_stmt->branch_then);
 
-    if (if_stmt->branch_else == NULL) {
+    if (!has_else) {
         emit(arena, context, SF_OPCODE_LABEL, else_id, k_no_operand, k_no_operand);
         return;
     }
@@ -453,6 +464,10 @@ static sf_operand generate_expression_into(
     sf_arena *arena, sf_ir_context *context,
     sf_ast_node *node, sf_operand *hint
 ) {
+    if (node == NULL) {
+        return k_no_operand;
+    }
+
     switch (node->type) {
         case SF_NODE_BINARY_EXPR: {
             return generate_binary(arena, context, (sf_binary_expr_node *)node, hint);
@@ -561,7 +576,7 @@ static sf_operand generate_cast(
 }
 
 static sf_operand generate_literal(const sf_literal_node *lt) {
-    char *value = lt->value;
+    const char *value = lt->value;
 
     if (lt->token_type == SF_TOKEN_TYPE_KW_TRUE) {
         value = "1";
@@ -591,6 +606,9 @@ static bool is_increment_or_decrement(sf_operation_type op) {
 
 static void print_operand(sf_operand op) {
     switch (op.type) {
+        case SF_OPERAND_TYPE_NONE: {
+            break;
+        }
         case SF_OPERAND_TYPE_TEMPORARY: {
             printf("t%u:%s", op.temporary_id, sf_type_value_name(op.value_type));
             break;
@@ -662,8 +680,13 @@ static void print_operation(const sf_operation *op) {
                 break;
             }
             case SF_OPCODE_RETURN: {
-                printf("return ");
-                print_operand(op->operand1);
+                printf("return");
+
+                if (op->operand1.type != SF_OPERAND_TYPE_NONE) {
+                    printf(" ");
+                    print_operand(op->operand1);
+                }
+
                 break;
             }
 
