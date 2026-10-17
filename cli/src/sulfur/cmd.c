@@ -1,8 +1,8 @@
-#include <stddef.h>
 #define _DEFAULT_SOURCE
 
 #include "sulfur/cmd.h"
 
+#include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -129,22 +129,41 @@ static void command_new(int argc, char **argv) {
         return;
     }
 
-    static const char* src_folder_name = "src";
-    static const char* main_file_name = "main.slfr";
-    static const char* toml_file_name = "sulfur.toml";
+    const char *project_name = argv[2];
 
-    static const char* main_file_content =
+    static const char *src_folder_name = "src";
+    static const char *main_file_name = "main.slfr";
+    static const char *toml_file_name = "sulfur.toml";
+
+    static const char *main_file_content =
         "fn main() void {\n"
         "\t\n"
         "}\n"
     ;
+
+    char toml_file_content[1024];
+
+    snprintf(
+        toml_file_content,
+        sizeof(toml_file_content),
+
+        "[project]\n"
+        "name = \"%s\"\n"
+        "version = \"1.0.0\"\n"
+        "\n"
+        "[build]\n"
+        "flags = []\n"
+        "target = \"executable\"\n",
+
+        project_name
+    );
 
     char project_folder_path[PATH_BUFFER_SIZE] = "";
     char src_folder_path[PATH_BUFFER_SIZE] = "";
     char main_file_path[PATH_BUFFER_SIZE] = "";
     char toml_file_path[PATH_BUFFER_SIZE] = "";
 
-    snprintf(project_folder_path, sizeof(project_folder_path), "%s", argv[2]);
+    snprintf(project_folder_path, sizeof(project_folder_path), "%s", project_name);
     snprintf(src_folder_path, sizeof(src_folder_path), "%s/%s", project_folder_path, src_folder_name);
     snprintf(main_file_path, sizeof(main_file_path), "%s/%s", src_folder_path, main_file_name);
     snprintf(toml_file_path, sizeof(toml_file_path), "%s/%s", project_folder_path, toml_file_name);
@@ -156,6 +175,7 @@ static void command_new(int argc, char **argv) {
     sf_create_file(toml_file_path);
 
     sf_write_file(main_file_path, main_file_content);
+    sf_write_file(toml_file_path, toml_file_content);
 }
 
 static void command_build(int argc, char **argv) {
