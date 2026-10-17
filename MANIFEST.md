@@ -96,13 +96,11 @@ cases whenever possible.
 
 ## Memory Philosophy
 
-Sulfur gives programmers explicit control over memory allocation and lifetime.
-The compiler does not manage memory on behalf of the programmer. Instead,
-it performs static analysis to detect mistakes, highlight inefficiencies,
-and prevent memory-unsafe behavior whenever it can be proven. When safety 
-annot be proven, the compiler should clearly communicate the associated risks.
-The programmer retains control over memory decisions, while the compiler acts
-as a safeguard rather than an owner.
+Sulfur gives programmers explicit control over memory allocation, usage, and deallocation. The compiler does not manage memory on their behalf; it acts as a static supervisor.
+
+Proven violations of mandatory memory safety rules must be rejected. Potential violations that cannot be conclusively established should generate warnings rather than automatic rejection. Warnings may be suppressed or promoted to errors through compiler flags.
+
+Memory safety enforcement relies on static analysis, not runtime checks. The programmer retains control over memory decisions, while the compiler enforces what it can conclusively establish.
 
 ## Interoperability Philosophy
 
