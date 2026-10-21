@@ -27,7 +27,7 @@ static sf_ir_context context_from_function(
 static sf_operand new_temporary(sf_ir_context *context, sf_value_type type);
 static sf_operand new_label(sf_ir_context *context);
 static sf_operand new_immediate(sf_value_type type, const char *value);
-static char *mangle_name(sf_arena *arena, const char *name, uint32_t id);
+static char *mangle_name(sf_arena *arena, const char *name, size_t id);
 
 static void add_function(
     sf_arena *arena, sf_ir_program *program, sf_ir_function function
@@ -92,9 +92,12 @@ static sf_operand generate_identifier(sf_arena *arena, const sf_identifier_node 
 
 static bool is_increment_or_decrement(sf_operation_type op);
 
+static bool ends_with_return(const sf_ir_function *func);
+
 static void print_operand(sf_operand op);
 static void print_operation(const sf_operation *op);
-static void print_operations(const sf_operation *operations, uint32_t count);
+static void print_operations(const sf_operation *operations, size_t count);
+
 static const char *binary_symbol(sf_opcode opcode);
 static const char *unary_symbol(sf_opcode opcode);
 
@@ -119,7 +122,7 @@ sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program) {
 void sf_ir_print(const sf_ir_program *program) {
     print_operations(program->operations, program->operation_count);
 
-    for (uint32_t f = 0; f < program->function_count; f++) {
+    for (size_t f = 0; f < program->function_count; f++) {
         const sf_ir_function *func = &program->functions[f];
 
         printf("\nfunction %s(", func->name);
@@ -143,8 +146,7 @@ void sf_ir_print(const sf_ir_program *program) {
 
 static void push(sf_arena *arena, sf_ir_context *context, sf_operation operation) {
     if (*context->operation_count >= *context->operation_capacity) {
-        uint32_t new_capacity =
-            *context->operation_capacity == 0 ? 8 : *context->operation_capacity * 2;
+        size_t new_capacity = *context->operation_capacity == 0 ? 8 : *context->operation_capacity * 2;
 
         sf_operation *grown = sf_arena_grow_array(
             arena, *context->operations, *context->operation_count,
@@ -232,7 +234,7 @@ static sf_operand new_immediate(sf_value_type type, const char *value) {
     return op;
 }
 
-static char *mangle_name(sf_arena *arena, const char *name, uint32_t id) {
+static char *mangle_name(sf_arena *arena, const char *name, size_t id) {
     size_t length = strlen(name) + 32;
     char *mangled = sf_arena_alloc(arena, length);
 
@@ -246,7 +248,7 @@ static char *mangle_name(sf_arena *arena, const char *name, uint32_t id) {
         return k_empty_name;
     }
 
-    snprintf(mangled, length, "%s@%u", name, id);
+    snprintf(mangled, length, "%s@%zu", name, id);
 
     return mangled;
 }
@@ -255,8 +257,7 @@ static void add_function(
     sf_arena *arena, sf_ir_program *program, sf_ir_function function
 ) {
     if (program->function_count >= program->function_capacity) {
-        uint32_t new_capacity =
-            program->function_capacity == 0 ? 8 : program->function_capacity * 2;
+        size_t new_capacity = program->function_capacity == 0 ? 8 : program->function_capacity * 2;
 
         sf_ir_function *grown = sf_arena_grow_array(
             arena, program->functions, program->function_count,
@@ -439,6 +440,13 @@ static void generate_function(
 
     generate_statement(arena, &ctx, program, func->body);
 
+    if (
+        func->return_type == SF_VAL_TYPE_VOID &&
+        !ends_with_return(&func_ir)
+    ) {
+        emit(arena, &ctx, SF_OPCODE_RETURN, k_no_operand, k_no_operand, k_no_operand);
+    }
+
     add_function(arena, program, func_ir);
 }
 
@@ -610,7 +618,7 @@ static void print_operand(sf_operand op) {
             break;
         }
         case SF_OPERAND_TYPE_TEMPORARY: {
-            printf("t%u:%s", op.temporary_id, sf_type_value_name(op.value_type));
+            printf("t%zu:%s", op.temporary_id, sf_type_value_name(op.value_type));
             break;
         }
         case SF_OPERAND_TYPE_VARIABLE: {
@@ -622,14 +630,14 @@ static void print_operand(sf_operand op) {
             break;
         }
         case SF_OPERAND_TYPE_LABEL: {
-            printf("L%u", op.label_id);
+            printf("L%zu", op.label_id);
             break;
         }
     }
 }
 
-static void print_operations(const sf_operation *operations, uint32_t count) {
-    for (uint32_t i = 0; i < count; i++) {
+static void print_operations(const sf_operation *operations, size_t count) {
+    for (size_t i = 0; i < count; i++) {
         print_operation(&operations[i]);
     }
 }
@@ -657,17 +665,17 @@ static void print_operation(const sf_operation *op) {
     } else {
         switch (op->opcode) {
             case SF_OPCODE_LABEL: {
-                printf("label .L%u:", op->operand1.label_id);
+                printf("label .L%zu:", op->operand1.label_id);
                 break;
             }
             case SF_OPCODE_JMP_COND: {
                 printf("if not ");
                 print_operand(op->operand2);
-                printf(" jmp L%u", op->operand1.label_id);
+                printf(" jmp L%zu", op->operand1.label_id);
                 break;
             }
             case SF_OPCODE_JMP_INCOND: {
-                printf("jmp L%u", op->operand1.label_id);
+                printf("jmp L%zu", op->operand1.label_id);
                 break;
             }
             case SF_OPCODE_ASSIGN: {
@@ -778,4 +786,15 @@ static const char *unary_symbol(sf_opcode opcode) {
             return NULL;
         }
     }
+}
+
+static bool ends_with_return(const sf_ir_function *func) {
+    if (
+        func->operation_count > 0 &&
+        func->operations[func->operation_count - 1].opcode == SF_OPCODE_RETURN
+    ) {
+        return true;
+    }
+
+    return false;
 }

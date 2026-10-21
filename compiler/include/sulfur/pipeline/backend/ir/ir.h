@@ -55,8 +55,8 @@ typedef struct {
     sf_value_type value_type;
 
     union {
-        uint32_t temporary_id;
-        uint32_t label_id;
+        size_t temporary_id;
+        size_t label_id;
         char *variable_name;
         const char *immediate_value;
     };
@@ -71,8 +71,8 @@ typedef struct {
 
 typedef struct {
     sf_operation *operations;
-    uint32_t operation_count;
-    uint32_t operation_capacity;
+    size_t operation_count;
+    size_t operation_capacity;
 
     sf_parameter *parameters;
     size_t parameter_count;
@@ -81,28 +81,28 @@ typedef struct {
 
     char *name;
 
-    uint32_t next_temp;
+    size_t next_temp;
 } sf_ir_function;
 
 typedef struct {
     sf_operation *operations;
-    uint32_t operation_count;
-    uint32_t operation_capacity;
+    size_t operation_count;
+    size_t operation_capacity;
 
     sf_ir_function *functions;
-    uint32_t function_count;
-    uint32_t function_capacity;
+    size_t function_count;
+    size_t function_capacity;
 
-    uint32_t next_temp;
-    uint32_t next_label;
+    size_t next_temp;
+    size_t next_label;
 } sf_ir_program;
 
 typedef struct {
     sf_operation **operations;
-    uint32_t *operation_count;
-    uint32_t *operation_capacity;
-    uint32_t *next_temp;
-    uint32_t *next_label;
+    size_t *operation_count;
+    size_t *operation_capacity;
+    size_t *next_temp;
+    size_t *next_label;
 } sf_ir_context;
 
 sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program);
