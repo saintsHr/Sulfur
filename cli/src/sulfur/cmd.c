@@ -176,6 +176,11 @@ static void command_new(int argc, char **argv) {
 
     sf_write_file(main_file_path, main_file_content);
     sf_write_file(toml_file_path, toml_file_content);
+
+    printf(
+        SF_COLOR_GREEN "Created project \"%s\"\n" SF_COLOR_RESET,
+        project_name
+    );
 }
 
 static void command_build(int argc, char **argv) {
@@ -223,7 +228,7 @@ static void command_build(int argc, char **argv) {
             *last_slash = '\0';
 
             if (!sf_create_folders(output)) {
-                fprintf(stderr, "Failed to create directory: %s\n", output);
+                fprintf(stderr, "Failed to create directory: \"%s\"\n", output);
 
                 free_slfr_files(&files);
                 return;
@@ -243,7 +248,7 @@ static void command_build(int argc, char **argv) {
         if (result != 0) {
             printf(
                 SF_COLOR_RED "Build failed.\n"
-                SF_COLOR_RESET "   Failed to compile %s.\n",
+                SF_COLOR_RESET "   Failed to compile \"%s\".\n",
                 input
             );
 
@@ -252,10 +257,8 @@ static void command_build(int argc, char **argv) {
         }
 
         printf(
-            SF_COLOR_CYAN "[Compiled] "
-            SF_COLOR_RESET "%s -> %s\n",
-            input,
-            output
+            SF_COLOR_CYAN "[Compiled] " SF_COLOR_RESET "\"%s\" -> \"%s\"\n",
+            input, output
         );
     }
 
