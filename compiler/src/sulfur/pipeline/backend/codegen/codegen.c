@@ -113,6 +113,13 @@ static void emit_jmp_cond(
     sf_operation op, const sf_stack_map *map
 );
 
+static void emit_operations(
+    char **buff, size_t *len, size_t *capacity,
+    const sf_operation *operations, size_t count, const sf_stack_map *map
+);
+
+static sf_stack_offset_size_t frame_size(const sf_stack_map *map);
+
 static sf_register register_from_size(uint8_t size);
 static sf_size_prefix prefix_from_size(uint8_t size);
 static const char *counter_register(uint8_t size);
@@ -141,7 +148,7 @@ char *sf_generate_assembly(const sf_ir_program *program) {
         .count = 0,
     };
 
-    sf_stack_populate(&map, program);
+    sf_stack_populate(&map, program->operations, program->operation_count);
 
     sf_string_push("bits 64\n\n", &as, &as_len, &as_capacity);
     sf_string_push("section .data\n", &as, &as_len, &as_capacity);
@@ -154,112 +161,14 @@ char *sf_generate_assembly(const sf_ir_program *program) {
     sf_string_push("\tpush rbp\n", &as, &as_len, &as_capacity);
     sf_string_push("\tmov rbp, rsp\n", &as, &as_len, &as_capacity);
 
-    sf_stack_offset_size_t stack_size = 0;
-
-    for (sf_stack_map_size_t i = 0; i < map.count; i++) {
-        sf_stack_offset_size_t abs_offset = -map.entries[i].offset;
-
-        if (abs_offset > stack_size) {
-            stack_size = abs_offset;
-        }
-    }
-
-    stack_size = (stack_size + 15) / 16 * 16;
+    sf_stack_offset_size_t stack_size = frame_size(&map);
 
     emitf(&as, &as_len, &as_capacity, "\tsub rsp, %" PRId64 "\n\n", stack_size);
 
-    for (uint32_t i = 0; i < program->operation_count; i++) {
-        sf_operation op = program->operations[i];
-
-        switch (op.opcode) {
-            case SF_OPCODE_ADD: {
-                emit_binary(&as, &as_len, &as_capacity, "add", op, &map);
-                break;
-            }
-            case SF_OPCODE_SUB: {
-                emit_binary(&as, &as_len, &as_capacity, "sub", op, &map);
-                break;
-            }
-            case SF_OPCODE_MULT: {
-                emit_mult(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-            case SF_OPCODE_DIV: {
-                emit_div(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-            case SF_OPCODE_NEGATE: {
-                emit_neg(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-
-            case SF_OPCODE_BITWISE_AND:
-            case SF_OPCODE_LOGICAL_AND: {
-                emit_binary(&as, &as_len, &as_capacity, "and", op, &map);
-                break;
-            }
-            case SF_OPCODE_BITWISE_OR:
-            case SF_OPCODE_LOGICAL_OR: {
-                emit_binary(&as, &as_len, &as_capacity, "or", op, &map);
-                break;
-            }
-            case SF_OPCODE_BITWISE_XOR: {
-                emit_binary(&as, &as_len, &as_capacity, "xor", op, &map);
-                break;
-            }
-            case SF_OPCODE_BITWISE_RSHIFT: {
-                emit_rshift(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-            case SF_OPCODE_BITWISE_LSHIFT: {
-                emit_lshift(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-            case SF_OPCODE_BITWISE_NOT:
-            case SF_OPCODE_LOGICAL_NOT: {
-                emit_not(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-
-            case SF_OPCODE_RELATIONAL_EQUAL:
-            case SF_OPCODE_RELATIONAL_NOT_EQUAL:
-            case SF_OPCODE_RELATIONAL_LESS:
-            case SF_OPCODE_RELATIONAL_LESS_EQUAL:
-            case SF_OPCODE_RELATIONAL_GREATER:
-            case SF_OPCODE_RELATIONAL_GREATER_EQUAL: {
-                emit_relational(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-
-            case SF_OPCODE_LABEL: {
-                emit_label(&as, &as_len, &as_capacity, op);
-                break;
-            }
-            case SF_OPCODE_JMP_INCOND: {
-                emit_jmp_incond(&as, &as_len, &as_capacity, op);
-                break;
-            }
-            case SF_OPCODE_JMP_COND: {
-                emit_jmp_cond(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-
-            case SF_OPCODE_ASSIGN: {
-                emit_assign(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-            case SF_OPCODE_CAST: {
-                emit_cast(&as, &as_len, &as_capacity, op, &map);
-                break;
-            }
-
-            default: {
-                break;
-            }
-        }
-
-        sf_string_push("\n", &as, &as_len, &as_capacity);
-    }
+    emit_operations(
+        &as, &as_len, &as_capacity, program->operations,
+        program->operation_count, &map
+    );
 
     sf_string_push("\tmov rsp, rbp\n", &as, &as_len, &as_capacity);
     sf_string_push("\tpop rbp\n\n", &as, &as_len, &as_capacity);
@@ -295,7 +204,7 @@ static void format_operand(
         }
         case SF_OPERAND_TYPE_TEMPORARY: {
             char temp_name[32];
-            snprintf(temp_name, sizeof(temp_name), "t%u", op.temporary_id);
+            snprintf(temp_name, sizeof(temp_name), "t%zu", op.temporary_id);
 
             snprintf(
                 dst_str, max_len, "%s [rbp%" PRId64 "]", prefix,
@@ -763,13 +672,13 @@ static void emit_relational(
 }
 
 static void emit_label(char **buff, size_t *len, size_t *capacity, sf_operation op) {
-    emitf(buff, len, capacity, ".L%u:\n", op.operand1.label_id);
+    emitf(buff, len, capacity, ".L%zu:\n", op.operand1.label_id);
 }
 
 static void emit_jmp_incond(
     char **buff, size_t *len, size_t *capacity, sf_operation op
 ) {
-    emitf(buff, len, capacity, "\tjmp .L%u\n", op.operand1.label_id);
+    emitf(buff, len, capacity, "\tjmp .L%zu\n", op.operand1.label_id);
 }
 
 static void emit_jmp_cond(
@@ -785,7 +694,121 @@ static void emit_jmp_cond(
 
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, cond_fmt);
     emitf(buff, len, capacity, "\tcmp %s, 0\n", reg_str);
-    emitf(buff, len, capacity, "\tje .L%u\n", op.operand1.label_id);
+    emitf(buff, len, capacity, "\tje .L%zu\n", op.operand1.label_id);
+}
+
+static void emit_operations(
+    char **buff, size_t *len, size_t *capacity,
+    const sf_operation *operations, size_t count, const sf_stack_map *map
+) {
+    for (size_t i = 0; i < count; i++) {
+        sf_operation op = operations[i];
+
+        switch (op.opcode) {
+            case SF_OPCODE_ADD: {
+                emit_binary(buff, len, capacity, "add", op, map);
+                break;
+            }
+            case SF_OPCODE_SUB: {
+                emit_binary(buff, len, capacity, "sub", op, map);
+                break;
+            }
+            case SF_OPCODE_MULT: {
+                emit_mult(buff, len, capacity, op, map);
+                break;
+            }
+            case SF_OPCODE_DIV: {
+                emit_div(buff, len, capacity, op, map);
+                break;
+            }
+            case SF_OPCODE_NEGATE: {
+                emit_neg(buff, len, capacity, op, map);
+                break;
+            }
+
+            case SF_OPCODE_BITWISE_AND:
+            case SF_OPCODE_LOGICAL_AND: {
+                emit_binary(buff, len, capacity, "and", op, map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_OR:
+            case SF_OPCODE_LOGICAL_OR: {
+                emit_binary(buff, len, capacity, "or", op, map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_XOR: {
+                emit_binary(buff, len, capacity, "xor", op, map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_RSHIFT: {
+                emit_rshift(buff, len, capacity, op, map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_LSHIFT: {
+                emit_lshift(buff, len, capacity, op, map);
+                break;
+            }
+            case SF_OPCODE_BITWISE_NOT:
+            case SF_OPCODE_LOGICAL_NOT: {
+                emit_not(buff, len, capacity, op, map);
+                break;
+            }
+
+            case SF_OPCODE_RELATIONAL_EQUAL:
+            case SF_OPCODE_RELATIONAL_NOT_EQUAL:
+            case SF_OPCODE_RELATIONAL_LESS:
+            case SF_OPCODE_RELATIONAL_LESS_EQUAL:
+            case SF_OPCODE_RELATIONAL_GREATER:
+            case SF_OPCODE_RELATIONAL_GREATER_EQUAL: {
+                emit_relational(buff, len, capacity, op, map);
+                break;
+            }
+
+            case SF_OPCODE_LABEL: {
+                emit_label(buff, len, capacity, op);
+                break;
+            }
+            case SF_OPCODE_JMP_INCOND: {
+                emit_jmp_incond(buff, len, capacity, op);
+                break;
+            }
+            case SF_OPCODE_JMP_COND: {
+                emit_jmp_cond(buff, len, capacity, op, map);
+                break;
+            }
+
+            case SF_OPCODE_ASSIGN: {
+                emit_assign(buff, len, capacity, op, map);
+                break;
+            }
+            case SF_OPCODE_CAST: {
+                emit_cast(buff, len, capacity, op, map);
+                break;
+            }
+
+            default: {
+                break;
+            }
+        }
+
+        sf_string_push("\n", buff, len, capacity);
+    }
+}
+
+static sf_stack_offset_size_t frame_size(const sf_stack_map *map) {
+    sf_stack_offset_size_t stack_size = 0;
+
+    for (sf_stack_map_size_t i = 0; i < map->count; i++) {
+        sf_stack_offset_size_t abs_offset = -map->entries[i].offset;
+
+        if (abs_offset > stack_size) {
+            stack_size = abs_offset;
+        }
+    }
+
+    stack_size = (stack_size + 15) / 16 * 16;
+
+    return stack_size;
 }
 
 static sf_register register_from_size(uint8_t size) {

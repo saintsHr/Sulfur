@@ -64,7 +64,7 @@ void sf_stack_register_operand(
         }
         case SF_OPERAND_TYPE_TEMPORARY: {
             char name[k_temporary_name_size];
-            snprintf(name, sizeof(name), "t%u", op.temporary_id);
+            snprintf(name, sizeof(name), "t%zu", op.temporary_id);
 
             add_entry(map, name, op.value_type, next_offset);
             break;
@@ -76,15 +76,15 @@ void sf_stack_register_operand(
     }
 }
 
-void sf_stack_populate(sf_stack_map *map, const sf_ir_program *program) {
-    if (map == NULL || program == NULL) {
+void sf_stack_populate(sf_stack_map *map, const sf_operation *operations, size_t count) {
+    if (map == NULL || operations == NULL) {
         return;
     }
 
     sf_stack_offset_size_t next_offset = 0;
 
-    for (uint32_t i = 0; i < program->operation_count; i++) {
-        const sf_operation *op = &program->operations[i];
+    for (uint32_t i = 0; i < count; i++) {
+        const sf_operation *op = &operations[i];
 
         sf_stack_register_operand(map, op->operand1, &next_offset);
         sf_stack_register_operand(map, op->operand2, &next_offset);
