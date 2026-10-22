@@ -14,6 +14,8 @@
 #include "sulfur/utils/string.h"
 #include "sulfur/utils/type_utils.h"
 
+#define FMT_SIZE 256
+
 typedef enum {
     SF_REGISTER_RAX,
     SF_REGISTER_EAX,
@@ -113,6 +115,15 @@ static void emit_jmp_cond(
     sf_operation op, const sf_stack_map *map
 );
 
+static void emit_return(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+);
+
+static void emit_function(
+    char **buff, size_t *len, size_t *capacity, const sf_ir_function *func
+);
+
 static void emit_operations(
     char **buff, size_t *len, size_t *capacity,
     const sf_operation *operations, size_t count, const sf_stack_map *map
@@ -142,14 +153,6 @@ char *sf_generate_assembly(const sf_ir_program *program) {
 
     as[0] = '\0';
 
-    sf_stack_map map = {
-        .entries = NULL,
-        .capacity = 0,
-        .count = 0,
-    };
-
-    sf_stack_populate(&map, program->operations, program->operation_count);
-
     sf_string_push("bits 64\n\n", &as, &as_len, &as_capacity);
     sf_string_push("section .data\n", &as, &as_len, &as_capacity);
 
@@ -157,27 +160,15 @@ char *sf_generate_assembly(const sf_ir_program *program) {
     sf_string_push("\tglobal _start\n\n", &as, &as_len, &as_capacity);
 
     sf_string_push("_start:\n", &as, &as_len, &as_capacity);
-
-    sf_string_push("\tpush rbp\n", &as, &as_len, &as_capacity);
-    sf_string_push("\tmov rbp, rsp\n", &as, &as_len, &as_capacity);
-
-    sf_stack_offset_size_t stack_size = frame_size(&map);
-
-    emitf(&as, &as_len, &as_capacity, "\tsub rsp, %" PRId64 "\n\n", stack_size);
-
-    emit_operations(
-        &as, &as_len, &as_capacity, program->operations,
-        program->operation_count, &map
-    );
-
-    sf_string_push("\tmov rsp, rbp\n", &as, &as_len, &as_capacity);
-    sf_string_push("\tpop rbp\n\n", &as, &as_len, &as_capacity);
-
+    sf_string_push("\tcall sf_main\n", &as, &as_len, &as_capacity);
+    sf_string_push("\tmov edi, eax\n", &as, &as_len, &as_capacity);
     sf_string_push("\tmov rax, 60\n", &as, &as_len, &as_capacity);
-    sf_string_push("\txor rdi, rdi\n", &as, &as_len, &as_capacity);
     sf_string_push("\tsyscall\n", &as, &as_len, &as_capacity);
 
-    sf_stack_free(&map);
+    for (size_t i = 0; i < program->function_count; i++) {
+        sf_string_push("\n", &as, &as_len, &as_capacity);
+        emit_function(&as, &as_len, &as_capacity, &program->functions[i]);
+    }
 
     return as;
 }
@@ -310,7 +301,7 @@ static void emit_binary(
     char **buff, size_t *len, size_t *capacity, const char *mnemonic,
     sf_operation op, const sf_stack_map *map
 ) {
-    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    char src1_fmt[FMT_SIZE], src2_fmt[FMT_SIZE], dst_fmt[FMT_SIZE];
 
     format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
@@ -341,7 +332,7 @@ static void emit_mult(
     char **buff, size_t *len, size_t *capacity,
     sf_operation op, const sf_stack_map *map
 ) {
-    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    char src1_fmt[FMT_SIZE], src2_fmt[FMT_SIZE], dst_fmt[FMT_SIZE];
 
     format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
@@ -382,7 +373,7 @@ static void emit_div(
     char **buff, size_t *len, size_t *capacity,
     sf_operation op, const sf_stack_map *map
 ) {
-    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    char src1_fmt[FMT_SIZE], src2_fmt[FMT_SIZE], dst_fmt[FMT_SIZE];
 
     format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
@@ -440,7 +431,7 @@ static void emit_neg(
     char **buff, size_t *len, size_t *capacity,
     sf_operation op, const sf_stack_map *map
 ) {
-    char src1_fmt[256], dst_fmt[256];
+    char src1_fmt[FMT_SIZE], dst_fmt[FMT_SIZE];
 
     format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
@@ -462,7 +453,7 @@ static void emit_not(
     char **buff, size_t *len, size_t *capacity,
     sf_operation op, const sf_stack_map *map
 ) {
-    char src1_fmt[256], dst_fmt[256];
+    char src1_fmt[FMT_SIZE], dst_fmt[FMT_SIZE];
 
     format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
@@ -494,7 +485,7 @@ static void emit_shift(
     char **buff, size_t *len, size_t *capacity, const char *mnemonic,
     sf_operation op, const sf_stack_map *map
 ) {
-    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    char src1_fmt[FMT_SIZE], src2_fmt[FMT_SIZE], dst_fmt[FMT_SIZE];
 
     format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
@@ -581,7 +572,7 @@ static void emit_assign(
     char **buff, size_t *len, size_t *capacity,
     sf_operation op, const sf_stack_map *map
 ) {
-    char src_fmt[256], dst_fmt[256];
+    char src_fmt[FMT_SIZE], dst_fmt[FMT_SIZE];
 
     format_operand(src_fmt, sizeof(src_fmt), op.operand2, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
@@ -597,7 +588,7 @@ static void emit_cast(
     char **buff, size_t *len, size_t *capacity,
     sf_operation op, const sf_stack_map *map
 ) {
-    char src_fmt[256], dst_fmt[256];
+    char src_fmt[FMT_SIZE], dst_fmt[FMT_SIZE];
 
     format_operand(src_fmt, sizeof(src_fmt), op.operand2, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
@@ -609,7 +600,7 @@ static void emit_relational(
     char **buff, size_t *len, size_t *capacity,
     sf_operation op, const sf_stack_map *map
 ) {
-    char src1_fmt[256], src2_fmt[256], dst_fmt[256];
+    char src1_fmt[FMT_SIZE], src2_fmt[FMT_SIZE], dst_fmt[FMT_SIZE];
 
     format_operand(src1_fmt, sizeof(src1_fmt), op.operand2, map);
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
@@ -685,7 +676,7 @@ static void emit_jmp_cond(
     char **buff, size_t *len, size_t *capacity,
     sf_operation op, const sf_stack_map *map
 ) {
-    char cond_fmt[256];
+    char cond_fmt[FMT_SIZE];
 
     format_operand(cond_fmt, sizeof(cond_fmt), op.operand2, map);
 
@@ -695,6 +686,41 @@ static void emit_jmp_cond(
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, cond_fmt);
     emitf(buff, len, capacity, "\tcmp %s, 0\n", reg_str);
     emitf(buff, len, capacity, "\tje .L%zu\n", op.operand1.label_id);
+}
+
+static void emit_return(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operation op, const sf_stack_map *map
+) {
+    if (op.operand1.type != SF_OPERAND_TYPE_NONE) {
+        uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
+        const char *reg = register_to_string(register_from_size(size));
+
+        char fmt[FMT_SIZE];
+        format_operand(fmt, sizeof(fmt), op.operand1, map);
+
+        emitf(buff, len, capacity, "\tmov %s, %s\n", reg, fmt);
+    }
+
+    emitf(buff, len, capacity, "\tmov rsp, rbp\n");
+    emitf(buff, len, capacity, "\tpop rbp\n");
+    emitf(buff, len, capacity, "\tret\n");
+}
+
+static void emit_function(
+    char **buff, size_t *len, size_t *capacity, const sf_ir_function *func
+) {
+    sf_stack_map map = {0};
+    sf_stack_populate(&map, func->operations, func->operation_count);
+
+    emitf(buff, len, capacity, "sf_%s:\n", func->name);
+    emitf(buff, len, capacity, "\tpush rbp\n");
+    emitf(buff, len, capacity, "\tmov rbp, rsp\n");
+    emitf(buff, len, capacity, "\tsub rsp, %"PRId64"\n", frame_size(&map));
+
+    emit_operations(buff, len, capacity, func->operations, func->operation_count, &map);
+
+    sf_stack_free(&map);
 }
 
 static void emit_operations(
@@ -783,6 +809,11 @@ static void emit_operations(
             }
             case SF_OPCODE_CAST: {
                 emit_cast(buff, len, capacity, op, map);
+                break;
+            }
+
+            case SF_OPCODE_RETURN: {
+                emit_return(buff, len, capacity, op, map);
                 break;
             }
 
