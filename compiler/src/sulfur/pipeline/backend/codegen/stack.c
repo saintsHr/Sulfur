@@ -11,7 +11,9 @@
 #include "sulfur/utils/type_utils.h"
 
 static const sf_stack_map_size_t k_initial_capacity = 8;
-enum { k_temporary_name_size = 16 };
+enum {
+    k_temporary_name_size = 16
+};
 
 static bool ensure_capacity(sf_stack_map *map);
 static void add_entry(
@@ -76,14 +78,33 @@ void sf_stack_register_operand(
     }
 }
 
-void sf_stack_populate(sf_stack_map *map, const sf_operation *operations, size_t count) {
-    if (map == NULL || operations == NULL) {
+void sf_stack_populate(
+    sf_stack_map *map, const sf_parameter *params, size_t param_count,
+    const sf_operation *operations, size_t operation_count
+) {
+    if (map == NULL) {
         return;
     }
 
     sf_stack_offset_size_t next_offset = 0;
 
-    for (uint32_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < param_count; i++) {
+        sf_stack_register_operand(
+            map,
+            (sf_operand){
+                .type = SF_OPERAND_TYPE_VARIABLE,
+                .variable_name = params[i].name,
+                .value_type = params[i].type,
+            },
+            &next_offset
+        );
+    }
+
+    if (operations == NULL) {
+        return;
+    }
+
+    for (size_t i = 0; i < operation_count; i++) {
         const sf_operation *op = &operations[i];
 
         sf_stack_register_operand(map, op->operand1, &next_offset);

@@ -275,7 +275,12 @@ static sf_ast_node *parse_func_stmt(sf_parser *p) {
                 return NULL;
             }
 
-            sf_parameter param = {.name = param_name, .type = param_type};
+            sf_parameter param = {
+                .name = param_name,
+                .type = param_type,
+                .id = 0
+            };
+
             sf_function_add_parameter(p->arena, func, param);
 
             if (!sf_parser_match(p, SF_TOKEN_TYPE_COMMA)) {

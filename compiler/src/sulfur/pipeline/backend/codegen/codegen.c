@@ -35,11 +35,9 @@ static const size_t k_initial_capacity = 4096;
 static void format_operand(
     char *dst_str, size_t max_len, sf_operand op, const sf_stack_map *map
 );
-
 static void emitf(
     char **buff, size_t *len, size_t *capacity, const char *format, ...
 );
-
 static sf_stack_offset_size_t stack_offset(
     const sf_stack_map *map, const char *name
 );
@@ -47,7 +45,7 @@ static void load_large_immediate(
     char **buff, size_t *len, size_t *capacity, sf_operand operand,
     uint8_t size, char *fmt, size_t fmt_size
 );
-
+static const char *param_register(uint8_t index, uint8_t size);
 static void emit_binary(
     char **buff, size_t *len, size_t *capacity, const char *mnemonic,
     sf_operation op, const sf_stack_map *map
@@ -161,6 +159,7 @@ char *sf_generate_assembly(const sf_ir_program *program) {
 
     sf_string_push("_start:\n", &as, &as_len, &as_capacity);
     sf_string_push("\tcall sf_main\n", &as, &as_len, &as_capacity);
+    sf_string_push("\n", &as, &as_len, &as_capacity);
     sf_string_push("\tmov edi, eax\n", &as, &as_len, &as_capacity);
     sf_string_push("\tmov rax, 60\n", &as, &as_len, &as_capacity);
     sf_string_push("\tsyscall\n", &as, &as_len, &as_capacity);
@@ -188,7 +187,7 @@ static void format_operand(
         }
         case SF_OPERAND_TYPE_VARIABLE: {
             snprintf(
-                dst_str, max_len, "%s [rbp%" PRId64 "]", prefix,
+                dst_str, max_len, "%s [rbp%+" PRId64 "]", prefix,
                 stack_offset(map, op.variable_name)
             );
             break;
@@ -198,7 +197,7 @@ static void format_operand(
             snprintf(temp_name, sizeof(temp_name), "t%zu", op.temporary_id);
 
             snprintf(
-                dst_str, max_len, "%s [rbp%" PRId64 "]", prefix,
+                dst_str, max_len, "%s [rbp%+" PRId64 "]", prefix,
                 stack_offset(map, temp_name)
             );
             break;
@@ -277,8 +276,6 @@ static sf_stack_offset_size_t stack_offset(
     return offset;
 }
 
-// 64-bit immediates outside the signed 32-bit range cannot be encoded in most
-// instructions, so they are loaded into rcx and the operand text becomes "rcx".
 static void load_large_immediate(
     char **buff, size_t *len, size_t *capacity, sf_operand operand,
     uint8_t size, char *fmt, size_t fmt_size
@@ -295,6 +292,39 @@ static void load_large_immediate(
 
     emitf(buff, len, capacity, "\tmov rcx, %s\n", fmt);
     snprintf(fmt, fmt_size, "rcx");
+}
+
+static const char *param_register(uint8_t index, uint8_t size) {
+    static const char *registers[6][4] = {
+        {"rdi", "edi", "di", "dil"},
+        {"rsi", "esi", "si", "sil"},
+        {"rdx", "edx", "dx", "dl"},
+        {"rcx", "ecx", "cx", "cl"},
+        {"r8",  "r8d", "r8w", "r8b"},
+        {"r9",  "r9d", "r9w", "r9b"},
+    };
+
+    if (index >= 6) {
+        return NULL;
+    }
+
+    switch (size) {
+        case 8: {
+            return registers[index][0];
+        }
+        case 4: {
+            return registers[index][1];
+        }
+        case 2: {
+            return registers[index][2];
+        }
+        case 1: {
+            return registers[index][3];
+        }
+        default: {
+            return NULL;
+        }
+    }
 }
 
 static void emit_binary(
@@ -341,12 +371,10 @@ static void emit_mult(
     uint8_t size = sf_type_value_width_bytes(op.operand1.value_type);
 
     if (size == 1) {
-        const char *mul_instr =
-            sf_type_value_is_signed(op.operand1.value_type) ? "imul" : "mul";
+        const char *mul_instr = sf_type_value_is_signed(op.operand1.value_type) ? "imul" : "mul";
 
         emitf(buff, len, capacity, "\tmov al, %s\n", src1_fmt);
 
-        // The one-operand mul/imul forms do not accept immediates.
         if (op.operand3.type == SF_OPERAND_TYPE_IMMEDIATE) {
             emitf(buff, len, capacity, "\tmov cl, %s\n", src2_fmt);
             emitf(buff, len, capacity, "\t%s cl\n", mul_instr);
@@ -545,14 +573,11 @@ static void emit_convert(
         bool is_signed = sf_type_value_is_signed(op.operand2.value_type);
 
         if (is_signed && src_size == 4) {
-            // movsx has no 32-bit source form.
             emitf(buff, len, capacity, "\tmovsxd %s, %s\n", dst_reg_str, src_fmt);
         } else if (is_signed) {
             emitf(buff, len, capacity, "\tmovsx %s, %s\n", dst_reg_str, src_fmt);
         } else if (src_size == 4) {
-            // Writing eax already zero-extends into rax.
             const char *eax = register_to_string(SF_REGISTER_EAX);
-
             emitf(buff, len, capacity, "\tmov %s, %s\n", eax, src_fmt);
         } else {
             emitf(buff, len, capacity, "\tmovzx %s, %s\n", dst_reg_str, src_fmt);
@@ -663,7 +688,7 @@ static void emit_relational(
 }
 
 static void emit_label(char **buff, size_t *len, size_t *capacity, sf_operation op) {
-    emitf(buff, len, capacity, ".L%zu:\n", op.operand1.label_id);
+    emitf(buff, len, capacity, ".L%zu:", op.operand1.label_id);
 }
 
 static void emit_jmp_incond(
@@ -711,12 +736,57 @@ static void emit_function(
     char **buff, size_t *len, size_t *capacity, const sf_ir_function *func
 ) {
     sf_stack_map map = {0};
-    sf_stack_populate(&map, func->operations, func->operation_count);
+    sf_stack_populate(
+        &map,
+        func->parameters,
+        func->parameter_count,
+        func->operations,
+        func->operation_count
+    );
 
     emitf(buff, len, capacity, "sf_%s:\n", func->name);
     emitf(buff, len, capacity, "\tpush rbp\n");
     emitf(buff, len, capacity, "\tmov rbp, rsp\n");
     emitf(buff, len, capacity, "\tsub rsp, %"PRId64"\n", frame_size(&map));
+
+    if (func->parameter_count > 0) {
+        emitf(buff, len, capacity, "\n");
+
+        for (size_t i = 0; i < func->parameter_count; i++) {
+            const char *name = func->parameters[i].name;
+            uint8_t size = sf_type_value_width_bytes(func->parameters[i].type);
+
+            const char *prefix = prefix_to_string(prefix_from_size(size));
+            sf_stack_offset_size_t offset = stack_offset(&map, name);
+
+            if (i < 6) {
+                const char *reg = param_register((uint8_t)i, size);
+
+                emitf(
+                    buff, len, capacity,
+                    "\tmov %s [rbp%+" PRId64 "], %s\n",
+                    prefix, offset, reg
+                );
+            } else {
+                sf_stack_offset_size_t arg_offset = 16 + (sf_stack_offset_size_t)(i - 6) * 8;
+                const char *reg = register_to_string(register_from_size(size));
+
+                emitf(
+                    buff, len, capacity,
+                    "\tmov %s, %s [rbp+%" PRId64 "]\n",
+                    reg, prefix, arg_offset
+                );
+
+                emitf(
+                    buff, len, capacity,
+                    "\tmov %s [rbp%+" PRId64 "], %s\n",
+                    prefix, offset, reg
+                );
+            }
+        }
+    }
+
+    emitf(buff, len, capacity, "\n");
 
     emit_operations(buff, len, capacity, func->operations, func->operation_count, &map);
 

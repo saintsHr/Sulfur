@@ -65,8 +65,8 @@ void scope_pop(sf_scope *scope) {
 }
 
 sf_var_symbol *scope_lookup(sf_scope *scope, const char *name) {
-    for (size_t i = scope->depth - 1; i >= 0; i--) {
-        sf_var_symbol *symbol = sf_var_symbol_table_lookup(&scope->stack[i], name);
+    for (size_t i = scope->depth; i > 0; i--) {
+        sf_var_symbol *symbol = sf_var_symbol_table_lookup(&scope->stack[i - 1], name);
 
         if (symbol != NULL) {
             return symbol;
@@ -121,9 +121,9 @@ const char *scope_find_closest(sf_scope *scope, const char *name) {
     const char *best_candidate = NULL;
     size_t minimal_distance = UINT32_MAX;
 
-    for (size_t i = scope->depth - 1; i >= 0; i--) {
-        for (size_t j = 0; j < scope->stack[i].count; j++) {
-            sf_var_symbol *sym = &scope->stack[i].symbols[j];
+    for (size_t i = scope->depth; i > 0; i--) {
+        for (size_t j = 0; j < scope->stack[i - 1].count; j++) {
+            sf_var_symbol *sym = &scope->stack[i - 1].symbols[j];
             size_t distance = levenshtein_distance(sym->name, name);
 
             if (distance < minimal_distance) {

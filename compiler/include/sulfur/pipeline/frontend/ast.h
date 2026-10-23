@@ -77,6 +77,7 @@ typedef enum {
 typedef struct {
     sf_value_type type;
     char *name;
+    size_t id;
 } sf_parameter;
 
 typedef struct {

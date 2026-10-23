@@ -7,6 +7,7 @@
 
 #include "sulfur/pipeline/backend/ir/optimization.h"
 #include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/utils/arena.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/type_utils.h"
 
@@ -119,6 +120,7 @@ sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program) {
     return ir;
 }
 
+
 void sf_ir_print(const sf_ir_program *program) {
     print_operations(program->operations, program->operation_count);
 
@@ -128,19 +130,20 @@ void sf_ir_print(const sf_ir_program *program) {
         printf("\nfunction %s(", func->name);
 
         for (size_t p = 0; p < func->parameter_count; p++) {
-            printf(
-                "%s: %s", func->parameters[p].name,
-                sf_type_value_name(func->parameters[p].type)
-            );
+            print_operand((sf_operand){
+                .type = SF_OPERAND_TYPE_VARIABLE,
+                .value_type = func->parameters[p].type,
+                .variable_name = func->parameters[p].name
+            });
 
             if (p + 1 < func->parameter_count) {
                 printf(", ");
             }
         }
 
-        printf(") -> %s:\n", sf_type_value_name(func->return_type));
-
+        printf(") %s :\n", sf_type_value_name(func->return_type));
         print_operations(func->operations, func->operation_count);
+        printf("\n");
     }
 }
 
@@ -435,6 +438,35 @@ static void generate_function(
         .operation_capacity = 0,
         .operation_count = 0,
     };
+
+    if (func->parameter_count > 0) {
+        func_ir.parameters = sf_arena_alloc(
+            arena, sizeof(*func_ir.parameters) * func->parameter_count
+        );
+
+        if (func_ir.parameters == NULL) {
+            sf_log(
+                "Insufficient Memory.",
+                "Cannot allocate memory for compiling.",
+                "Free some memory and try again.",
+                NULL,
+                SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                (sf_span){0},
+                SF_LOG_SEVERITY_FATAL
+            );
+
+            return;
+        }
+
+        for (size_t i = 0; i < func_ir.parameter_count; i++) {
+            sf_parameter p_ast = func->parameters[i];
+            sf_parameter* p_ir = &func_ir.parameters[i];
+
+            p_ir->name = mangle_name(arena, p_ast.name, p_ast.id);
+            p_ir->type = p_ast.type;
+            p_ir->id = p_ast.id;
+        }
+    }
 
     sf_ir_context ctx = context_from_function(&func_ir, program);
 

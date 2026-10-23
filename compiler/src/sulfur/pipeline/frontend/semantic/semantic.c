@@ -274,6 +274,9 @@ static void analyze_func_decl(sf_semantic *s, sf_func_decl_node *func) {
         };
 
         scope_insert(s->scope, param_sym, s->filename);
+
+        size_t param_id = scope_lookup(s->scope, param.name)->id;
+        func->parameters[i].id = param_id;
     }
 
     sf_func_decl_node *previous = s->current_func;
