@@ -60,7 +60,7 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     compilation->ast = sf_parse(&compilation->arena, compilation->tokens, options->file_input);
     if (sf_log_had_fatal()) return false;
 
-    sf_analyze(compilation->ast, options->file_input);
+    sf_analyze(compilation->ast, options->file_input, options);
     if (sf_log_had_fatal()) return false;
 
     compilation->ir = sf_ir_generate(&compilation->arena, compilation->ast);

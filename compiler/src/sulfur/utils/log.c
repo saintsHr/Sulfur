@@ -89,7 +89,7 @@ static void emit_log(sf_log_info info, va_list args) {
 
     if (info.span.line > 0) {
         printf(
-            SF_LOG_COLOR_BRIGHT_BLUE "  --> from: " SF_LOG_COLOR_RESET "%s:%u:%u\n",
+            SF_LOG_COLOR_BRIGHT_BLUE "  --> from: " SF_LOG_COLOR_RESET "%s:%zu:%zu\n",
             file, info.span.line, info.span.col
         );
 
@@ -180,7 +180,7 @@ static void print_source_snippet(sf_span span, const char *msg) {
     }
 
     char line_num[16];
-    snprintf(line_num, sizeof(line_num), "%u", span.line);
+    snprintf(line_num, sizeof(line_num), "%zu", span.line);
     int gutter = (int)strlen(line_num);
 
     size_t col_start = span.col > 0 ? span.col - 1 : 0;

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "sulfur/driver/main.h"
 #include "sulfur/pipeline/frontend/ast.h"
 
-void sf_analyze(sf_program_node *program, const char *filename);
+void sf_analyze(sf_program_node *program, const char *filename, const sf_compiler_options *options);
