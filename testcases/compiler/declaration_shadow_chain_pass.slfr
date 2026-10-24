@@ -1,9 +1,0 @@
-i64 value = 1;
-{
-    i64 value = 2;
-    {
-        i64 value = 3;
-    }
-    value = 4;
-}
-value = 5;

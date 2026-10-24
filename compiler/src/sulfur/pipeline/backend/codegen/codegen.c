@@ -136,37 +136,31 @@ static const char *counter_register(uint8_t size);
 static const char *register_to_string(sf_register reg);
 static const char *prefix_to_string(sf_size_prefix prefix);
 
-char *sf_generate_assembly(const sf_ir_program *program) {
-    if (program == NULL) {
-        return NULL;
-    }
+char *sf_generate_assembly(const sf_ir_program *program, const sf_compiler_options *options) {
+    if (program == NULL || options == NULL) return NULL;
 
     size_t as_capacity = k_initial_capacity;
     size_t as_len = 0;
     char *as = malloc(as_capacity);
-
-    if (as == NULL) {
-        return NULL;
-    }
-
+    if (as == NULL) return NULL;
     as[0] = '\0';
 
     sf_string_push("bits 64\n\n", &as, &as_len, &as_capacity);
-    sf_string_push("section .data\n", &as, &as_len, &as_capacity);
+    sf_string_push("section .text\n\n", &as, &as_len, &as_capacity);
 
-    sf_string_push("section .text\n", &as, &as_len, &as_capacity);
-    sf_string_push("\tglobal _start\n\n", &as, &as_len, &as_capacity);
+    if (!options->no_entry) {
+        sf_string_push("global _start\n\n", &as, &as_len, &as_capacity);
 
-    sf_string_push("_start:\n", &as, &as_len, &as_capacity);
-    sf_string_push("\tcall sf_main\n", &as, &as_len, &as_capacity);
-    sf_string_push("\n", &as, &as_len, &as_capacity);
-    sf_string_push("\tmov edi, eax\n", &as, &as_len, &as_capacity);
-    sf_string_push("\tmov rax, 60\n", &as, &as_len, &as_capacity);
-    sf_string_push("\tsyscall\n", &as, &as_len, &as_capacity);
+        sf_string_push("_start:\n", &as, &as_len, &as_capacity);
+        sf_string_push("\tcall main\n\n", &as, &as_len, &as_capacity);
+        sf_string_push("\tmov edi, eax\n", &as, &as_len, &as_capacity);
+        sf_string_push("\tmov rax, 60\n", &as, &as_len, &as_capacity);
+        sf_string_push("\tsyscall\n\n", &as, &as_len, &as_capacity);
+    }
 
     for (size_t i = 0; i < program->function_count; i++) {
-        sf_string_push("\n", &as, &as_len, &as_capacity);
         emit_function(&as, &as_len, &as_capacity, &program->functions[i]);
+        sf_string_push("\n", &as, &as_len, &as_capacity);
     }
 
     return as;
@@ -729,7 +723,7 @@ static void emit_return(
 
     emitf(buff, len, capacity, "\tmov rsp, rbp\n");
     emitf(buff, len, capacity, "\tpop rbp\n");
-    emitf(buff, len, capacity, "\tret\n");
+    emitf(buff, len, capacity, "\tret");
 }
 
 static void emit_function(
@@ -744,7 +738,7 @@ static void emit_function(
         func->operation_count
     );
 
-    emitf(buff, len, capacity, "sf_%s:\n", func->name);
+    emitf(buff, len, capacity, "%s:\n", func->name);
     emitf(buff, len, capacity, "\tpush rbp\n");
     emitf(buff, len, capacity, "\tmov rbp, rsp\n");
     emitf(buff, len, capacity, "\tsub rsp, %"PRId64"\n", frame_size(&map));

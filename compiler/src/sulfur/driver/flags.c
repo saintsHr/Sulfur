@@ -45,8 +45,14 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
             continue;
         }
 
-        if (strcmp(this_arg, FLAGS_DEBUG_DUMP_STAGES) == 0) {
-            options->debug_dump_stages = true;
+        if (strcmp(this_arg, FLAGS_DUMP_STAGES) == 0) {
+            options->dump_stages = true;
+
+            continue;
+        }
+
+        if (strcmp(this_arg, FLAGS_NO_ENTRY) == 0) {
+            options->no_entry = true;
 
             continue;
         }

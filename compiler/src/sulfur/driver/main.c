@@ -19,79 +19,79 @@
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/file.h"
 
-static bool compilation_run(const sf_compiler_options *options, sf_compilation *c);
-static void compilation_free(sf_compilation *c);
+static bool compilation_run(sf_compilation *compilation, const sf_compiler_options *options);
+static void compilation_free(sf_compilation *compilation);
 
-static void debug_dump_stages(sf_compilation *c);
+static void dump_stages(sf_compilation *compilation);
 
 int main(int argc, char *argv[]) {
     sf_compiler_options options = {
         .file_input = "input.slfr",
         .file_output = "output.asm",
-        .debug_dump_stages = false,
+        .dump_stages = false,
+        .no_entry = false,
     };
 
-    sf_compilation c = {0};
+    sf_compilation compilation = {0};
 
     sf_log_init();
     sf_flags_parse(argc, argv, &options);
     if (sf_log_had_fatal()) return EXIT_FAILURE;
 
-    bool ok = compilation_run(&options, &c);
-    compilation_free(&c);
+    bool ok = compilation_run(&compilation, &options);
+    compilation_free(&compilation);
 
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-static bool compilation_run(const sf_compiler_options *options, sf_compilation *c) {
-    c->input_source = sf_file_read(options->file_input, &c->input_size);
-    if (c->input_source == NULL) return false;
+static bool compilation_run(sf_compilation *compilation, const sf_compiler_options *options) {
+    compilation->input_source = sf_file_read(options->file_input, &compilation->input_size);
+    if (compilation->input_source == NULL) return false;
 
-    sf_log_set_source(options->file_input, c->input_source);
+    sf_log_set_source(options->file_input, compilation->input_source);
+    sf_arena_init(&compilation->arena, 32);
 
-    sf_arena_init(&c->arena, 32);
-
-    c->preprocessed = sf_preprocess(c->input_source, c->input_size, options->file_input);
+    compilation->preprocessed = sf_preprocess(compilation->input_source, compilation->input_size, options->file_input);
     if (sf_log_had_fatal()) return false;
 
-    c->tokens = sf_tokenize(c->preprocessed, options->file_input);
+    compilation->tokens = sf_tokenize(compilation->preprocessed, options->file_input);
     if (sf_log_had_fatal()) return false;
 
-    c->ast = sf_parse(&c->arena, c->tokens, options->file_input);
+    compilation->ast = sf_parse(&compilation->arena, compilation->tokens, options->file_input);
     if (sf_log_had_fatal()) return false;
 
-    sf_analyze(c->ast, options->file_input);
+    sf_analyze(compilation->ast, options->file_input);
     if (sf_log_had_fatal()) return false;
 
-    c->ir = sf_ir_generate(&c->arena, c->ast);
+    compilation->ir = sf_ir_generate(&compilation->arena, compilation->ast);
     if (sf_log_had_fatal()) return false;
 
-    c->assembly = sf_generate_assembly(&c->ir);
+    compilation->assembly = sf_generate_assembly(&compilation->ir, options);
     if (sf_log_had_fatal()) return false;
 
     if (sf_log_had_errors()) return false;
 
-    if (options->debug_dump_stages) debug_dump_stages(c);
+    if (options->dump_stages) dump_stages(compilation);
 
-    return sf_file_write(options->file_output, c->assembly);
+    return sf_file_write(options->file_output, compilation->assembly);
 }
 
-static void compilation_free(sf_compilation *c) {
-    free(c->assembly);
-    sf_tokens_free(&c->tokens);
-    free(c->preprocessed);
-    sf_arena_free(&c->arena);
-    free(c->input_source);
+static void compilation_free(sf_compilation *compilation) {
+    free(compilation->assembly);
+    sf_tokens_free(&compilation->tokens);
+    free(compilation->preprocessed);
+    sf_arena_free(&compilation->arena);
+    free(compilation->input_source);
 }
 
-static void debug_dump_stages(sf_compilation *c) {
-    printf("%s", c->input_source);
+static void dump_stages(sf_compilation *compilation) {
+    printf("%s", compilation->input_source);
     printf("\n");
-    sf_tokens_print(&c->tokens);
+    sf_tokens_print(&compilation->tokens);
     printf("\n");
-    sf_print_ast((sf_ast_node *)c->ast);
+    sf_print_ast((sf_ast_node *)compilation->ast);
     printf("\n");
-    sf_ir_print(&c->ir);
+    sf_ir_print(&compilation->ir);
     printf("\n");
-    printf("%s", c->assembly);
+    printf("%s", compilation->assembly);
 }

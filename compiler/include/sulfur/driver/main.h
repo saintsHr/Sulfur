@@ -12,7 +12,8 @@ typedef struct {
     const char *file_input;
     const char *file_output;
 
-    bool debug_dump_stages;
+    bool dump_stages;
+    bool no_entry;
 } sf_compiler_options;
 
 typedef struct {

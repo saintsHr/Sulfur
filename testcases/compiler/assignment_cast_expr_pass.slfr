@@ -1,3 +1,0 @@
-i64 x = 300;
-i8 y = x as i8;
-y = (x as i16) as i8;

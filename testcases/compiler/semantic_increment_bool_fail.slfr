@@ -1,2 +1,0 @@
-bool x = true;
-x++;

@@ -1,2 +1,0 @@
-bool x = true;
-u8 y = x as u8;

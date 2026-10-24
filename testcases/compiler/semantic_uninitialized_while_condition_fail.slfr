@@ -1,4 +1,0 @@
-bool cond;
-while (cond) {
-    i64 x = 1;
-}

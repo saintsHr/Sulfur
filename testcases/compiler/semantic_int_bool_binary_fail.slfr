@@ -1,3 +1,0 @@
-i64 a = 1;
-bool b = true;
-i64 c = a + b;
