@@ -22,6 +22,7 @@
 
 #define PATH_BUFFER_SIZE 256
 #define CMD_BUFFER_SIZE 1024
+#define CONTENT_BUFFER_SIZE 1024
 
 #define CMD_STRING_HELP "--help"
 #define CMD_STRING_VERSION "--version"
@@ -37,6 +38,8 @@ static void command_build(int argc, char **argv);
 static void command_clean(int argc, char **argv);
 
 static bool compile_file(const char *input, const char *output, const char* flags);
+static bool assemble_file(const char *input, const char *output, const char* flags);
+static bool link_files(const char **inputs, size_t count, const char *output, const char *flags);
 
 bool cmd_parse(int argc, char **argv) {
     if (argc < 2) {
@@ -128,13 +131,13 @@ static void command_new(int argc, char **argv) {
     static const char *main_file_name = "main.slfr";
     static const char *toml_file_name = "sulfur.toml";
 
-    static const char *main_file_content =
-        "fn main() i32 {\n"
-        "\treturn 0;\n"
-        "}\n"
-    ;
+    char main_file_content[CONTENT_BUFFER_SIZE] = "";
+    char toml_file_content[CONTENT_BUFFER_SIZE] = "";
 
-    char toml_file_content[1024];
+    char project_folder_path[PATH_BUFFER_SIZE] = "";
+    char src_folder_path[PATH_BUFFER_SIZE] = "";
+    char main_file_path[PATH_BUFFER_SIZE] = "";
+    char toml_file_path[PATH_BUFFER_SIZE] = "";
 
     snprintf(
         toml_file_content,
@@ -142,19 +145,23 @@ static void command_new(int argc, char **argv) {
 
         "[project]\n"
         "name = \"%s\"\n"
-        "version = \"1.0.0\"\n"
+        "version = \"0.0.0\"\n"
         "\n"
         "[build]\n"
         "flags = []\n"
-        "entry = \"src/main.slfr\"\n",
+        "entry = \"main.slfr\"\n",
 
         project_name
     );
 
-    char project_folder_path[PATH_BUFFER_SIZE] = "";
-    char src_folder_path[PATH_BUFFER_SIZE] = "";
-    char main_file_path[PATH_BUFFER_SIZE] = "";
-    char toml_file_path[PATH_BUFFER_SIZE] = "";
+    snprintf(
+        main_file_content,
+        sizeof(main_file_content),
+
+        "fn main() i32 {\n"
+        "\t return 0;\n"
+        "}\n"
+    );
 
     snprintf(project_folder_path, sizeof(project_folder_path), "%s", project_name);
     snprintf(src_folder_path, sizeof(src_folder_path), "%s/%s", project_folder_path, src_folder_name);
@@ -178,100 +185,192 @@ static void command_new(int argc, char **argv) {
 
 
 static void command_build(int argc, char **argv) {
-    static const char *src_folder_name = "src";
-    static const char *build_folder_name = "build";
-    static const char *asm_file_extension = ".asm";
+    (void)argc;
+    (void)argv;
+
+    static const char *src_folder = "src";
+    static const char *build_folder = "build";
+    static const char *asm_folder = "build/asm";
+    static const char *obj_folder = "build/obj";
+    static const char *link_folder = "build/bin";
+    static const char *binary_name = "binary";
 
     sf_files source_files = {0};
+    char **object_files = NULL;
+    char binary_path[PATH_BUFFER_SIZE];
 
-    if (!collect_slfr_files(src_folder_name, &source_files)) {
+    if (!collect_slfr_files(src_folder, &source_files)) {
         printf(
-            SF_COLOR_RED "Build failed.\n"
-            SF_COLOR_RESET "   Failed to collect .slfr files in source folder.\n"
+            SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+            "   Failed to collect .slfr files.\n"
         );
 
-        free_slfr_files(&source_files);
-        return;
+        goto cleanup;
     }
 
-    if (!sf_create_folder(build_folder_name)) {
+    if (source_files.count == 0) {
         printf(
-            SF_COLOR_RED "Build failed.\n"
-            SF_COLOR_RESET "   Failed to create directory for artifacts.\n"
+            SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+            "   No source files found.\n"
         );
 
-        free_slfr_files(&source_files);
-        return;
+        goto cleanup;
+    }
+
+    if (
+        !sf_create_folders(asm_folder) ||
+        !sf_create_folders(obj_folder) ||
+        !sf_create_folders(link_folder)
+    ) {
+        printf(
+            SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+            "   Failed to create build directories.\n"
+        );
+
+        goto cleanup;
+    }
+
+    object_files = calloc(source_files.count, sizeof(*object_files));
+    if (!object_files) {
+        printf(
+            SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+            "   Failed to allocate memory.\n"
+        );
+
+        goto cleanup;
     }
 
     for (size_t i = 0; i < source_files.count; i++) {
-        const char *source_file_path = source_files.paths[i];
-        const char *relative_file_path = source_file_path;
+        const char *source = source_files.paths[i];
+        const char *relative = source;
 
-        char output_file_path[PATH_BUFFER_SIZE] = "";
-        char output_folder_path[PATH_BUFFER_SIZE] = "";
+        char relative_path[PATH_BUFFER_SIZE];
+        char asm_path[PATH_BUFFER_SIZE];
+        char obj_path[PATH_BUFFER_SIZE];
+        char directory[PATH_BUFFER_SIZE];
 
-        if (strncmp(source_file_path, "src/", 4) == 0) {
-            relative_file_path = source_file_path + 4;
+        if (strncmp(source, "src/", 4) == 0) {
+            relative = source + 4;
         }
 
+        snprintf(relative_path, sizeof(relative_path), "%s", relative);
+
+        char *extension = strrchr(relative_path, '.');
+        if (!extension || strcmp(extension, ".slfr") != 0) {
+            printf(
+                SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+                "   Invalid source extension: '%s'\n", source
+            );
+
+            goto cleanup;
+        }
+        *extension = '\0';
+
         snprintf(
-            output_file_path,
-            sizeof(output_file_path),
-            "%s/%s%s",
-            build_folder_name,
-            relative_file_path,
-            asm_file_extension
+            asm_path, sizeof(asm_path), "%s/%s.asm",
+            asm_folder, relative_path
         );
 
         snprintf(
-            output_folder_path,
-            sizeof(output_folder_path),
-            "%s",
-            output_file_path
+            obj_path, sizeof(obj_path), "%s/%s.o",
+            obj_folder, relative_path
         );
 
-        char *last_slash = strrchr(output_folder_path, '/');
+        const char *paths[] = {asm_path, obj_path};
 
-        if (last_slash != NULL) {
-            *last_slash = '\0';
+        for (size_t j = 0; j < 2; j++) {
+            snprintf(directory, sizeof(directory), "%s", paths[j]);
 
-            if (!sf_create_folders(output_folder_path)) {
-                fprintf(
-                    stderr,
-                    "Failed to create directory: '%s'\n",
-                    output_folder_path
-                );
+            char *slash = strrchr(directory, '/');
+            if (slash) {
+                *slash = '\0';
 
-                free_slfr_files(&source_files);
-                return;
+                if (!sf_create_folders(directory)) {
+                    printf(
+                        SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+                        "   Failed to create '%s'\n", directory
+                    );
+
+                    goto cleanup;
+                }
             }
         }
 
-        if (!compile_file(source_file_path, output_file_path, "")) {
+        if (!compile_file(source, asm_path, "")) {
             printf(
-                SF_COLOR_RED "Build failed.\n"
-                SF_COLOR_RESET "   Failed to compile '%s'.\n",
-                source_file_path
+                SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+                "   Failed to compile '%s'.\n", source
             );
 
-            free_slfr_files(&source_files);
-            return;
+            goto cleanup;
         }
 
         printf(
-            SF_COLOR_CYAN "[Compiled] " SF_COLOR_RESET "'%s' -> '%s'\n",
-            source_file_path,
-            output_file_path
+            SF_COLOR_CYAN "[Compiled] " SF_COLOR_RESET
+            "'%s' -> '%s'\n", source, asm_path
         );
+
+        if (!assemble_file(asm_path, obj_path, "-f elf64")) {
+            printf(
+                SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+                "   Failed to assemble '%s'.\n", asm_path
+            );
+
+            goto cleanup;
+        }
+
+        printf(
+            SF_COLOR_CYAN "[Assembled] " SF_COLOR_RESET
+            "'%s' -> '%s'\n", asm_path, obj_path
+        );
+
+        object_files[i] = strdup(obj_path);
+        if (!object_files[i]) {
+            printf(
+                SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+                "   Failed to allocate memory.\n"
+            );
+
+            goto cleanup;
+        }
+    }
+
+    snprintf(
+        binary_path, sizeof(binary_path),
+        "%s/%s", link_folder, binary_name
+    );
+
+    if (
+        !link_files(
+            (const char **)object_files,
+            source_files.count, binary_path, ""
+        )
+    ) {
+        printf(
+            SF_COLOR_RED "Build failed.\n" SF_COLOR_RESET
+            "   Failed to link binary '%s'.\n", binary_name
+        );
+
+        goto cleanup;
+    }
+
+    printf(
+        SF_COLOR_CYAN "[Linked] " SF_COLOR_RESET
+        "'%s'\n", binary_path
+    );
+
+    printf(SF_COLOR_GREEN "Build done.\n" SF_COLOR_RESET);
+
+    cleanup: {
+        if (object_files) {
+            for (size_t i = 0; i < source_files.count; i++) {
+                free(object_files[i]);
+            }
+            free(object_files);
+        }
     }
 
     free_slfr_files(&source_files);
-
-    printf(
-        SF_COLOR_GREEN "Build done.\n"
-        SF_COLOR_RESET
-    );
 }
 
 static void command_clean(int argc, char **argv) {
@@ -285,7 +384,7 @@ static void command_clean(int argc, char **argv) {
     } else {
         printf(
             SF_COLOR_RED "Clean failed.\n"
-            SF_COLOR_RESET "   Check if theres any build artifacts on current directory.\n"
+            SF_COLOR_RESET "   No build artifacts found.\n"
         );
 
         return;
@@ -293,13 +392,64 @@ static void command_clean(int argc, char **argv) {
 }
 
 static bool compile_file(const char *input, const char *output, const char* flags) {
+    static const char *compiler_cmd = "sulfur-compiler";
+
     char cmd[CMD_BUFFER_SIZE];
 
     snprintf(
         cmd, sizeof(cmd),
-        "sulfur-compiler -i \"%s\" -o \"%s\" %s",
-        input, output, flags
+        "%s -i \"%s\" -o \"%s\" %s",
+        compiler_cmd, input, output, flags
     );
 
     return system(cmd) == 0;
+}
+
+static bool assemble_file(const char *input, const char *output, const char* flags) {
+    static const char *assembler_cmd = "nasm";
+
+    char cmd[CMD_BUFFER_SIZE];
+
+    snprintf(
+        cmd, sizeof(cmd),
+        "%s \"%s\" -o \"%s\" %s",
+        assembler_cmd, input, output, flags
+    );
+
+    return system(cmd) == 0;
+}
+
+static bool link_files(const char **inputs, size_t count, const char *output, const char *flags) {
+    size_t size = 32 + strlen(output) + (flags ? strlen(flags) : 0);
+
+    for (size_t i = 0; i < count; i++) {
+        size += strlen(inputs[i]) + 3;
+    }
+
+    char *command = malloc(size);
+    if (!command) {
+        return false;
+    }
+
+    snprintf(command, size, "ld");
+
+    for (size_t i = 0; i < count; i++) {
+        strcat(command, " \"");
+        strcat(command, inputs[i]);
+        strcat(command, "\"");
+    }
+
+    strcat(command, " -o \"");
+    strcat(command, output);
+    strcat(command, "\"");
+
+    if (flags && *flags) {
+        strcat(command, " ");
+        strcat(command, flags);
+    }
+
+    bool status = system(command) == 0;
+    free(command);
+
+    return status;
 }
