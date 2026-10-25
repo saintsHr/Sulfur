@@ -91,8 +91,6 @@ static sf_operand generate_cast(
 static sf_operand generate_literal(const sf_literal_node *lt);
 static sf_operand generate_identifier(sf_arena *arena, const sf_identifier_node *id);
 
-static bool is_increment_or_decrement(sf_operation_type op);
-
 static bool ends_with_return(const sf_ir_function *func);
 
 static void print_operand(sf_operand op);
@@ -558,7 +556,7 @@ static sf_operand generate_unary(
     sf_arena *arena, sf_ir_context *context,
     sf_unary_expr_node *un, sf_operand *hint
 ) {
-    if (is_increment_or_decrement(un->op)) {
+    if (sf_type_is_increment_or_decrement(un->op)) {
         return generate_increment(arena, context, un);
     }
 
@@ -636,14 +634,6 @@ static sf_operand generate_identifier(sf_arena *arena, const sf_identifier_node 
     op.variable_name = mangle_name(arena, id->name, id->id);
 
     return op;
-}
-
-static bool is_increment_or_decrement(sf_operation_type op) {
-    return
-        op == SF_OP_TYPE_PREFIX_INCREMENT ||
-        op == SF_OP_TYPE_PREFIX_DECREMENT ||
-        op == SF_OP_TYPE_POSTFIX_INCREMENT ||
-        op == SF_OP_TYPE_POSTFIX_DECREMENT;
 }
 
 static void print_operand(sf_operand op) {

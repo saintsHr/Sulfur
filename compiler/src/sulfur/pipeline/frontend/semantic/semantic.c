@@ -33,6 +33,7 @@ static bool check_return_type(
 static void check_main_function(sf_semantic *semantic);
 
 static bool stmt_always_returns(sf_ast_node *node);
+static bool has_no_effect(sf_ast_node *node);
 
 void sf_analyze(sf_program_node *program, const char *filename, const sf_compiler_options *options) {
     sf_scope scope;
@@ -117,6 +118,16 @@ static void analyze_statement(sf_semantic *semantic, sf_ast_node *node) {
         }
         default: {
             sf_semantic_expr(semantic, node, SF_VAL_TYPE_UNRESOLVED);
+
+            if (has_no_effect(node)) {
+                sf_log(
+                    "unused expression", "the result of this expression is discarded",
+                    "assign the result to a variable, or remove the statement", "%s",
+                    SF_LOG_SEMANTIC_UNUSED_EXPRESSION, node->span, SF_LOG_SEVERITY_WARNING,
+                    semantic->filename
+                );
+            }
+
             break;
         }
     }
@@ -526,6 +537,39 @@ static bool stmt_always_returns(sf_ast_node *node) {
 
             return stmt_always_returns(if_stmt->branch_then) &&
                    stmt_always_returns(if_stmt->branch_else);
+        }
+        default: {
+            return false;
+        }
+    }
+}
+
+static bool has_no_effect(sf_ast_node *node) {
+    if (node == NULL) {
+        return false;
+    }
+
+    switch (node->type) {
+        case SF_NODE_LITERAL:
+        case SF_NODE_IDENTIFIER: {
+            return true;
+        }
+        case SF_NODE_BINARY_EXPR: {
+            sf_binary_expr_node *ex = (sf_binary_expr_node *)node;
+            return has_no_effect(ex->left) && has_no_effect(ex->right);
+        }
+        case SF_NODE_UNARY_EXPR: {
+            sf_unary_expr_node *un = (sf_unary_expr_node *)node;
+
+            if (sf_type_is_increment_or_decrement(un->op)) {
+                return false;
+            }
+
+            return has_no_effect(un->operand);
+        }
+        case SF_NODE_CAST_EXPR: {
+            sf_cast_expr_node *cast = (sf_cast_expr_node *)node;
+            return has_no_effect(cast->operand);
         }
         default: {
             return false;

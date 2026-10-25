@@ -14,6 +14,8 @@ bool sf_type_value_is_signed(sf_value_type type);
 bool sf_type_value_is_same_group(sf_value_type a, sf_value_type b);
 bool sf_type_value_is_castable(sf_value_type from, sf_value_type to);
 
+bool sf_type_is_increment_or_decrement(sf_operation_type op);
+
 const char *sf_type_operation_name(sf_operation_type op);
 const char *sf_type_value_name(sf_value_type type);
 

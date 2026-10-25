@@ -247,6 +247,15 @@ bool sf_type_value_is_castable(sf_value_type from, sf_value_type to) {
     return castable;
 }
 
+bool sf_type_is_increment_or_decrement(sf_operation_type op) {
+    return (
+        op == SF_OP_TYPE_PREFIX_INCREMENT ||
+        op == SF_OP_TYPE_PREFIX_DECREMENT ||
+        op == SF_OP_TYPE_POSTFIX_INCREMENT ||
+        op == SF_OP_TYPE_POSTFIX_DECREMENT
+    );
+}
+
 uint8_t sf_type_value_width_bits(sf_value_type type) {
     switch (type) {
         case SF_VAL_TYPE_I8:
