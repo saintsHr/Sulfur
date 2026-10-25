@@ -1,3 +1,4 @@
+#include "sulfur/toml.h"
 #include <stdarg.h>
 #define _DEFAULT_SOURCE
 
@@ -195,7 +196,57 @@ static void command_build(int argc, char **argv) {
     static const char *asm_folder = "build/asm";
     static const char *obj_folder = "build/obj";
     static const char *link_folder = "build/bin";
-    static const char *binary_name = "binary";
+    static const char *toml_path = "sulfur.toml";
+
+    sf_project_cfg cfg = {0};
+    sf_toml_parse_result parse_result = sf_toml_parse_project(toml_path, &cfg);
+
+    switch (parse_result) {
+        case SF_TOML_PARSE_RESULT_OK: break;
+
+        case SF_TOML_PARSE_RESULT_FAILED_TO_OPEN: {
+            log_failure(
+                "Build failed.", "Failed to open '%s'", toml_path
+            );
+
+            goto cleanup;
+        }
+        case SF_TOML_PARSE_RESULT_NAME_INVALID: {
+            log_failure(
+                "Build failed.", "Failed to read '%s' in file '%s'", "project.name", toml_path
+            );
+
+            goto cleanup;
+        }
+        case SF_TOML_PARSE_RESULT_VERSION_INVALID: {
+            log_failure(
+                "Build failed.", "Failed to read '%s' in file '%s'", "project.version", toml_path
+            );
+
+            goto cleanup;
+        }
+        case SF_TOML_PARSE_RESULT_FLAGS_INVALID: {
+            log_failure(
+                "Build failed.", "Failed to read '%s' in file '%s'", "build.flags", toml_path
+            );
+
+            goto cleanup;
+        }
+        case SF_TOML_PARSE_RESULT_ENTRY_INVALID: {
+            log_failure(
+                "Build failed.", "Failed to read '%s' in file '%s'", "build.entry", toml_path
+            );
+
+            goto cleanup;
+        }
+        case SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY: {
+            log_failure(
+                "Build failed.", "Failed to allocate memory."
+            );
+
+            goto cleanup;
+        }
+    }
 
     sf_files source_files = {0};
     char **object_files = NULL;
@@ -295,6 +346,13 @@ static void command_build(int argc, char **argv) {
         }
     }
 
+    char binary_name[PATH_BUFFER_SIZE];
+
+    snprintf(
+        binary_name, sizeof(binary_name),
+        "%s-%s", cfg.name, cfg.version
+    );
+
     snprintf(
         binary_path, sizeof(binary_path),
         "%s/%s", link_folder, binary_name
@@ -321,6 +379,8 @@ static void command_build(int argc, char **argv) {
             }
             free(object_files);
         }
+
+        sf_toml_free_project(&cfg);
     }
 
     free_slfr_files(&source_files);

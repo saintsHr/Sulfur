@@ -7,16 +7,32 @@ project(sulfur-cli
 
 find_program(CCACHE_PROGRAM ccache)
 
+find_path(TOMLC17_INCLUDE_DIR
+    NAMES tomlc17.h
+    REQUIRED
+)
+
+find_library(TOMLC17_LIBRARY
+    NAMES tomlc17
+    REQUIRED
+)
+
 set(SOURCES
     src/sulfur/main.c
     src/sulfur/file.c
     src/sulfur/cmd.c
+    src/sulfur/toml.c
 )
 
 add_executable(sulfur ${SOURCES})
 
 target_include_directories(sulfur PRIVATE
     include
+    ${TOMLC17_INCLUDE_DIR}
+)
+
+target_link_libraries(sulfur PRIVATE
+    ${TOMLC17_LIBRARY}
 )
 
 option(ENABLE_SANITIZERS "Enable Sanitizers" OFF)

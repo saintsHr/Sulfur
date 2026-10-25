@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <tomlc17.h>
 
-static sf_toml_target string_to_target(const char* string);
-static void project_cfg_free(sf_project_cfg *cfg);
 static char *string_dup(const char *string);
 
 sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg *output) {
@@ -26,8 +24,8 @@ sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg 
 
     toml_datum_t name_d = toml_seek(toml.toptab, "project.name");
     toml_datum_t version_d = toml_seek(toml.toptab, "project.version");
-    toml_datum_t target_d = toml_seek(toml.toptab, "build.target");
     toml_datum_t flags_d = toml_seek(toml.toptab, "build.flags");
+    toml_datum_t entry_d = toml_seek(toml.toptab, "build.entry");
 
     if (name_d.type != TOML_STRING) {
         result = SF_TOML_PARSE_RESULT_NAME_INVALID;
@@ -37,27 +35,21 @@ sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg 
         result = SF_TOML_PARSE_RESULT_VERSION_INVALID;
         goto cleanup;
     }
-    if (target_d.type != TOML_STRING) {
-        result = SF_TOML_PARSE_RESULT_TARGET_INVALID;
-        goto cleanup;
-    }
     if (flags_d.type != TOML_ARRAY) {
         result = SF_TOML_PARSE_RESULT_FLAGS_INVALID;
+        goto cleanup;
+    }
+    if (entry_d.type != TOML_STRING) {
+        result = SF_TOML_PARSE_RESULT_ENTRY_INVALID;
         goto cleanup;
     }
 
     output->name = string_dup(name_d.u.s);
     output->version = string_dup(version_d.u.s);
+    output->entry = string_dup(entry_d.u.s);
 
-    if (!output->name || !output->version) {
-        result = SF_TOML_PARSE_RESULT_OUT_OF_MEMORY;
-        goto cleanup;
-    }
-
-    output->target = string_to_target(target_d.u.s);
-
-    if (output->target == SF_TOML_TARGET_INVALID) {
-        result = SF_TOML_PARSE_RESULT_TARGET_INVALID;
+    if (!output->name || !output->version || !output->entry) {
+        result = SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY;
         goto cleanup;
     }
 
@@ -70,7 +62,7 @@ sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg 
         );
 
         if (!output->flags) {
-            result = SF_TOML_PARSE_RESULT_OUT_OF_MEMORY;
+            result = SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY;
             goto cleanup;
         }
 
@@ -85,7 +77,7 @@ sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg 
             output->flags[i] = string_dup(flag.u.s);
 
             if (!output->flags[i]) {
-                result = SF_TOML_PARSE_RESULT_OUT_OF_MEMORY;
+                result = SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY;
                 goto cleanup;
             }
         }
@@ -94,7 +86,7 @@ sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg 
     goto done;
 
     cleanup: {
-        project_cfg_free(output);
+        sf_toml_free_project(output);
     }
 
     done: {
@@ -103,17 +95,14 @@ sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg 
     }
 }
 
-static sf_toml_target string_to_target(const char* string) {
-    if (strcmp(string, "executable") == 0) return SF_TOML_TARGET_EXECUTABLE;
-
-    return SF_TOML_TARGET_INVALID;
-}
-
-static void project_cfg_free(sf_project_cfg *cfg) {
-    if (!cfg) return;
+void sf_toml_free_project(sf_project_cfg *cfg) {
+    if (!cfg) {
+        return;
+    }
 
     free(cfg->name);
     free(cfg->version);
+    free(cfg->entry);
 
     for (size_t i = 0; i < cfg->flags_count; i++) {
         free(cfg->flags[i]);
@@ -121,10 +110,7 @@ static void project_cfg_free(sf_project_cfg *cfg) {
 
     free(cfg->flags);
 
-    cfg->name = NULL;
-    cfg->version = NULL;
-    cfg->flags = NULL;
-    cfg->flags_count = 0;
+    *cfg = (sf_project_cfg){0};
 }
 
 static char *string_dup(const char *string) {
