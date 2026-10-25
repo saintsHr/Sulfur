@@ -513,6 +513,16 @@ static bool analyze_cast(sf_semantic *s, sf_cast_expr_node *cast) {
         return false;
     }
 
+    if (from_type == to_type) {
+        sf_log(
+            "useless cast",
+            "the expression already has type '%s'",
+            "remove the cast", s->filename,
+            SF_LOG_SEMANTIC_USELESS_CAST, cast->base.span,
+            SF_LOG_SEVERITY_WARNING, sf_type_value_name(to_type)
+        );
+    }
+
     if (!sf_type_value_is_castable(from_type, to_type)) {
         sf_log(
             "invalid cast", "cannot cast '%s' to '%s'",
