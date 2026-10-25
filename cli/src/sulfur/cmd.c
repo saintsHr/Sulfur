@@ -186,7 +186,6 @@ static void command_new(int argc, char **argv) {
     log_success("Created project '%s'", project_name);
 }
 
-
 static void command_build(int argc, char **argv) {
     (void)argc;
     (void)argv;
@@ -199,6 +198,11 @@ static void command_build(int argc, char **argv) {
     static const char *toml_path = "sulfur.toml";
 
     sf_project_cfg cfg = {0};
+    sf_files source_files = {0};
+    char **object_files = NULL;
+    char binary_path[PATH_BUFFER_SIZE];
+    bool entry_found = false;
+
     sf_toml_parse_result parse_result = sf_toml_parse_project(toml_path, &cfg);
 
     switch (parse_result) {
@@ -248,10 +252,6 @@ static void command_build(int argc, char **argv) {
         }
     }
 
-    sf_files source_files = {0};
-    char **object_files = NULL;
-    char binary_path[PATH_BUFFER_SIZE];
-
     if (!collect_slfr_files(src_folder, &source_files)) {
         log_failure("Build failed.", "Failed to collect .slfr files.");
         goto cleanup;
@@ -290,6 +290,11 @@ static void command_build(int argc, char **argv) {
             relative = source + 4;
         }
 
+        bool is_entry = strcmp(relative, cfg.entry) == 0;
+        if (is_entry) {
+            entry_found = true;
+        }
+
         snprintf(relative_path, sizeof(relative_path), "%s", relative);
 
         char *extension = strrchr(relative_path, '.');
@@ -325,7 +330,7 @@ static void command_build(int argc, char **argv) {
             }
         }
 
-        if (!compile_file(source, asm_path, "")) {
+        if (!compile_file(source, asm_path, is_entry ? "" : "--no-entry")) {
             log_failure("Build failed.", "Failed to compile '%s'.", source);
             goto cleanup;
         }
@@ -344,6 +349,11 @@ static void command_build(int argc, char **argv) {
             log_failure("Build failed.", "Failed to allocate memory.");
             goto cleanup;
         }
+    }
+
+    if (!entry_found) {
+        log_failure("Build failed.", "Entry file '%s' not found.", cfg.entry);
+        goto cleanup;
     }
 
     char binary_name[PATH_BUFFER_SIZE];
