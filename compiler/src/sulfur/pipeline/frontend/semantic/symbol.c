@@ -1,8 +1,15 @@
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
+#include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/utils/log.h"
 
 #include <string.h>
 #include <stdlib.h>
+
+static bool has_same_name(sf_func_symbol a, sf_func_symbol b);
+static bool has_same_parameters(sf_func_symbol a, sf_func_symbol b);
+static bool has_same_return_type(sf_func_symbol a, sf_func_symbol b);
+static bool has_same_signature(sf_func_symbol a, sf_func_symbol b);
+static bool is_definition(sf_func_symbol func);
 
 void sf_var_symbol_table_init(sf_var_symbol_table *table) {
     table->symbols = NULL;
@@ -69,21 +76,39 @@ void sf_func_symbol_table_free(sf_func_symbol_table *table) {
     table->capacity = 0;
 }
 
-void sf_func_symbol_table_insert(
+bool sf_func_symbol_table_insert(
     sf_func_symbol_table *table,
     sf_func_symbol func, const char *filename
 ) {
     sf_func_symbol *existing = sf_func_symbol_table_lookup(table, func.name);
 
     if (existing != NULL) {
-        sf_log(
-            "symbol redefinition", "'%s' is already declared",
-            "rename the new function, or remove the duplicate declaration",
-            filename, SF_LOG_SEMANTIC_REDECLARATION, func.span,
-            SF_LOG_SEVERITY_ERROR, func.name
-        );
+        if (!has_same_signature(func, *existing)) {
+            sf_log(
+                "conflicting declaration",
+                "'%s' was previously declared with a different signature",
+                "make the return type and parameter types match the previous declaration",
+                filename, SF_LOG_SEMANTIC_CONFLICTING_DECLARATION, func.span,
+                SF_LOG_SEVERITY_ERROR, func.name
+            );
 
-        return;
+            return false;
+        }
+
+        if (is_definition(func) && is_definition(*existing)) {
+            sf_log(
+                "symbol redefinition", "'%s' is already defined",
+                "rename the new function, or remove the duplicate definition",
+                filename, SF_LOG_SEMANTIC_REDECLARATION, func.span,
+                SF_LOG_SEVERITY_ERROR, func.name
+            );
+
+            return false;
+        }
+
+        if (is_definition(func)) existing->defined = true;
+
+        return true;
     }
 
     func.id = table->next_id++;
@@ -94,4 +119,44 @@ void sf_func_symbol_table_insert(
     }
 
     table->functions[table->count++] = func;
+
+    return true;
+}
+
+static bool has_same_name(sf_func_symbol a, sf_func_symbol b) {
+    if (strcmp(a.name, b.name) == 0) return true;
+    return false;
+}
+
+static bool has_same_parameters(sf_func_symbol a, sf_func_symbol b) {
+    if (a.parameter_count != b.parameter_count) return false;
+
+    for (size_t i = 0; i < a.parameter_count; i++) {
+        sf_parameter a_param = a.parameters[i];
+        sf_parameter b_param = b.parameters[i];
+
+        if (a_param.type != b_param.type) return false;
+    }
+
+    return true;
+}
+
+static bool has_same_return_type(sf_func_symbol a, sf_func_symbol b) {
+    return a.return_type == b.return_type;
+}
+
+static bool has_same_signature(sf_func_symbol a, sf_func_symbol b) {
+    if (
+        has_same_return_type(a, b) &&
+        has_same_parameters(a, b) &&
+        has_same_name(a, b)
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool is_definition(sf_func_symbol func) {
+    return func.defined == true;
 }

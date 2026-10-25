@@ -270,6 +270,7 @@ sf_func_decl_node *sf_new_func_decl(
         return NULL;
     }
 
+    node->body = NULL;
     node->name = copy_string(arena, name);
     node->return_type = return_type;
 

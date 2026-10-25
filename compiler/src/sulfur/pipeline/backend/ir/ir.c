@@ -428,6 +428,8 @@ static void generate_while(
 static void generate_function(
     sf_arena *arena, sf_ir_program *program, sf_func_decl_node *func
 ) {
+    if (func->body == NULL) return;
+
     sf_ir_function func_ir = {
         .name = func->name,
         .parameters = func->parameters,

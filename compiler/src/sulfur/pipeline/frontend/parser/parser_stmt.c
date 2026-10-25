@@ -296,28 +296,47 @@ static sf_ast_node *parse_func_stmt(sf_parser *p) {
 
     const sf_token *ret_token = sf_parser_peek(p);
 
-    if (ret_token->type == SF_TOKEN_TYPE_LBRACE) {
-        func->return_type = SF_VAL_TYPE_VOID;
-    } else if (sf_token_is_type(*ret_token)) {
+    if (sf_token_is_type(*ret_token)) {
         func->return_type = sf_token_to_type(*ret_token);
         sf_parser_advance(p);
+    } else if (
+        ret_token->type == SF_TOKEN_TYPE_LBRACE ||
+        ret_token->type == SF_TOKEN_TYPE_SEMICOLON
+    ) {
+        func->return_type = SF_VAL_TYPE_VOID;
     } else {
         sf_parser_report_unexpected(
-            p, ret_token, "'{' or type name", "follow the language syntax"
+            p, ret_token, "'{', ';', or type name",
+            "follow the language syntax"
         );
 
         sf_parser_recover_statement(p);
         return NULL;
     }
 
-    sf_ast_node *body = parse_block(p);
+    const sf_token *end_token = sf_parser_peek(p);
 
-    if (body == NULL) {
+    if (end_token->type == SF_TOKEN_TYPE_LBRACE) {
+        sf_ast_node *block = parse_block(p);
+
+        if (block == NULL) {
+            sf_parser_recover_statement(p);
+            return NULL;
+        }
+
+        func->body = block;
+    } else if (end_token->type == SF_TOKEN_TYPE_SEMICOLON) {
+        func->body = NULL;
+        sf_parser_advance(p);
+    } else {
+        sf_parser_report_unexpected(
+            p, end_token, "'{' or ';'",
+            "follow the language syntax"
+        );
+
         sf_parser_recover_statement(p);
         return NULL;
     }
-
-    func->body = body;
 
     return (sf_ast_node *)func;
 }

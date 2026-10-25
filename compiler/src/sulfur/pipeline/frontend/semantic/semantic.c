@@ -251,13 +251,10 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
         .name = func->name,
         .return_type = func->return_type,
         .parameter_count = func->parameter_count,
+        .defined = func->body != NULL,
         .span = func->base.span,
         .parameters = func->parameters,
     };
-
-    sf_func_symbol_table_insert(semantic->funcs, sym, semantic->filename);
-
-    scope_push(semantic->scope);
 
     for (size_t i = 0; i < func->parameter_count; i++) {
         sf_parameter param = func->parameters[i];
@@ -269,9 +266,20 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
                 SF_LOG_SEMANTIC_INVALID_TYPE, func->base.span,
                 SF_LOG_SEVERITY_ERROR, param.name
             );
-
-            continue;
         }
+    }
+
+    bool insert_result = sf_func_symbol_table_insert(semantic->funcs, sym, semantic->filename);
+    if (insert_result == false) return;
+
+    if (func->body == NULL) return;
+
+    scope_push(semantic->scope);
+
+    for (size_t i = 0; i < func->parameter_count; i++) {
+        sf_parameter param = func->parameters[i];
+
+        if (param.type == SF_VAL_TYPE_VOID) continue;
 
         sf_var_symbol param_sym = {
             .initialized = true,
