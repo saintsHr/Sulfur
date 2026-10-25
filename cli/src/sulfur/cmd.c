@@ -151,7 +151,7 @@ static void command_new(int argc, char **argv) {
 
         "[project]\n"
         "name = \"%s\"\n"
-        "version = \"0.0.0\"\n"
+        "version = \"v0.0.0\"\n"
         "\n"
         "[build]\n"
         "flags = []\n"
@@ -285,6 +285,7 @@ static void command_build(int argc, char **argv) {
         char asm_path[PATH_BUFFER_SIZE];
         char obj_path[PATH_BUFFER_SIZE];
         char directory[PATH_BUFFER_SIZE];
+        char flags[PATH_BUFFER_SIZE];
 
         if (strncmp(source, "src/", 4) == 0) {
             relative = source + 4;
@@ -330,7 +331,28 @@ static void command_build(int argc, char **argv) {
             }
         }
 
-        if (!compile_file(source, asm_path, is_entry ? "" : "--no-entry")) {
+        size_t flags_length = 0;
+        size_t flags_total = cfg.flags_count + (is_entry ? 0 : 1);
+
+        flags[0] = '\0';
+
+        for (size_t k = 0; k < flags_total; k++) {
+            const char *flag = k < cfg.flags_count ? cfg.flags[k] : "--no-entry";
+
+            int written = snprintf(
+                flags + flags_length, sizeof(flags) - flags_length,
+                "%s%s", flags_length > 0 ? " " : "", flag
+            );
+
+            if (written < 0 || (size_t)written >= sizeof(flags) - flags_length) {
+                log_failure("Build failed.", "Compiler flags are too long.");
+                goto cleanup;
+            }
+
+            flags_length += (size_t)written;
+        }
+
+        if (!compile_file(source, asm_path, flags)) {
             log_failure("Build failed.", "Failed to compile '%s'.", source);
             goto cleanup;
         }
