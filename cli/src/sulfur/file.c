@@ -220,3 +220,85 @@ bool sf_read_file(const char *path, char **content) {
     *content = buffer;
     return true;
 }
+
+void free_slfr_files(sf_files *files) {
+    for (size_t i = 0; i < files->count; i++) {
+        free(files->paths[i]);
+    }
+
+    free(files->paths);
+    files->paths = NULL;
+    files->count = 0;
+}
+
+bool has_slfr_extension(const char *path) {
+    const char *ext = strrchr(path, '.');
+    return ext != NULL && strcmp(ext, ".slfr") == 0;
+}
+
+bool collect_slfr_files(const char *dir_path, sf_files *files) {
+    DIR *dir = opendir(dir_path);
+
+    if (dir == NULL) {
+        return false;
+    }
+
+    struct dirent *entry;
+    bool success = true;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        size_t len = strlen(dir_path) + strlen(entry->d_name) + 2;
+        char *path = malloc(len);
+
+        if (path == NULL) {
+            success = false;
+            break;
+        }
+
+        snprintf(path, len, "%s/%s", dir_path, entry->d_name);
+
+        struct stat st;
+
+        if (lstat(path, &st) != 0) {
+            free(path);
+            success = false;
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            if (!collect_slfr_files(path, files)) {
+                success = false;
+            }
+
+            free(path);
+        } else if (S_ISREG(st.st_mode) &&
+                   has_slfr_extension(entry->d_name)) {
+            char **new_paths = realloc(
+                files->paths,
+                (files->count + 1) * sizeof(*files->paths)
+            );
+
+            if (new_paths == NULL) {
+                free(path);
+                success = false;
+                break;
+            }
+
+            files->paths = new_paths;
+            files->paths[files->count++] = path;
+        } else {
+            free(path);
+        }
+    }
+
+    if (closedir(dir) != 0) {
+        success = false;
+    }
+
+    return success;
+}
