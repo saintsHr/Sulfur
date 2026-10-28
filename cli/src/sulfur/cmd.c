@@ -32,19 +32,21 @@
 #define CMD_STRING_NEW "new"
 #define CMD_STRING_BUILD "build"
 #define CMD_STRING_CLEAN "clean"
+#define CMD_STRING_RUN "run"
 
-static void command_help(int argc);
-static void command_version(int argc);
+static void command_help(int argc, char **argv);
+static void command_version(int argc, char **argv);
 static void command_new(int argc, char **argv);
 static void command_build(int argc, char **argv);
 static void command_clean(int argc, char **argv);
+static void command_run(int argc, char **argv);
 
 static bool compile_file(const char *input, const char *output, const char* flags);
 static bool assemble_file(const char *input, const char *output, const char* flags);
 static bool link_files(const char **inputs, size_t count, const char *output, const char *flags);
 
 static void log_failure(const char *title, const char *msg, ...);
-static void log_success(const char *msg, ...);
+static void log_success(const char *title, const char *msg, ...);
 static void log_action(const char *action, const char *msg, ...);
 
 bool cmd_parse(int argc, char **argv) {
@@ -55,11 +57,11 @@ bool cmd_parse(int argc, char **argv) {
     const char* cmd = argv[1];
 
     if (strcmp(cmd, CMD_STRING_HELP) == 0) {
-        command_help(argc);
+        command_help(argc, argv);
         return true;
     }
     if (strcmp(cmd, CMD_STRING_VERSION) == 0) {
-        command_version(argc);
+        command_version(argc, argv);
         return true;
     }
 
@@ -73,6 +75,10 @@ bool cmd_parse(int argc, char **argv) {
     }
     if (strcmp(cmd, CMD_STRING_CLEAN) == 0) {
         command_clean(argc, argv);
+        return true;
+    }
+    if (strcmp(cmd, CMD_STRING_RUN) == 0) {
+        command_run(argc, argv);
         return true;
     }
 
@@ -103,7 +109,9 @@ void cmd_print_usage(void) {
     );
 }
 
-static void command_help(int argc) {
+static void command_help(int argc, char **argv) {
+    (void)argv;
+
     if (argc != 2) {
         cmd_print_usage();
         return;
@@ -112,7 +120,9 @@ static void command_help(int argc) {
     cmd_print_usage();
 }
 
-static void command_version(int argc) {
+static void command_version(int argc, char **argv) {
+    (void)argv;
+
     if (argc != 2) {
         cmd_print_usage();
         return;
@@ -210,42 +220,42 @@ static void command_build(int argc, char **argv) {
 
         case SF_TOML_PARSE_RESULT_FAILED_TO_OPEN: {
             log_failure(
-                "Build failed.", "Failed to open '%s'", toml_path
+                "Build failed", "Failed to open '%s'", toml_path
             );
 
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_NAME_INVALID: {
             log_failure(
-                "Build failed.", "Failed to read '%s' in file '%s'", "project.name", toml_path
+                "Build failed", "Failed to read '%s' in file '%s'", "project.name", toml_path
             );
 
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_VERSION_INVALID: {
             log_failure(
-                "Build failed.", "Failed to read '%s' in file '%s'", "project.version", toml_path
+                "Build failed", "Failed to read '%s' in file '%s'", "project.version", toml_path
             );
 
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_FLAGS_INVALID: {
             log_failure(
-                "Build failed.", "Failed to read '%s' in file '%s'", "build.flags", toml_path
+                "Build failed", "Failed to read '%s' in file '%s'", "build.flags", toml_path
             );
 
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_ENTRY_INVALID: {
             log_failure(
-                "Build failed.", "Failed to read '%s' in file '%s'", "build.entry", toml_path
+                "Build failed", "Failed to read '%s' in file '%s'", "build.entry", toml_path
             );
 
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY: {
             log_failure(
-                "Build failed.", "Failed to allocate memory."
+                "Build failed", "Failed to allocate memory"
             );
 
             goto cleanup;
@@ -253,12 +263,12 @@ static void command_build(int argc, char **argv) {
     }
 
     if (!collect_slfr_files(src_folder, &source_files)) {
-        log_failure("Build failed.", "Failed to collect .slfr files.");
+        log_failure("Build failed", "Failed to collect .slfr files");
         goto cleanup;
     }
 
     if (source_files.count == 0) {
-        log_failure("Build failed.", "No source files found.");
+        log_failure("Build failed", "No source files found");
         goto cleanup;
     }
 
@@ -267,13 +277,13 @@ static void command_build(int argc, char **argv) {
         !sf_create_folders(obj_folder) ||
         !sf_create_folders(link_folder)
     ) {
-        log_failure("Build failed.", "Failed to create build directories.");
+        log_failure("Build failed", "Failed to create build directories");
         goto cleanup;
     }
 
     object_files = calloc(source_files.count, sizeof(*object_files));
     if (!object_files) {
-        log_failure("Build failed.", "Failed to allocate memory.");
+        log_failure("Build failed", "Failed to allocate memory");
         goto cleanup;
     }
 
@@ -300,7 +310,7 @@ static void command_build(int argc, char **argv) {
 
         char *extension = strrchr(relative_path, '.');
         if (!extension || strcmp(extension, ".slfr") != 0) {
-            log_failure("Build failed.", "Invalid source extension: '%s'", source);
+            log_failure("Build failed", "Invalid source extension: '%s'", source);
             goto cleanup;
         }
         *extension = '\0';
@@ -325,7 +335,7 @@ static void command_build(int argc, char **argv) {
                 *slash = '\0';
 
                 if (!sf_create_folders(directory)) {
-                    log_failure("Build failed.", "Failed to create '%s'", directory);
+                    log_failure("Build failed", "Failed to create '%s'", directory);
                     goto cleanup;
                 }
             }
@@ -345,7 +355,6 @@ static void command_build(int argc, char **argv) {
             );
 
             if (written < 0 || (size_t)written >= sizeof(flags) - flags_length) {
-                log_failure("Build failed.", "Compiler flags are too long.");
                 goto cleanup;
             }
 
@@ -353,14 +362,14 @@ static void command_build(int argc, char **argv) {
         }
 
         if (!compile_file(source, asm_path, flags)) {
-            log_failure("Build failed.", "Failed to compile '%s'.", source);
+            log_failure("Build failed", "Failed to compile '%s'", source);
             goto cleanup;
         }
 
         log_action("Compiled", "'%s' -> '%s'", source, asm_path);
 
         if (!assemble_file(asm_path, obj_path, "-f elf64")) {
-            log_failure("Build failed.", "Failed to assemble '%s'.", asm_path);
+            log_failure("Build failed", "Failed to assemble '%s'", asm_path);
             goto cleanup;
         }
 
@@ -368,13 +377,13 @@ static void command_build(int argc, char **argv) {
 
         object_files[i] = strdup(obj_path);
         if (!object_files[i]) {
-            log_failure("Build failed.", "Failed to allocate memory.");
+            log_failure("Build failed", "Failed to allocate memory");
             goto cleanup;
         }
     }
 
     if (!entry_found) {
-        log_failure("Build failed.", "Entry file '%s' not found.", cfg.entry);
+        log_failure("Build failed", "Entry file '%s' not found", cfg.entry);
         goto cleanup;
     }
 
@@ -396,13 +405,13 @@ static void command_build(int argc, char **argv) {
             source_files.count, binary_path, ""
         )
     ) {
-        log_failure("Build failed.", "Failed to link binary '%s'.", binary_name);
+        log_failure("Build failed", "Failed to link binary '%s'", binary_name);
         goto cleanup;
     }
 
     log_action("Linked", "'%s'", binary_path);
 
-    log_success("Build done.");
+    log_success("Build done", "Successfully built project sources");
 
     cleanup: {
         if (object_files) {
@@ -419,14 +428,72 @@ static void command_build(int argc, char **argv) {
 }
 
 static void command_clean(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
     static const char* build_folder_path = "build";
 
     if (sf_delete_folder(build_folder_path)) {
-        log_success("Clean done.");
+        log_success("Clean done", "Successfully cleaned build artifacts");
     } else {
-        log_failure("Clean failed.", "No build artifacts found.");
+        log_failure("Clean failed", "No build artifacts found");
         return;
     }
+}
+
+static void command_run(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+
+    static const char *toml_path = "sulfur.toml";
+    static const char *bin_path = "build/bin";
+
+    sf_project_cfg cfg = {0};
+    sf_toml_parse_result parse_result = sf_toml_parse_project(toml_path, &cfg);
+
+    char binary_name[PATH_BUFFER_SIZE];
+    char binary_path[PATH_BUFFER_SIZE];
+    char cmd[CMD_BUFFER_SIZE];
+
+    snprintf(
+        binary_name, sizeof(binary_name),
+        "%s-%s", cfg.name, cfg.version
+    );
+    snprintf(
+        binary_path, sizeof(binary_path),
+        "%s/%s", bin_path, binary_name
+    );
+    snprintf(
+        cmd, sizeof(cmd),
+        "./%s", binary_path
+    );
+
+    int return_code = system(cmd);
+
+    if (return_code == -1) {
+        log_failure(
+            "Run failed", "Failed to execute '%s'",
+            binary_path
+        );
+    }
+
+    if (WIFEXITED(return_code)) {
+        int exit_code = WEXITSTATUS(return_code);
+
+        log_success(
+            "Run done", "'%s' Returned %d",
+            binary_path, exit_code
+        );
+    }
+
+    if (WIFSIGNALED(return_code)) {
+        log_failure(
+            "Run failed", "'%s' Terminated by signal %d",
+            binary_path, WTERMSIG(return_code)
+        );
+    }
+
+    sf_toml_free_project(&cfg);
 }
 
 static bool compile_file(const char *input, const char *output, const char* flags) {
@@ -503,15 +570,15 @@ static void log_failure(const char *title, const char *msg, ...) {
     putchar('\n');
 }
 
-static void log_success(const char *msg, ...) {
-    printf(SF_COLOR_GREEN);
+static void log_success(const char *title, const char *msg, ...) {
+    printf(SF_COLOR_GREEN "%s\n" SF_COLOR_RESET "   ", title);
 
     va_list args;
     va_start(args, msg);
     vprintf(msg, args);
     va_end(args);
 
-    printf(SF_COLOR_RESET "\n");
+    putchar('\n');
 }
 
 static void log_action(const char *action, const char *msg, ...) {
