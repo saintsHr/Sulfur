@@ -8,7 +8,7 @@ An `if` statement executes a block of code only when its condition evaluates to
 `true`.
 
 ```
-if condition {
+if (condition) {
     // code
 }
 ```
@@ -18,9 +18,9 @@ if condition {
 ```
 bool adult;
 
-if age >= 18 {
+if (age >= 18) {
     adult = true;
-} else {
+} (else) {
     adult = false;
 }
 ```
@@ -33,7 +33,7 @@ An `else` statement can be used after an `if` to execute a block of code when th
 condition evaluates to `false`.
 
 ```
-if condition {
+if (condition) {
     // code
 } else {
     // code
@@ -45,9 +45,9 @@ if condition {
 ```
 bool adult;
 
-if age >= 18 {
+if (age >= 18) {
     adult = true
-} else {
+} (else) {
     adult = false;
 }
 ```
@@ -59,9 +59,9 @@ Only one of the two blocks is executed.
 Multiple conditions can be checked by combining `if` and `else`.
 
 ```
-if condition {
+if (condition) {
     // code
-} else if condition {
+} else if (condition) {
     // code
 } else {
     // code
@@ -74,11 +74,11 @@ if condition {
 i32 score = 76;
 i32 payment = 0;
 
-if score >= 90 {
+if (score >= 90) {
     payment = 1600;
-} else if score >= 80 {
+} else if (score >= 80) {
     payment = 1400;
-} else if score >= 70 {
+} else if (score >= 70) {
     payment = 1200;
 } else {
     payment = 1000;

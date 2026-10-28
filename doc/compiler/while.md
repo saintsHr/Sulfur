@@ -25,7 +25,9 @@ while (i < 10) {
 
 ```
 u64 i = 0;
-while (i < 1000000) i = i + 1;
+while (i < 1000000) {
+  i = i + 1;
+}
 ```
 
 The condition must evaluate to a `bool`, and is re-evaluated at the start of
@@ -33,17 +35,19 @@ every iteration.
 
 ## Loop Body
 
-The body of a `while` can be a single statement or a block, following the
-same rule as `if`. If the condition is `false` on the first check, the body
-never executes.
+The body of a `while` must be a block, following the
+same rule as `if`. If the condition is `false` on the first check,
+the body never executes.
 
 ```
 bool found = false;
 u64 i = 0;
+
 while (!found) {
     if (i == 42) {
         found = true;
     }
+    
     i = i + 1;
 }
 ```

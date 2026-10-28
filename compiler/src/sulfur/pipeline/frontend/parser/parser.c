@@ -29,7 +29,7 @@ sf_program_node *sf_parse(sf_arena *arena, sf_token_list list, const char *filen
 
     while (sf_parser_peek(&parser)->type != SF_TOKEN_TYPE_EOF) {
         size_t start = parser.current;
-        sf_ast_node *stmt = sf_parse_statement(&parser);
+        sf_ast_node *stmt = sf_parse_top_level(&parser);
 
         if (stmt != NULL) {
             sf_program_add_statement(arena, program, stmt);

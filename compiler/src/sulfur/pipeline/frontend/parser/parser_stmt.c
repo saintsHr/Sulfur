@@ -18,6 +18,25 @@ static sf_ast_node *parse_func_stmt(sf_parser *p);
 static sf_ast_node *parse_return_stmt(sf_parser *p);
 static sf_ast_node *parse_block(sf_parser *p);
 
+sf_ast_node *sf_parse_top_level(sf_parser *p) {
+    const sf_token *token = sf_parser_peek(p);
+
+    if (sf_token_is_fn(*token)) {
+        return parse_func_stmt(p);
+    }
+
+    sf_log(
+        "unexpected token", "token not allowed in top-level",
+        "follow the language grammar", p->filename,
+        SF_LOG_PARSER_UNEXPECTED_TOKEN,
+        token->span, SF_LOG_SEVERITY_ERROR
+    );
+
+    sf_parser_recover_top_level(p);
+
+    return NULL;
+}
+
 sf_ast_node *sf_parse_statement(sf_parser *p) {
     const sf_token *token = sf_parser_peek(p);
 
@@ -53,6 +72,62 @@ sf_ast_node *sf_parse_statement(sf_parser *p) {
     }
 
     return parse_expr_stmt(p);
+}
+
+void sf_parser_recover_top_level(sf_parser *p) {
+    if (sf_parser_peek(p)->type != SF_TOKEN_TYPE_EOF) {
+        p->current++;
+    }
+
+    int depth = 0;
+
+    while (sf_parser_peek(p)->type != SF_TOKEN_TYPE_EOF) {
+        switch (sf_parser_peek(p)->type) {
+            case SF_TOKEN_TYPE_LBRACE: {
+                depth++;
+                p->current++;
+                break;
+            }
+
+            case SF_TOKEN_TYPE_RBRACE: {
+                if (depth > 0) {
+                    depth--;
+                }
+                p->current++;
+                break;
+            }
+
+            case SF_TOKEN_TYPE_SEMICOLON: {
+                p->current++;
+                if (depth == 0) {
+                    return;
+                }
+                break;
+            }
+
+            case SF_TOKEN_TYPE_KW_FN:
+            case SF_TOKEN_TYPE_KW_I8:
+            case SF_TOKEN_TYPE_KW_I16:
+            case SF_TOKEN_TYPE_KW_I32:
+            case SF_TOKEN_TYPE_KW_I64:
+            case SF_TOKEN_TYPE_KW_U8:
+            case SF_TOKEN_TYPE_KW_U16:
+            case SF_TOKEN_TYPE_KW_U32:
+            case SF_TOKEN_TYPE_KW_U64:
+            case SF_TOKEN_TYPE_KW_BOOL: {
+                if (depth == 0) {
+                    return;
+                }
+                p->current++;
+                break;
+            }
+
+            default: {
+                p->current++;
+                break;
+            }
+        }
+    }
 }
 
 static sf_ast_node *parse_expr_stmt(sf_parser *p) {

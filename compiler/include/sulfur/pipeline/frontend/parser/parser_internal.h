@@ -35,6 +35,8 @@ void sf_parser_report_unexpected(
 
 void sf_parser_recover_statement(sf_parser *p);
 void sf_parser_recover_expression(sf_parser *p);
+void sf_parser_recover_top_level(sf_parser *p);
 
 sf_ast_node *sf_parse_statement(sf_parser *p);
 sf_ast_node *sf_parse_expression(sf_parser *p);
+sf_ast_node *sf_parse_top_level(sf_parser *p);

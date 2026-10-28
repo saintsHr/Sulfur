@@ -10,6 +10,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "sulfur/file.h"
 
@@ -468,6 +469,15 @@ static void command_run(int argc, char** argv) {
         "./%s", binary_path
     );
 
+    if (access(binary_path, X_OK) != 0) {
+        log_failure(
+            "Run failed", "Failed to execute '%s'",
+            binary_path
+        );
+
+        goto cleanup;
+    }
+
     int return_code = system(cmd);
 
     if (return_code == -1) {
@@ -475,15 +485,28 @@ static void command_run(int argc, char** argv) {
             "Run failed", "Failed to execute '%s'",
             binary_path
         );
+
+        goto cleanup;
     }
 
     if (WIFEXITED(return_code)) {
         int exit_code = WEXITSTATUS(return_code);
 
+        if (exit_code == 127) {
+            log_failure(
+                "Run failed", "Failed to execute '%s'",
+                binary_path
+            );
+
+            goto cleanup;
+        }
+
         log_success(
             "Run done", "'%s' Returned %d",
             binary_path, exit_code
         );
+
+        goto cleanup;
     }
 
     if (WIFSIGNALED(return_code)) {
@@ -491,9 +514,12 @@ static void command_run(int argc, char** argv) {
             "Run failed", "'%s' Terminated by signal %d",
             binary_path, WTERMSIG(return_code)
         );
+
+        goto cleanup;
     }
 
-    sf_toml_free_project(&cfg);
+    cleanup:
+        sf_toml_free_project(&cfg);
 }
 
 static bool compile_file(const char *input, const char *output, const char* flags) {
