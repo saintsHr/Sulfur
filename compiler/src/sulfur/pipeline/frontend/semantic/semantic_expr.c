@@ -448,8 +448,8 @@ static bool analyze_increment(
 ) {
     if (un->operand->type != SF_NODE_IDENTIFIER) {
         sf_log(
-            "invalid operand", "operand of '++'/'--' must be a variable",
-            "only variables can be incremented or decremented", s->filename,
+            "invalid operand", "operand of '++'/'--' must be a lvalue",
+            "only lvalues can be incremented or decremented", s->filename,
             SF_LOG_SEMANTIC_TYPE_MISMATCH, un->base.span, SF_LOG_SEVERITY_ERROR
         );
 

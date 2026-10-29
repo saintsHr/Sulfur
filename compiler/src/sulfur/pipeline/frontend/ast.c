@@ -421,7 +421,7 @@ static void print_block(const sf_block_node *node, size_t indent) {
 
 static void print_var_decl(const sf_var_decl_node *node, size_t indent) {
     print_indent(indent);
-    printf("VarDecl %s : %s\n", node->name, sf_type_value_name(node->var_type));
+    printf("VarDecl %s %s\n", sf_type_value_name(node->var_type), node->name);
 
     print_node(node->value, indent + 1);
 }
@@ -460,7 +460,7 @@ static void print_unary_expr(const sf_unary_expr_node *node, size_t indent) {
 
 static void print_cast_expr(const sf_cast_expr_node *node, size_t indent) {
     print_indent(indent);
-    printf("Cast : %s\n", sf_type_value_name(node->target_type));
+    printf("Cast %s\n", sf_type_value_name(node->target_type));
 
     print_node(node->operand, indent + 1);
 }
@@ -499,14 +499,14 @@ static void print_while_stmt(const sf_while_stmt_node *node, size_t indent) {
 
 static void print_func_decl(const sf_func_decl_node *node, size_t indent) {
     print_indent(indent);
-    printf("Function %s : %s\n", node->name, sf_type_value_name(node->return_type));
+    printf("Function %s %s\n", node->name, sf_type_value_name(node->return_type));
 
     print_indent(indent + 1);
     printf("Parameters\n");
 
     for (size_t i = 0; i < node->parameter_count; i++) {
         print_indent(indent + 2);
-        printf("%s : %s\n", node->parameters[i].name, sf_type_value_name(node->parameters[i].type));
+        printf("%s %s\n", sf_type_value_name(node->parameters[i].type), node->parameters[i].name);
     }
 
     print_indent(indent + 1);
