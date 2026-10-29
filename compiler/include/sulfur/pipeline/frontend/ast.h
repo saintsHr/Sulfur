@@ -20,10 +20,13 @@ typedef enum {
     SF_NODE_IF_STMT,
     SF_NODE_WHILE_STMT,
     SF_NODE_FUNC_DECL,
-    SF_NODE_RETURN_STMT,
+    SF_NODE_FUNC_CALL,
+    SF_NODE_RETURN_STMT
 } sf_node_type;
 
 typedef enum {
+    SF_VAL_TYPE_UNRESOLVED,
+
     SF_VAL_TYPE_I8,
     SF_VAL_TYPE_I16,
     SF_VAL_TYPE_I32,
@@ -36,12 +39,12 @@ typedef enum {
 
     SF_VAL_TYPE_BOOL,
 
-    SF_VAL_TYPE_VOID,
-
-    SF_VAL_TYPE_UNRESOLVED,
+    SF_VAL_TYPE_VOID
 } sf_value_type;
 
 typedef enum {
+    SF_OP_TYPE_UNRESOLVED,
+
     SF_OP_TYPE_ADD,
     SF_OP_TYPE_SUB,
     SF_OP_TYPE_DIV,
@@ -69,9 +72,7 @@ typedef enum {
     SF_OP_TYPE_PREFIX_INCREMENT,
     SF_OP_TYPE_POSTFIX_INCREMENT,
     SF_OP_TYPE_PREFIX_DECREMENT,
-    SF_OP_TYPE_POSTFIX_DECREMENT,
-
-    SF_OP_TYPE_UNRESOLVED
+    SF_OP_TYPE_POSTFIX_DECREMENT
 } sf_operation_type;
 
 typedef struct {
@@ -175,10 +176,21 @@ typedef struct {
     sf_ast_node *value;
 } sf_return_stmt_node;
 
+typedef struct {
+    sf_ast_node base;
+
+    sf_ast_node *callee;
+
+    sf_ast_node **arguments;
+    size_t argument_count;
+    size_t argument_capacity;
+} sf_func_call_node;
+
 void sf_print_ast(const sf_ast_node *root);
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt);
 void sf_block_add_statement(sf_arena *arena, sf_block_node *block, sf_ast_node *stmt);
 void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function, sf_parameter param);
+void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node *argument);
 
 sf_program_node *sf_new_program(sf_arena *arena);
 sf_block_node *sf_new_block(sf_arena *arena, sf_span span);
@@ -222,4 +234,7 @@ sf_func_decl_node *sf_new_func_decl(
 );
 sf_return_stmt_node *sf_new_return_stmt(
     sf_arena *arena, sf_ast_node *value, sf_span span
+);
+sf_func_call_node *sf_new_func_call(
+    sf_arena *arena, sf_ast_node *callee, sf_span span
 );

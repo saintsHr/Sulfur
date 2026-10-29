@@ -36,6 +36,7 @@ static void print_cast_expr(const sf_cast_expr_node *node, size_t indent);
 static void print_if_stmt(const sf_if_stmt_node *node, size_t indent);
 static void print_while_stmt(const sf_while_stmt_node *node, size_t indent);
 static void print_func_decl(const sf_func_decl_node *node, size_t indent);
+static void print_func_call(const sf_func_call_node *node, size_t indent);
 static void print_return_stmt(const sf_return_stmt_node *node, size_t indent);
 
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt) {
@@ -78,6 +79,20 @@ void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function, sf_
 
     function->parameters = parameters;
     function->parameters[function->parameter_count++] = param;
+}
+
+void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node *argument) {
+    sf_ast_node **arguments = grow_for_one(
+        arena, call->arguments, call->argument_count,
+        &call->argument_capacity, sizeof(sf_ast_node *)
+    );
+
+    if (arguments == NULL) {
+        return;
+    }
+
+    call->arguments = arguments;
+    call->arguments[call->argument_count++] = argument;
 }
 
 sf_program_node *sf_new_program(sf_arena *arena) {
@@ -277,6 +292,23 @@ sf_func_decl_node *sf_new_func_decl(
     return node->name != NULL ? node : NULL;
 }
 
+sf_func_call_node *sf_new_func_call(
+    sf_arena *arena, sf_ast_node *callee, sf_span span
+) {
+    sf_func_call_node *node = new_node(
+        arena, sizeof(sf_func_call_node),
+        SF_NODE_FUNC_CALL, span
+    );
+
+    if (node == NULL) {
+        return NULL;
+    }
+
+    node->callee = callee;
+
+    return node;
+}
+
 sf_return_stmt_node *sf_new_return_stmt(
     sf_arena *arena, sf_ast_node *value, sf_span span
 ) {
@@ -356,6 +388,10 @@ static void print_node(const sf_ast_node *node, size_t indent) {
         }
         case SF_NODE_FUNC_DECL: {
             print_func_decl((const sf_func_decl_node *)node, indent);
+            break;
+        }
+        case SF_NODE_FUNC_CALL: {
+            print_func_call((const sf_func_call_node *)node, indent);
             break;
         }
         case SF_NODE_RETURN_STMT: {
@@ -476,6 +512,23 @@ static void print_func_decl(const sf_func_decl_node *node, size_t indent) {
     print_indent(indent + 1);
     printf("Body\n");
     print_node(node->body, indent + 2);
+}
+
+static void print_func_call(const sf_func_call_node *node, size_t indent) {
+    print_indent(indent);
+    printf("Call\n");
+
+    print_indent(indent + 1);
+    printf("Callee\n");
+
+    print_node(node->callee, indent + 2);
+
+    print_indent(indent + 1);
+    printf("Arguments\n");
+
+    for (size_t i = 0; i < node->argument_count; i++) {
+        print_node(node->arguments[i], indent + 2);
+    }
 }
 
 static void print_return_stmt(const sf_return_stmt_node *node, size_t indent) {
