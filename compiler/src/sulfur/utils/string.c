@@ -4,6 +4,7 @@
 #include <string.h>
 
 #define SF_STRING_MIN_CAPACITY ((size_t)16)
+#define SF_STRING_DISTANCE_MAX 256
 
 char *sf_string_dup(const char *str) {
     size_t size = strlen(str) + 1;
@@ -70,4 +71,43 @@ bool sf_string_push(const char *src, char **dst, size_t *len, size_t *capacity) 
     *len += src_len;
 
     return true;
+}
+
+size_t sf_string_distance(const char *a, const char *b) {
+    size_t a_len = strlen(a);
+    size_t b_len = strlen(b);
+
+    if (b_len >= SF_STRING_DISTANCE_MAX) {
+        return UINT32_MAX;
+    }
+
+    size_t previous[SF_STRING_DISTANCE_MAX];
+    size_t current[SF_STRING_DISTANCE_MAX];
+
+    for (size_t j = 0; j <= b_len; j++) {
+        previous[j] = j;
+    }
+
+    for (size_t i = 1; i <= a_len; i++) {
+        current[0] = i;
+
+        for (size_t j = 1; j <= b_len; j++) {
+            size_t cost = a[i - 1] == b[j - 1] ? 0 : 1;
+            size_t best = previous[j - 1] + cost;
+
+            if (previous[j] + 1 < best) {
+                best = previous[j] + 1;
+            }
+
+            if (current[j - 1] + 1 < best) {
+                best = current[j - 1] + 1;
+            }
+
+            current[j] = best;
+        }
+
+        memcpy(previous, current, (b_len + 1) * sizeof(size_t));
+    }
+
+    return previous[b_len];
 }

@@ -18,4 +18,5 @@ void scope_pop(sf_scope *scope);
 sf_var_symbol *scope_lookup(sf_scope *scope, const char *name);
 void scope_insert(sf_scope *scope, sf_var_symbol symbol, const char *filename);
 void scope_free(sf_scope *scope);
+
 const char *scope_find_closest(sf_scope *scope, const char *name);

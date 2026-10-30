@@ -1,6 +1,7 @@
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/utils/log.h"
+#include "sulfur/utils/string.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -121,6 +122,31 @@ bool sf_func_symbol_table_insert(
     table->functions[table->count++] = func;
 
     return true;
+}
+
+const char *sf_func_symbol_table_find_closest(
+    const sf_func_symbol_table *table, const char *name
+) {
+    const char *best_candidate = NULL;
+    size_t minimal_distance = UINT32_MAX;
+
+    for (size_t i = 0; i < table->count; i++) {
+        const char *candidate = table->functions[i].name;
+        size_t distance = sf_string_distance(candidate, name);
+
+        if (distance < minimal_distance) {
+            minimal_distance = distance;
+            best_candidate = candidate;
+        }
+    }
+
+    static const size_t threshold = 2;
+
+    if (minimal_distance > strlen(name) / threshold) {
+        return NULL;
+    }
+
+    return best_candidate;
 }
 
 static bool has_same_name(sf_func_symbol a, sf_func_symbol b) {

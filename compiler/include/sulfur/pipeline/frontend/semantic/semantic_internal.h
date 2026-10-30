@@ -29,6 +29,9 @@ bool sf_const_check_overflow(
     sf_ast_node *node, sf_value_type resolved, const char *filename
 );
 
+bool sf_const_is_zero(sf_ast_node *node, bool is_signed);
+void sf_const_warn(sf_semantic *s, sf_ast_node *node, const char *desc);
+
 static inline bool sf_op_is_logical(sf_operation_type op) {
     return op == SF_OP_TYPE_LOGICAL_AND || op == SF_OP_TYPE_LOGICAL_OR;
 }
@@ -44,5 +47,6 @@ static inline bool sf_op_is_relational(sf_operation_type op) {
         op == SF_OP_TYPE_RELATIONAL_LESS ||
         op == SF_OP_TYPE_RELATIONAL_LESS_EQUAL ||
         op == SF_OP_TYPE_RELATIONAL_GREATER ||
-        op == SF_OP_TYPE_RELATIONAL_GREATER_EQUAL;
+        op == SF_OP_TYPE_RELATIONAL_GREATER_EQUAL
+    ;
 }

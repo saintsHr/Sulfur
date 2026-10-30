@@ -14,10 +14,10 @@ static const char *g_source_content = NULL;
 static bool g_had_fatal = false;
 static size_t g_error_count = 0;
 
-static void emit_log(sf_log_info info, va_list args);
+static void emit_log(sf_log_info info, va_list *args);
 
 static const char *severity_label(sf_log_severity sev);
-static void format_message(char *buf, size_t size, const char *fmt, va_list args);
+static void format_message(char *buf, size_t size, const char *fmt, va_list *args);
 static const char *find_line(const char *content, size_t target_line, size_t *out_len);
 
 static void print_source_snippet(sf_span span, const char *msg);
@@ -51,7 +51,7 @@ void sf_log(
 
     va_list args;
     va_start(args, sev);
-    emit_log(info, args);
+    emit_log(info, &args);
     va_end(args);
 }
 
@@ -68,7 +68,7 @@ bool sf_log_had_errors(void) {
     return g_error_count > 0;
 }
 
-static void emit_log(sf_log_info info, va_list args) {
+static void emit_log(sf_log_info info, va_list *args) {
     char title[SF_LOG_BUFFER_SIZE];
     char desc[SF_LOG_BUFFER_SIZE];
     char hint[SF_LOG_BUFFER_SIZE];
@@ -132,17 +132,13 @@ static const char *severity_label(sf_log_severity sev) {
     return "";
 }
 
-static void format_message(char *buf, size_t size, const char *fmt, va_list args) {
+static void format_message(char *buf, size_t size, const char *fmt, va_list *args) {
     if (fmt == NULL) {
         buf[0] = '\0';
         return;
     }
 
-    va_list copy;
-
-    va_copy(copy, args);
-    vsnprintf(buf, size, fmt, copy);
-    va_end(copy);
+    vsnprintf(buf, size, fmt, *args);
 }
 
 static const char *find_line(const char *content, size_t target_line, size_t *out_len) {

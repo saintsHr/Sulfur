@@ -5,10 +5,9 @@
 #include <string.h>
 
 #include "sulfur/utils/log.h"
+#include "sulfur/utils/string.h"
 
 #define SF_LEVENSHTEIN_MAX 256
-
-static size_t levenshtein_distance(const char *a, const char *b);
 
 void scope_init(sf_scope *scope) {
     scope->stack = NULL;
@@ -124,7 +123,7 @@ const char *scope_find_closest(sf_scope *scope, const char *name) {
     for (size_t i = scope->depth; i > 0; i--) {
         for (size_t j = 0; j < scope->stack[i - 1].count; j++) {
             sf_var_symbol *sym = &scope->stack[i - 1].symbols[j];
-            size_t distance = levenshtein_distance(sym->name, name);
+            size_t distance = sf_string_distance(sym->name, name);
 
             if (distance < minimal_distance) {
                 minimal_distance = distance;
@@ -140,43 +139,4 @@ const char *scope_find_closest(sf_scope *scope, const char *name) {
     }
 
     return best_candidate;
-}
-
-static size_t levenshtein_distance(const char *a, const char *b) {
-    size_t a_len = strlen(a);
-    size_t b_len = strlen(b);
-
-    if (b_len >= SF_LEVENSHTEIN_MAX) {
-        return UINT32_MAX;
-    }
-
-    size_t previous[SF_LEVENSHTEIN_MAX];
-    size_t current[SF_LEVENSHTEIN_MAX];
-
-    for (size_t j = 0; j <= b_len; j++) {
-        previous[j] = j;
-    }
-
-    for (size_t i = 1; i <= a_len; i++) {
-        current[0] = i;
-
-        for (size_t j = 1; j <= b_len; j++) {
-            size_t cost = a[i - 1] == b[j - 1] ? 0 : 1;
-            size_t best = previous[j - 1] + cost;
-
-            if (previous[j] + 1 < best) {
-                best = previous[j] + 1;
-            }
-
-            if (current[j - 1] + 1 < best) {
-                best = current[j - 1] + 1;
-            }
-
-            current[j] = best;
-        }
-
-        memcpy(previous, current, (b_len + 1) * sizeof(size_t));
-    }
-
-    return previous[b_len];
 }

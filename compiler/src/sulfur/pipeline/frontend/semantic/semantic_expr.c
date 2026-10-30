@@ -1,11 +1,14 @@
+#include <stdio.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/pipeline/frontend/semantic/symbol.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/type_utils.h"
 
@@ -54,9 +57,13 @@ static bool analyze_literal(
     sf_semantic *s, sf_literal_node *lit, sf_value_type expected
 );
 static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id);
+static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call);
 
-static bool is_constant_zero(sf_ast_node *node, bool is_signed);
-static void warn_if_constant(sf_semantic *s, sf_ast_node *node, const char *desc);
+static bool check_argument_type(
+    sf_value_type resolved, sf_value_type param_type,
+    const char *func_name, size_t index, sf_span span,
+    const char *filename
+);
 
 bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_value_type expected) {
     switch (node->type) {
@@ -74,6 +81,9 @@ bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_value_type expected)
         }
         case SF_NODE_IDENTIFIER: {
             return analyze_identifier(s, (sf_identifier_node *)node);
+        }
+        case SF_NODE_FUNC_CALL: {
+            return analyze_func_call(s, (sf_func_call_node *)node);
         }
         default: {
             return true;
@@ -177,7 +187,7 @@ static bool analyze_logical(
 
     bin->base.resolved = SF_VAL_TYPE_BOOL;
 
-    warn_if_constant(
+    sf_const_warn(
         s, &bin->base, "this logical expression always evaluates to '%s'"
     );
 
@@ -244,7 +254,7 @@ static bool analyze_relational(
 
     bin->base.resolved = SF_VAL_TYPE_BOOL;
 
-    warn_if_constant(s, &bin->base, "this comparison always evaluates to '%s'");
+    sf_const_warn(s, &bin->base, "this comparison always evaluates to '%s'");
 
     return true;
 }
@@ -281,7 +291,7 @@ static bool analyze_arithmetic(
 
     if (
         bin->op == SF_OP_TYPE_DIV &&
-        is_constant_zero(bin->right, sf_type_value_is_signed(bin->base.resolved))
+        sf_const_is_zero(bin->right, sf_type_value_is_signed(bin->base.resolved))
     ) {
         sf_log(
             "division by zero", "constant expression divides by zero",
@@ -494,7 +504,7 @@ static bool analyze_logical_not(sf_semantic *s, sf_unary_expr_node *un) {
         return false;
     }
 
-    warn_if_constant(s, &un->base, "this expression always evaluates to '%s'");
+    sf_const_warn(s, &un->base, "this expression always evaluates to '%s'");
 
     un->base.resolved = SF_VAL_TYPE_BOOL;
 
@@ -616,26 +626,119 @@ static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
     return true;
 }
 
-static bool is_constant_zero(sf_ast_node *node, bool is_signed) {
-    if (is_signed) {
-        int64_t value;
-        return sf_const_eval_int(node, &value) && value == 0;
+static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
+    sf_identifier_node *callee = (sf_identifier_node *)call->callee;
+    const sf_func_symbol *sym = sf_func_symbol_table_lookup(s->funcs, callee->name);
+
+    if (sym == NULL) {
+        const char* closest = sf_func_symbol_table_find_closest(s->funcs, callee->name);
+
+        if (closest != NULL) {
+            sf_log(
+                "undeclared function", "function '%s' is not declared until this call",
+                "did you mean '%s'?", s->filename, SF_LOG_SEMANTIC_UNDECLARED,
+                callee->base.span, SF_LOG_SEVERITY_ERROR, callee->name, closest
+            );
+        } else {
+            sf_log(
+                "undeclared function", "function '%s' is not declared until this call",
+                "declare the function before calling", s->filename, SF_LOG_SEMANTIC_UNDECLARED,
+                callee->base.span, SF_LOG_SEVERITY_ERROR, callee->name
+            );
+        }
+
+        for (size_t i = 0; i < call->argument_count; i++) {
+            sf_semantic_expr(s, call->arguments[i], SF_VAL_TYPE_UNRESOLVED);
+        }
+
+        return false;
     }
 
-    uint64_t value;
-    return sf_const_eval_uint(node, &value) && value == 0;
+    bool ok = true;
+
+    for (size_t i = 0; i < call->argument_count; i++) {
+        sf_value_type expected = SF_VAL_TYPE_UNRESOLVED;
+        bool has_param = i < sym->parameter_count;
+
+        if (has_param) {
+            expected = sym->parameters[i].type;
+        }
+
+        sf_ast_node *arg = call->arguments[i];
+
+        if (!sf_semantic_expr(s, arg, expected)) {
+            ok = false;
+            continue;
+        }
+
+        if (
+            has_param &&
+            !check_argument_type(
+                arg->resolved, expected, sym->name,
+                i, arg->span, s->filename
+            )
+        ) {
+            ok = false;
+        }
+    }
+
+    if (call->argument_count != sym->parameter_count) {
+        sf_log(
+            "wrong argument count",
+            "function '%s' expects %zu arguments, but %zu were provided",
+            "pass exactly the number of arguments the function declares",
+            s->filename, SF_LOG_SEMANTIC_ARGUMENT_COUNT,
+            callee->base.span, SF_LOG_SEVERITY_ERROR, sym->name,
+            sym->parameter_count, call->argument_count
+        );
+
+        ok = false;
+    }
+
+    if (ok == true) {
+        call->base.resolved = sym->return_type;
+    }
+
+    return ok;
 }
 
-static void warn_if_constant(sf_semantic *s, sf_ast_node *node, const char *desc) {
-    bool value;
-
-    if (!sf_const_eval_bool(node, &value)) {
-        return;
+static bool check_argument_type(
+    sf_value_type resolved, sf_value_type param_type,
+    const char *func_name, size_t index, sf_span span,
+    const char *filename
+) {
+    if (resolved == SF_VAL_TYPE_UNRESOLVED) {
+        return true;
     }
 
-    sf_log(
-        "constant condition", desc, "check the operands and operators",
-        s->filename, SF_LOG_SEMANTIC_CONSTANT_EXPR, node->span,
-        SF_LOG_SEVERITY_WARNING, value ? "true" : "false"
-    );
+    if (!sf_type_value_is_same_group(resolved, param_type)) {
+        sf_log(
+            "type mismatch",
+            "argument %zu of '%s' expects '%s', but this expression has type '%s'",
+            "make sure the argument matches the parameter type, or cast it",
+            filename, SF_LOG_SEMANTIC_TYPE_MISMATCH, span,
+            SF_LOG_SEVERITY_ERROR, index + 1, func_name,
+            sf_type_value_name(param_type), sf_type_value_name(resolved)
+        );
+
+        return false;
+    }
+
+    if (
+        sf_type_value_width_bytes(resolved) >
+        sf_type_value_width_bytes(param_type)
+    ) {
+        sf_log(
+            "narrowing conversion",
+            "cannot implicitly narrow '%s' to '%s' in argument %zu of '%s'",
+            "cast the argument explicitly, or change the parameter type",
+            filename, SF_LOG_SEMANTIC_INVALID_IMPLICIT_CAST, span,
+            SF_LOG_SEVERITY_ERROR, sf_type_value_name(resolved),
+            sf_type_value_name(param_type), index + 1, func_name
+        );
+
+        return false;
+    }
+
+    return true;
 }

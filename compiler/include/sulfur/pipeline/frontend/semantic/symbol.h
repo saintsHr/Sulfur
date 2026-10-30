@@ -54,3 +54,5 @@ bool sf_func_symbol_table_insert(
     sf_func_symbol_table *table, sf_func_symbol func,
     const char *filename
 );
+
+const char *sf_func_symbol_table_find_closest(const sf_func_symbol_table *table, const char *name);

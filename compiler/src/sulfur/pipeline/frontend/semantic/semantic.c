@@ -112,6 +112,10 @@ static void analyze_statement(sf_semantic *semantic, sf_ast_node *node) {
             analyze_func_decl(semantic, (sf_func_decl_node *)node);
             break;
         }
+        case SF_NODE_FUNC_CALL: {
+            sf_semantic_expr(semantic, node, SF_VAL_TYPE_UNRESOLVED);
+            break;
+        }
         case SF_NODE_RETURN_STMT: {
             analyze_return(semantic, (sf_return_stmt_node *)node);
             break;
@@ -122,9 +126,8 @@ static void analyze_statement(sf_semantic *semantic, sf_ast_node *node) {
             if (has_no_effect(node)) {
                 sf_log(
                     "unused expression", "the result of this expression is discarded",
-                    "assign the result to a variable, or remove the statement", "%s",
-                    SF_LOG_SEMANTIC_UNUSED_EXPRESSION, node->span, SF_LOG_SEVERITY_WARNING,
-                    semantic->filename
+                    "assign the result to a variable, or remove the statement", semantic->filename,
+                    SF_LOG_SEMANTIC_UNUSED_EXPRESSION, node->span, SF_LOG_SEVERITY_WARNING
                 );
             }
 
@@ -464,24 +467,17 @@ static bool check_return_type(
 }
 
 static void check_main_function(sf_semantic *semantic) {
-    const sf_func_symbol *main_func = NULL;
-
-    for (size_t i = 0; i < semantic->funcs->count; i++) {
-        const sf_func_symbol *f = &semantic->funcs->functions[i];
-
-        if (strcmp(f->name, "main") == 0) {
-            main_func = f;
-        }
-    }
+    const sf_func_symbol *main_func = sf_func_symbol_table_lookup(
+        semantic->funcs, "main"
+    );
 
     if (main_func == NULL) {
         sf_log(
             "missing entry point function 'main'.",
             "the program does not define a 'main' function.",
             "define a 'main' function as the program entry point.",
-            "%s", SF_LOG_SEMANTIC_NO_MAIN_FUNCTION,
-            (sf_span){0}, SF_LOG_SEVERITY_ERROR,
-            semantic->filename
+            semantic->filename, SF_LOG_SEMANTIC_NO_MAIN_FUNCTION,
+            (sf_span){0}, SF_LOG_SEVERITY_ERROR
         );
 
         return;

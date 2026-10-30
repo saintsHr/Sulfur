@@ -18,9 +18,9 @@ static bool eval_int_binary(
     sf_operation_type op, int64_t l, int64_t r, int64_t *out_value
 );
 static bool eval_int_negate(const sf_unary_expr_node *un, int64_t *out_value);
-
 static bool eval_bool_binary(sf_binary_expr_node *bin, bool *out_value);
 static bool eval_relational(sf_binary_expr_node *bin, bool *out_value);
+
 static bool compare_int(sf_operation_type op, int64_t l, int64_t r, bool *out_value);
 static bool compare_uint(sf_operation_type op, uint64_t l, uint64_t r, bool *out_value);
 
@@ -142,6 +142,30 @@ bool sf_const_check_overflow(
     }
 
     return check_unsigned_overflow(node, resolved, filename);
+}
+
+bool sf_const_is_zero(sf_ast_node *node, bool is_signed) {
+    if (is_signed) {
+        int64_t value;
+        return sf_const_eval_int(node, &value) && value == 0;
+    }
+
+    uint64_t value;
+    return sf_const_eval_uint(node, &value) && value == 0;
+}
+
+void sf_const_warn(sf_semantic *s, sf_ast_node *node, const char *desc) {
+    bool value;
+
+    if (!sf_const_eval_bool(node, &value)) {
+        return;
+    }
+
+    sf_log(
+        "constant condition", desc, "check the operands and operators",
+        s->filename, SF_LOG_SEMANTIC_CONSTANT_EXPR, node->span,
+        SF_LOG_SEVERITY_WARNING, value ? "true" : "false"
+    );
 }
 
 static bool literal_magnitude(const sf_ast_node *node, uint64_t *out_value) {
