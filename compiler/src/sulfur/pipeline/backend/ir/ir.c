@@ -88,8 +88,12 @@ static sf_operand generate_cast(
     sf_arena *arena, sf_ir_context *context,
     sf_cast_expr_node *cast, sf_operand *hint
 );
-static sf_operand generate_literal(const sf_literal_node *lt);
-static sf_operand generate_identifier(sf_arena *arena, const sf_identifier_node *id);
+static sf_operand generate_literal(sf_literal_node *lt);
+static sf_operand generate_identifier(sf_arena *arena, sf_identifier_node *id);
+static sf_operand generate_call(
+    sf_arena *arena, sf_ir_context *context,
+    sf_func_call_node *call, sf_operand *hint
+);
 
 static bool ends_with_return(const sf_ir_function *func);
 
@@ -156,9 +160,11 @@ static void push(sf_arena *arena, sf_ir_context *context, sf_operation operation
 
         if (grown == NULL) {
             sf_log(
-                "Insufficient Memory.", "Cannot allocate memory for compiling.",
-                "Free some memory and try again.", NULL,
-                SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+                "insufficient memory",
+                "cannot allocate memory for compiling",
+                "free some memory and try again",
+                NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                (sf_span){0}, SF_LOG_SEVERITY_FATAL
             );
 
             return;
@@ -241,9 +247,11 @@ static char *mangle_name(sf_arena *arena, const char *name, size_t id) {
 
     if (mangled == NULL) {
         sf_log(
-            "Insufficient Memory.", "Cannot allocate memory for compiling.",
-            "Free some memory and try again.", NULL,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            "insufficient memory",
+            "cannot allocate memory for compiling",
+            "free some memory and try again",
+            NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0}, SF_LOG_SEVERITY_FATAL
         );
 
         return k_empty_name;
@@ -267,9 +275,11 @@ static void add_function(
 
         if (grown == NULL) {
             sf_log(
-                "Insufficient Memory.", "Cannot allocate memory for compiling.",
-                "Free some memory and try again.", NULL,
-                SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+                "insufficient memory",
+                "cannot allocate memory for compiling",
+                "free some memory and try again",
+                NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                (sf_span){0}, SF_LOG_SEVERITY_FATAL
             );
 
             return;
@@ -446,13 +456,11 @@ static void generate_function(
 
         if (func_ir.parameters == NULL) {
             sf_log(
-                "Insufficient Memory.",
-                "Cannot allocate memory for compiling.",
-                "Free some memory and try again.",
-                NULL,
-                SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-                (sf_span){0},
-                SF_LOG_SEVERITY_FATAL
+                "insufficient memory",
+                "cannot allocate memory for compiling",
+                "free some memory and try again",
+                NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                (sf_span){0}, SF_LOG_SEVERITY_FATAL
             );
 
             return;
@@ -519,10 +527,13 @@ static sf_operand generate_expression_into(
             return generate_cast(arena, context, (sf_cast_expr_node *)node, hint);
         }
         case SF_NODE_LITERAL: {
-            return generate_literal((const sf_literal_node *)node);
+            return generate_literal((sf_literal_node *)node);
         }
         case SF_NODE_IDENTIFIER: {
-            return generate_identifier(arena, (const sf_identifier_node *)node);
+            return generate_identifier(arena, (sf_identifier_node *)node);
+        }
+        case SF_NODE_FUNC_CALL: {
+            return generate_call(arena, context, (sf_func_call_node *)node, hint);
         }
 
         default: {
@@ -615,7 +626,7 @@ static sf_operand generate_cast(
     return dst;
 }
 
-static sf_operand generate_literal(const sf_literal_node *lt) {
+static sf_operand generate_literal(sf_literal_node *lt) {
     const char *value = lt->value;
 
     if (lt->token_type == SF_TOKEN_TYPE_KW_TRUE) {
@@ -627,7 +638,7 @@ static sf_operand generate_literal(const sf_literal_node *lt) {
     return new_immediate(lt->base.resolved, value);
 }
 
-static sf_operand generate_identifier(sf_arena *arena, const sf_identifier_node *id) {
+static sf_operand generate_identifier(sf_arena *arena, sf_identifier_node *id) {
     sf_operand op = {0};
     op.type = SF_OPERAND_TYPE_VARIABLE;
     op.value_type = id->base.resolved;
@@ -657,6 +668,10 @@ static void print_operand(sf_operand op) {
             printf("L%zu", op.label_id);
             break;
         }
+        case SF_OPERAND_TYPE_FUNCTION: {
+            printf("%s", op.function_name);
+            break;
+        }
     }
 }
 
@@ -668,10 +683,14 @@ static void print_operations(const sf_operation *operations, size_t count) {
 
 static void print_operation(const sf_operation *op) {
     bool is_control_flow =
-        op->opcode == SF_OPCODE_LABEL || op->opcode == SF_OPCODE_JMP_COND ||
-        op->opcode == SF_OPCODE_JMP_INCOND || op->opcode == SF_OPCODE_RETURN;
+        op->opcode == SF_OPCODE_LABEL ||
+        op->opcode == SF_OPCODE_JMP_COND ||
+        op->opcode == SF_OPCODE_JMP_INCOND ||
+        op->opcode == SF_OPCODE_RETURN ||
+        op->opcode == SF_OPCODE_PARAM
+    ;
 
-    if (!is_control_flow) {
+    if (!is_control_flow && op->operand1.type != SF_OPERAND_TYPE_NONE) {
         print_operand(op->operand1);
         printf(" = ");
     }
@@ -719,6 +738,16 @@ static void print_operation(const sf_operation *op) {
                     print_operand(op->operand1);
                 }
 
+                break;
+            }
+            case SF_OPCODE_PARAM: {
+                printf("param ");
+                print_operand(op->operand1);
+                break;
+            }
+            case SF_OPCODE_CALL: {
+                printf("call ");
+                print_operand(op->operand2);
                 break;
             }
 
@@ -810,6 +839,79 @@ static const char *unary_symbol(sf_opcode opcode) {
             return NULL;
         }
     }
+}
+
+static sf_operand generate_call(
+    sf_arena *arena, sf_ir_context *context,
+    sf_func_call_node *call, sf_operand *hint
+) {
+    sf_identifier_node *callee = (sf_identifier_node *)call->callee;
+
+    sf_operand func_operand = {
+        .type = SF_OPERAND_TYPE_FUNCTION,
+        .function_name = callee->name,
+        .value_type = call->base.resolved
+    };
+
+    if (call->argument_count > 0) {
+        sf_operand *arg_operands = sf_arena_alloc(
+            arena, sizeof(sf_operand) * call->argument_count
+        );
+
+        if (arg_operands == NULL) {
+            sf_log(
+                "insufficient memory",
+                "cannot allocate memory for compiling",
+                "free some memory and try again",
+                NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            );
+
+            return k_no_operand;
+        }
+
+        for (size_t i = 0; i < call->argument_count; i++) {
+            arg_operands[i] = generate_expression(
+                arena, context, call->arguments[i]
+            );
+        }
+
+        for (size_t i = 0; i < call->argument_count; i++) {
+            emit(
+                arena, context,
+
+                SF_OPCODE_PARAM,
+
+                arg_operands[i],
+                k_no_operand,
+                k_no_operand
+            );
+        }
+    }
+
+    sf_operand dst_operand;
+
+    if (call->base.resolved == SF_VAL_TYPE_VOID) {
+        dst_operand = k_no_operand;
+    } else {
+        if (hint != NULL) {
+            dst_operand = *hint;
+        } else {
+            dst_operand = new_temporary(context, call->base.resolved);
+        }
+    }
+
+    emit(
+        arena, context,
+
+        SF_OPCODE_CALL,
+
+        dst_operand,
+        func_operand,
+        k_no_operand
+    );
+
+    return dst_operand;
 }
 
 static bool ends_with_return(const sf_ir_function *func) {

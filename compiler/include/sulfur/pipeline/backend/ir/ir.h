@@ -12,14 +12,19 @@ typedef enum {
     SF_OPERAND_TYPE_VARIABLE,
     SF_OPERAND_TYPE_IMMEDIATE,
     SF_OPERAND_TYPE_LABEL,
+    SF_OPERAND_TYPE_FUNCTION,
 } sf_operand_type;
 
 typedef enum {
+    SF_OPCODE_INVALID,
+
     SF_OPCODE_ADD,
     SF_OPCODE_SUB,
     SF_OPCODE_DIV,
     SF_OPCODE_MULT,
     SF_OPCODE_NEGATE,
+
+    SF_OPCODE_ASSIGN,
 
     SF_OPCODE_BITWISE_AND,
     SF_OPCODE_BITWISE_OR,
@@ -43,11 +48,11 @@ typedef enum {
     SF_OPCODE_JMP_COND,
     SF_OPCODE_JMP_INCOND,
 
-    SF_OPCODE_ASSIGN,
     SF_OPCODE_CAST,
-    SF_OPCODE_RETURN,
 
-    SF_OPCODE_INVALID,
+    SF_OPCODE_RETURN,
+    SF_OPCODE_PARAM,
+    SF_OPCODE_CALL
 } sf_opcode;
 
 typedef struct {
@@ -58,6 +63,7 @@ typedef struct {
         size_t temporary_id;
         size_t label_id;
         char *variable_name;
+        char *function_name;
         const char *immediate_value;
     };
 } sf_operand;
