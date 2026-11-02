@@ -6,6 +6,7 @@
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/semantic/scope.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
+#include "sulfur/utils/arena.h"
 #include "sulfur/utils/span.h"
 
 typedef struct {
@@ -13,6 +14,7 @@ typedef struct {
     sf_func_symbol_table *funcs;
     sf_func_decl_node *current_func;
     const char *filename;
+    sf_arena *arena;
 } sf_semantic;
 
 bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_value_type expected);

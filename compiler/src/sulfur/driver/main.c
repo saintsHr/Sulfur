@@ -75,6 +75,7 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     if (sf_log_had_errors()) return false;
 
     sf_analyze(
+        &compilation->arena,
         compilation->ast,
         options->file_input,
         options

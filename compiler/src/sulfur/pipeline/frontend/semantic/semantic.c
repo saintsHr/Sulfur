@@ -9,6 +9,7 @@
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/semantic/scope.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
+#include "sulfur/utils/arena.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/span.h"
 #include "sulfur/utils/type_utils.h"
@@ -35,7 +36,10 @@ static void check_main_function(sf_semantic *semantic);
 static bool stmt_always_returns(sf_ast_node *node);
 static bool has_no_effect(sf_ast_node *node);
 
-void sf_analyze(sf_program_node *program, const char *filename, const sf_compiler_options *options) {
+void sf_analyze(
+    sf_arena *arena, sf_program_node *program,
+    const char *filename, const sf_compiler_options *options
+) {
     sf_scope scope;
     sf_func_symbol_table funcs;
 
@@ -48,6 +52,7 @@ void sf_analyze(sf_program_node *program, const char *filename, const sf_compile
         .funcs = &funcs,
         .current_func = NULL,
         .filename = filename,
+        .arena = arena
     };
 
     for (size_t i = 0; i < program->statement_count; i++) {
@@ -280,6 +285,18 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
                 SF_LOG_SEMANTIC_INVALID_TYPE, func->base.span,
                 SF_LOG_SEVERITY_ERROR, param.name
             );
+        }
+
+        for (size_t j = 0; j < i; j++) {
+            if (strcmp(func->parameters[j].name, param.name) == 0) {
+                sf_log(
+                    "redeclaration", "parameter '%s' is already declared",
+                    "rename one of the parameters", semantic->filename,
+                    SF_LOG_SEMANTIC_REDECLARATION, func->base.span,
+                    SF_LOG_SEVERITY_ERROR, param.name
+                );
+                break;
+            }
         }
     }
 

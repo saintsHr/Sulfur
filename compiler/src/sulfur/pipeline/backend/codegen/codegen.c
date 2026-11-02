@@ -10,6 +10,7 @@
 
 #include "sulfur/pipeline/backend/codegen/stack.h"
 #include "sulfur/pipeline/backend/ir/ir.h"
+#include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/string.h"
 #include "sulfur/utils/type_utils.h"
@@ -120,6 +121,17 @@ static void emit_return(
 
 static void emit_function(
     char **buff, size_t *len, size_t *capacity, const sf_ir_function *func
+);
+
+static void emit_call(
+    char **buff, size_t *len, size_t *capacity,
+    const sf_operand *params, size_t param_count,
+    sf_operation call, const sf_stack_map *map
+);
+
+static void emit_stack_arg(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operand param, const sf_stack_map *map
 );
 
 static void emit_operations(
@@ -236,8 +248,8 @@ static void emitf(
         va_end(args_copy);
 
         sf_log(
-            "Insufficient Memory.", "Cannot allocate memory for compiling.",
-            "Free some memory and try again.", NULL,
+            "insufficient Memory", "cannot allocate memory for compiling",
+            "free some memory and try again", NULL,
             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
         );
 
@@ -257,10 +269,10 @@ static sf_stack_offset_size_t stack_offset(
     sf_stack_offset_size_t offset = sf_stack_lookup(map, name);
 
     if (offset == 0) {
-        fprintf(
-            stderr,
-            "internal compiler error: '%s' has no stack slot "
-            "(this is a bug in the codegen, not in the user's code)\n",
+        sf_log(
+            "internal error", "'%s' has no stack slot",
+            "this is an internal compiler error, not user-related", NULL,
+            SF_LOG_GENERAL_INTERNAL_ERROR, (sf_span){0}, SF_LOG_SEVERITY_FATAL,
             name
         );
 
@@ -663,11 +675,10 @@ static void emit_relational(
         }
 
         default: {
-            fprintf(
-                stderr,
-                "internal compiler error: unreachable opcode %d in "
-                "emit_relational "
-                "(this is a bug in the codegen, not in the user's code)\n",
+            sf_log(
+                "internal error", "unreachable opcode %d in emit_relational",
+                "this is an internal compiler error, not user-related", NULL,
+                SF_LOG_GENERAL_INTERNAL_ERROR, (sf_span){0}, SF_LOG_SEVERITY_FATAL,
                 op.opcode
             );
 
@@ -787,10 +798,79 @@ static void emit_function(
     sf_stack_free(&map);
 }
 
+static void emit_call(
+    char **buff, size_t *len, size_t *capacity,
+    const sf_operand *params, size_t param_count,
+    sf_operation call, const sf_stack_map *map
+) {
+    size_t stack_args = param_count > 6 ? param_count - 6 : 0;
+    size_t padding = stack_args % 2;
+
+    if (padding > 0) {
+        emitf(buff, len, capacity, "\tsub rsp, 8\n");
+    }
+
+    for (size_t i = param_count; i > 6; i--) {
+        emit_stack_arg(buff, len, capacity, params[i - 1], map);
+    }
+
+    size_t reg_count = param_count < 6 ? param_count : 6;
+
+    for (size_t i = 0; i < reg_count; i++) {
+        sf_operand param = params[i];
+
+        char fmt[FMT_SIZE];
+        format_operand(fmt, sizeof(fmt), param, map);
+
+        uint8_t size = sf_type_value_width_bytes(param.value_type);
+        uint8_t reg_size = size <= 2 ? 4 : size;
+        const char *reg = param_register((uint8_t)i, reg_size);
+
+        if (size <= 2 && param.type != SF_OPERAND_TYPE_IMMEDIATE) {
+            const char *ext = sf_type_value_is_signed(param.value_type) ? "movsx" : "movzx";
+            emitf(buff, len, capacity, "\t%s %s, %s\n", ext, reg, fmt);
+        } else {
+            emitf(buff, len, capacity, "\tmov %s, %s\n", reg, fmt);
+        }
+    }
+
+    emitf(buff, len, capacity, "\tcall %s\n", call.operand2.function_name);
+
+    if (stack_args + padding > 0) {
+        emitf(buff, len, capacity, "\tadd rsp, %zu\n", (stack_args + padding) * 8);
+    }
+
+    if (call.operand1.type != SF_OPERAND_TYPE_NONE) {
+        char fmt[FMT_SIZE];
+        format_operand(fmt, sizeof(fmt), call.operand1, map);
+
+        uint8_t size = sf_type_value_width_bytes(call.operand1.value_type);
+        const char *reg = register_to_string(register_from_size(size));
+
+        emitf(buff, len, capacity, "\tmov %s, %s\n", fmt, reg);
+    }
+}
+
 static void emit_operations(
     char **buff, size_t *len, size_t *capacity,
     const sf_operation *operations, size_t count, const sf_stack_map *map
 ) {
+    static const size_t k_params_alloc_size = 8;
+
+    sf_operand *params = malloc(k_params_alloc_size  * sizeof(sf_operand));
+    size_t param_capacity = k_params_alloc_size;
+    size_t param_count = 0;
+
+    if (params == NULL) {
+        sf_log(
+            "insufficient Memory", "cannot allocate memory for compiling",
+            "free some memory and try again", NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0}, SF_LOG_SEVERITY_FATAL
+        );
+
+        goto cleanup;
+    }
+
     for (size_t i = 0; i < count; i++) {
         sf_operation op = operations[i];
 
@@ -815,7 +895,6 @@ static void emit_operations(
                 emit_neg(buff, len, capacity, op, map);
                 break;
             }
-
             case SF_OPCODE_BITWISE_AND:
             case SF_OPCODE_LOGICAL_AND: {
                 emit_binary(buff, len, capacity, "and", op, map);
@@ -843,7 +922,6 @@ static void emit_operations(
                 emit_not(buff, len, capacity, op, map);
                 break;
             }
-
             case SF_OPCODE_RELATIONAL_EQUAL:
             case SF_OPCODE_RELATIONAL_NOT_EQUAL:
             case SF_OPCODE_RELATIONAL_LESS:
@@ -853,7 +931,6 @@ static void emit_operations(
                 emit_relational(buff, len, capacity, op, map);
                 break;
             }
-
             case SF_OPCODE_LABEL: {
                 emit_label(buff, len, capacity, op);
                 break;
@@ -866,7 +943,6 @@ static void emit_operations(
                 emit_jmp_cond(buff, len, capacity, op, map);
                 break;
             }
-
             case SF_OPCODE_ASSIGN: {
                 emit_assign(buff, len, capacity, op, map);
                 break;
@@ -875,9 +951,37 @@ static void emit_operations(
                 emit_cast(buff, len, capacity, op, map);
                 break;
             }
-
             case SF_OPCODE_RETURN: {
                 emit_return(buff, len, capacity, op, map);
+                break;
+            }
+            case SF_OPCODE_CALL: {
+                emit_call(buff, len, capacity, params, param_count, op, map);
+                param_count = 0;
+                break;
+            }
+            case SF_OPCODE_PARAM: {
+                if (param_capacity <= param_count) {
+                    sf_operand *arr = realloc(
+                        params, (param_capacity + k_params_alloc_size) * sizeof(sf_operand)
+                    );
+
+                    if (arr == NULL) {
+                        sf_log(
+                            "insufficient Memory", "cannot allocate memory for compiling",
+                            "free some memory and try again", NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                            (sf_span){0}, SF_LOG_SEVERITY_FATAL
+                        );
+
+                        goto cleanup;
+                    }
+
+                    param_capacity += k_params_alloc_size;
+                    params = arr;
+                }
+
+                params[param_count++] = op.operand1;
+
                 break;
             }
 
@@ -888,6 +992,34 @@ static void emit_operations(
 
         sf_string_push("\n", buff, len, capacity);
     }
+
+    cleanup: {
+        free(params);
+        param_capacity = 0;
+        param_count = 0;
+    }
+}
+
+static void emit_stack_arg(
+    char **buff, size_t *len, size_t *capacity,
+    sf_operand param, const sf_stack_map *map
+) {
+    char fmt[FMT_SIZE];
+    format_operand(fmt, sizeof(fmt), param, map);
+
+    uint8_t size = sf_type_value_width_bytes(param.value_type);
+    bool is_imm = param.type == SF_OPERAND_TYPE_IMMEDIATE;
+
+    if (is_imm || size == 8) {
+        emitf(buff, len, capacity, "\tmov rax, %s\n", fmt);
+    } else if (size == 4) {
+        emitf(buff, len, capacity, "\tmov eax, %s\n", fmt);
+    } else {
+        const char *ext = sf_type_value_is_signed(param.value_type) ? "movsx" : "movzx";
+        emitf(buff, len, capacity, "\t%s rax, %s\n", ext, fmt);
+    }
+
+    emitf(buff, len, capacity, "\tpush rax\n");
 }
 
 static sf_stack_offset_size_t frame_size(const sf_stack_map *map) {
