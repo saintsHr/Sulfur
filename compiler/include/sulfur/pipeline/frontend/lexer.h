@@ -7,6 +7,8 @@
 #define SF_MAX_TOKEN_VALUE_SIZE 255
 
 typedef enum {
+    SF_TOKEN_TYPE_UNDEFINED,
+
     SF_TOKEN_TYPE_IDENTIFIER,
     SF_TOKEN_TYPE_INTEGER,
     SF_TOKEN_TYPE_KW_TRUE,
@@ -79,8 +81,9 @@ typedef enum {
     SF_TOKEN_TYPE_KW_FN,
     SF_TOKEN_TYPE_KW_RETURN,
 
-    SF_TOKEN_TYPE_UNDEFINED,
-    SF_TOKEN_TYPE_EOF,
+    SF_TOKEN_TYPE_KW_MUT,
+
+    SF_TOKEN_TYPE_EOF
 } sf_token_type;
 
 typedef struct {
