@@ -250,11 +250,34 @@ static void analyze_if(sf_semantic *semantic, sf_if_stmt_node *if_stmt) {
         return;
     }
 
+    sf_flow_state before = scope_flow_save(semantic->scope);
+
     analyze_statement(semantic, if_stmt->branch_then);
+
+    sf_flow_state after_then = scope_flow_save(semantic->scope);
+
+    if (stmt_always_returns(if_stmt->branch_then)) {
+        scope_flow_fill(&after_then, true);
+    }
+
+    scope_flow_restore(semantic->scope, &before);
 
     if (if_stmt->branch_else != NULL) {
         analyze_statement(semantic, if_stmt->branch_else);
     }
+
+    sf_flow_state after_else = scope_flow_save(semantic->scope);
+
+    if (stmt_always_returns(if_stmt->branch_else)) {
+        scope_flow_fill(&after_else, true);
+    }
+
+    scope_flow_and(&after_then, &after_else);
+    scope_flow_restore(semantic->scope, &after_then);
+
+    scope_flow_free(&before);
+    scope_flow_free(&after_then);
+    scope_flow_free(&after_else);
 }
 
 static void analyze_while(sf_semantic *semantic, sf_while_stmt_node *while_stmt) {
@@ -275,7 +298,12 @@ static void analyze_while(sf_semantic *semantic, sf_while_stmt_node *while_stmt)
         return;
     }
 
+    sf_flow_state before = scope_flow_save(semantic->scope);
+
     analyze_statement(semantic, while_stmt->branch_do);
+
+    scope_flow_restore(semantic->scope, &before);
+    scope_flow_free(&before);
 }
 
 static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {

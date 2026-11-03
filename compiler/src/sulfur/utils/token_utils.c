@@ -48,8 +48,20 @@ bool sf_token_is_return(sf_token token) {
     return token.type == SF_TOKEN_TYPE_KW_RETURN;
 }
 
-bool sf_token_is_assignment_op(sf_token_type t) {
-    switch (t) {
+bool sf_token_is_qual(sf_token token) {
+    switch (token.type) {
+        case SF_TOKEN_TYPE_KW_MUT: {
+            return true;
+        }
+
+        default: {
+            return false;
+        }
+    }
+}
+
+bool sf_token_is_assign(sf_token token) {
+    switch (token.type) {
         case SF_TOKEN_TYPE_EQUAL:
         case SF_TOKEN_TYPE_PLUS_EQUAL:
         case SF_TOKEN_TYPE_MINUS_EQUAL:
@@ -111,42 +123,6 @@ sf_value_type sf_token_to_type(sf_token token) {
     }
 }
 
-sf_operation_type sf_token_assign_to_binary_op(sf_token_type t) {
-    switch (t) {
-        case SF_TOKEN_TYPE_PLUS_EQUAL: {
-            return SF_OP_TYPE_ADD;
-        }
-        case SF_TOKEN_TYPE_MINUS_EQUAL: {
-            return SF_OP_TYPE_SUB;
-        }
-        case SF_TOKEN_TYPE_STAR_EQUAL: {
-            return SF_OP_TYPE_MUL;
-        }
-        case SF_TOKEN_TYPE_SLASH_EQUAL: {
-            return SF_OP_TYPE_DIV;
-        }
-        case SF_TOKEN_TYPE_AMP_EQUAL: {
-            return SF_OP_TYPE_BITWISE_AND;
-        }
-        case SF_TOKEN_TYPE_PIPE_EQUAL: {
-            return SF_OP_TYPE_BITWISE_OR;
-        }
-        case SF_TOKEN_TYPE_CARET_EQUAL: {
-            return SF_OP_TYPE_BITWISE_XOR;
-        }
-        case SF_TOKEN_TYPE_LEFT_SHIFT_EQUAL: {
-            return SF_OP_TYPE_BITWISE_LSHIFT;
-        }
-        case SF_TOKEN_TYPE_RIGHT_SHIFT_EQUAL: {
-            return SF_OP_TYPE_BITWISE_RSHIFT;
-        }
-
-        default: {
-            return SF_OP_TYPE_UNRESOLVED;
-        }
-    }
-}
-
 sf_operation_type sf_token_to_unary_op(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_MINUS: {
@@ -188,50 +164,71 @@ sf_operation_type sf_token_to_postfix_op(sf_token token) {
 
 sf_operation_type sf_token_to_binary_op(sf_token token) {
     switch (token.type) {
-        case SF_TOKEN_TYPE_PLUS: {
+        case SF_TOKEN_TYPE_PLUS:
+        case SF_TOKEN_TYPE_PLUS_EQUAL: {
             return SF_OP_TYPE_ADD;
         }
-        case SF_TOKEN_TYPE_MINUS: {
+
+        case SF_TOKEN_TYPE_MINUS:
+        case SF_TOKEN_TYPE_MINUS_EQUAL: {
             return SF_OP_TYPE_SUB;
         }
-        case SF_TOKEN_TYPE_STAR: {
+
+        case SF_TOKEN_TYPE_STAR:
+        case SF_TOKEN_TYPE_STAR_EQUAL: {
             return SF_OP_TYPE_MUL;
         }
-        case SF_TOKEN_TYPE_SLASH: {
+
+        case SF_TOKEN_TYPE_SLASH:
+        case SF_TOKEN_TYPE_SLASH_EQUAL: {
             return SF_OP_TYPE_DIV;
         }
 
-        case SF_TOKEN_TYPE_AMP: {
+        case SF_TOKEN_TYPE_AMP:
+        case SF_TOKEN_TYPE_AMP_EQUAL: {
             return SF_OP_TYPE_BITWISE_AND;
         }
-        case SF_TOKEN_TYPE_PIPE: {
+
+        case SF_TOKEN_TYPE_PIPE:
+        case SF_TOKEN_TYPE_PIPE_EQUAL: {
             return SF_OP_TYPE_BITWISE_OR;
         }
-        case SF_TOKEN_TYPE_CARET: {
+
+        case SF_TOKEN_TYPE_CARET:
+        case SF_TOKEN_TYPE_CARET_EQUAL: {
             return SF_OP_TYPE_BITWISE_XOR;
         }
-        case SF_TOKEN_TYPE_RIGHT_SHIFT: {
+
+        case SF_TOKEN_TYPE_RIGHT_SHIFT:
+        case SF_TOKEN_TYPE_RIGHT_SHIFT_EQUAL: {
             return SF_OP_TYPE_BITWISE_RSHIFT;
         }
-        case SF_TOKEN_TYPE_LEFT_SHIFT: {
+
+        case SF_TOKEN_TYPE_LEFT_SHIFT:
+        case SF_TOKEN_TYPE_LEFT_SHIFT_EQUAL: {
             return SF_OP_TYPE_BITWISE_LSHIFT;
         }
 
         case SF_TOKEN_TYPE_EQUAL_EQUAL: {
             return SF_OP_TYPE_RELATIONAL_EQUAL;
         }
+
         case SF_TOKEN_TYPE_BANG_EQUAL: {
             return SF_OP_TYPE_RELATIONAL_NOT_EQUAL;
         }
+
         case SF_TOKEN_TYPE_LESS: {
             return SF_OP_TYPE_RELATIONAL_LESS;
         }
+
         case SF_TOKEN_TYPE_LESS_EQUAL: {
             return SF_OP_TYPE_RELATIONAL_LESS_EQUAL;
         }
+
         case SF_TOKEN_TYPE_GREATER: {
             return SF_OP_TYPE_RELATIONAL_GREATER;
         }
+
         case SF_TOKEN_TYPE_GREATER_EQUAL: {
             return SF_OP_TYPE_RELATIONAL_GREATER_EQUAL;
         }

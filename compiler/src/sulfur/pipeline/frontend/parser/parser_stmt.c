@@ -9,20 +9,36 @@
 #include "sulfur/utils/token_utils.h"
 #include "sulfur/utils/log.h"
 
+typedef struct {
+    bool mut;
+} sf_qualifiers;
+
 static sf_ast_node *parse_expr_stmt(sf_parser *p);
-static sf_ast_node *parse_declaration(sf_parser *p);
-static sf_ast_node *parse_assign(sf_parser *p);
-static sf_ast_node *parse_if_stmt(sf_parser *p);
-static sf_ast_node *parse_while_stmt(sf_parser *p);
-static sf_ast_node *parse_func_stmt(sf_parser *p);
-static sf_ast_node *parse_return_stmt(sf_parser *p);
+
+static sf_ast_node *parse_decl(sf_parser *p);
+
+static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers quals);
+static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers quals);
+
+static sf_ast_node *parse_var_assign(sf_parser *p);
+
+static sf_ast_node *parse_if(sf_parser *p);
+static sf_ast_node *parse_while(sf_parser *p);
+
+static sf_ast_node *parse_return(sf_parser *p);
+
 static sf_ast_node *parse_block(sf_parser *p);
+
+static sf_qualifiers parse_qualifiers(sf_parser *p);
 
 sf_ast_node *sf_parse_top_level(sf_parser *p) {
     const sf_token *token = sf_parser_peek(p);
 
-    if (sf_token_is_fn(*token)) {
-        return parse_func_stmt(p);
+    if (
+        sf_token_is_fn(*token) ||
+        sf_token_is_qual(*token)
+    ) {
+        return parse_decl(p);
     }
 
     sf_log(
@@ -40,15 +56,19 @@ sf_ast_node *sf_parse_top_level(sf_parser *p) {
 sf_ast_node *sf_parse_statement(sf_parser *p) {
     const sf_token *token = sf_parser_peek(p);
 
-    if (sf_token_is_type(*token)) {
-        return parse_declaration(p);
+    if (
+        sf_token_is_type(*token) ||
+        sf_token_is_fn(*token) ||
+        sf_token_is_qual(*token)
+    ) {
+        return parse_decl(p);
     }
 
     if (
         sf_token_is_ident(*token) &&
-        sf_token_is_assignment_op(sf_parser_peek_next(p)->type)
+        sf_token_is_assign(*sf_parser_peek_next(p))
     ) {
-        return parse_assign(p);
+        return parse_var_assign(p);
     }
 
     if (sf_token_is_block(*token)) {
@@ -56,19 +76,15 @@ sf_ast_node *sf_parse_statement(sf_parser *p) {
     }
 
     if (sf_token_is_if(*token)) {
-        return parse_if_stmt(p);
+        return parse_if(p);
     }
 
     if (sf_token_is_while(*token)) {
-        return parse_while_stmt(p);
-    }
-
-    if (sf_token_is_fn(*token)) {
-        return parse_func_stmt(p);
+        return parse_while(p);
     }
 
     if (sf_token_is_return(*token)) {
-        return parse_return_stmt(p);
+        return parse_return(p);
     }
 
     return parse_expr_stmt(p);
@@ -146,7 +162,28 @@ static sf_ast_node *parse_expr_stmt(sf_parser *p) {
     return expr;
 }
 
-static sf_ast_node *parse_declaration(sf_parser *p) {
+static sf_ast_node *parse_decl(sf_parser *p) {
+    sf_qualifiers quals = parse_qualifiers(p);
+    const sf_token *token = sf_parser_peek(p);
+
+    if (sf_token_is_fn(*token)) {
+        return parse_func_decl(p, quals);
+    }
+
+    if (sf_token_is_type(*token)) {
+        return parse_var_decl(p, quals);
+    }
+
+    sf_parser_report_unexpected(
+        p, token, "a declaration",
+        "expected a variable declaration"
+    );
+
+    sf_parser_recover_statement(p);
+    return NULL;
+}
+
+static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers quals) {
     sf_value_type type;
 
     if (!sf_parser_expect_type(p, &type, "a type keyword", "use any type keyword")) {
@@ -185,7 +222,7 @@ static sf_ast_node *parse_declaration(sf_parser *p) {
     );
 }
 
-static sf_ast_node *parse_assign(sf_parser *p) {
+static sf_ast_node *parse_var_assign(sf_parser *p) {
     const sf_token *name_token = sf_parser_advance(p);
     const sf_token *op_token = sf_parser_advance(p);
 
@@ -199,7 +236,7 @@ static sf_ast_node *parse_assign(sf_parser *p) {
     sf_ast_node *value = rhs;
 
     if (op_token->type != SF_TOKEN_TYPE_EQUAL) {
-        sf_operation_type op = sf_token_assign_to_binary_op(op_token->type);
+        sf_operation_type op = sf_token_to_binary_op(*op_token);
 
         if (op == SF_OP_TYPE_UNRESOLVED) {
             return NULL;
@@ -232,7 +269,7 @@ static sf_ast_node *parse_assign(sf_parser *p) {
     );
 }
 
-static sf_ast_node *parse_if_stmt(sf_parser *p) {
+static sf_ast_node *parse_if(sf_parser *p) {
     const sf_token *token = sf_parser_advance(p);
 
     sf_ast_node *condition = sf_parse_expression(p);
@@ -253,7 +290,7 @@ static sf_ast_node *parse_if_stmt(sf_parser *p) {
 
     if (sf_parser_match(p, SF_TOKEN_TYPE_KW_ELSE)) {
         if (sf_parser_peek(p)->type == SF_TOKEN_TYPE_KW_IF) {
-            branch_else = parse_if_stmt(p);
+            branch_else = parse_if(p);
         } else {
             branch_else = parse_block(p);
         }
@@ -269,7 +306,7 @@ static sf_ast_node *parse_if_stmt(sf_parser *p) {
     );
 }
 
-static sf_ast_node *parse_while_stmt(sf_parser *p) {
+static sf_ast_node *parse_while(sf_parser *p) {
     const sf_token *token = sf_parser_advance(p);
 
     sf_ast_node *condition = sf_parse_expression(p);
@@ -291,7 +328,7 @@ static sf_ast_node *parse_while_stmt(sf_parser *p) {
     );
 }
 
-static sf_ast_node *parse_func_stmt(sf_parser *p) {
+static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers quals) {
     const sf_token *fn_token = sf_parser_advance(p);
 
     const sf_token *name_token = sf_parser_expect_identifier(
@@ -416,7 +453,7 @@ static sf_ast_node *parse_func_stmt(sf_parser *p) {
     return (sf_ast_node *)func;
 }
 
-static sf_ast_node *parse_return_stmt(sf_parser *p) {
+static sf_ast_node *parse_return(sf_parser *p) {
     const sf_token *token = sf_parser_advance(p);
     sf_ast_node *value = NULL;
 
@@ -469,4 +506,35 @@ static sf_ast_node *parse_block(sf_parser *p) {
     }
 
     return (sf_ast_node *)block;
+}
+
+static sf_qualifiers parse_qualifiers(sf_parser *p) {
+    sf_qualifiers quals = {0};
+
+    while (true) {
+        const sf_token *token = sf_parser_peek(p);
+
+        switch (token->type) {
+            case SF_TOKEN_TYPE_KW_MUT: {
+                if (quals.mut == true) {
+                    sf_log(
+                        "repeated qualifier",
+                        "declaration has 2 or more occurencies of the '%s' qualifier",
+                        "remove all duplicated qualifiers", p->filename,
+                        SF_LOG_PARSER_REPEATED_QUALIFIER, token->span,
+                        SF_LOG_SEVERITY_WARNING, sf_token_type_name(token->type)
+                    );
+                } else {
+                    quals.mut = true;
+                }
+                break;
+            }
+
+            default: {
+                return quals;
+            }
+        }
+
+        sf_parser_advance(p);
+    }
 }

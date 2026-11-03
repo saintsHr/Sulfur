@@ -610,9 +610,9 @@ static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
 
     if (!sym->initialized) {
         sf_log(
-            "uninitialized variable", "'%s' is used before being initialized",
-            "assign a value to the variable before using it", s->filename,
-            SF_LOG_SEMANTIC_UNINITIALIZED, id->base.span,
+            "uninitialized variable", "'%s' may be used before being initialized",
+            "assign a value to the variable in every path before using it",
+            s->filename, SF_LOG_SEMANTIC_UNINITIALIZED, id->base.span,
             SF_LOG_SEVERITY_ERROR, id->name
         );
 

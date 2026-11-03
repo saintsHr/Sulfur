@@ -7,8 +7,6 @@
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/string.h"
 
-#define SF_LEVENSHTEIN_MAX 256
-
 void scope_init(sf_scope *scope) {
     scope->stack = NULL;
     scope->depth = 0;
@@ -139,4 +137,69 @@ const char *scope_find_closest(sf_scope *scope, const char *name) {
     }
 
     return best_candidate;
+}
+
+sf_flow_state scope_flow_save(const sf_scope *scope) {
+    sf_flow_state state = {0};
+    size_t total = 0;
+
+    for (size_t i = 0; i < scope->depth; i++) {
+        total += scope->stack[i].count;
+    }
+
+    if (total == 0) {
+        return state;
+    }
+
+    state.flags = malloc(total * sizeof(bool));
+
+    if (state.flags == NULL) {
+        return state;
+    }
+
+    size_t k = 0;
+
+    for (size_t i = 0; i < scope->depth; i++) {
+        for (size_t j = 0; j < scope->stack[i].count; j++) {
+            state.flags[k++] = scope->stack[i].symbols[j].initialized;
+        }
+    }
+
+    state.count = total;
+
+    return state;
+}
+
+void scope_flow_restore(sf_scope *scope, const sf_flow_state *state) {
+    size_t k = 0;
+
+    for (size_t i = 0; i < scope->depth; i++) {
+        for (size_t j = 0; j < scope->stack[i].count; j++) {
+            if (k >= state->count) {
+                return;
+            }
+
+            scope->stack[i].symbols[j].initialized = state->flags[k++];
+        }
+    }
+}
+
+void scope_flow_fill(sf_flow_state *state, bool value) {
+    for (size_t i = 0; i < state->count; i++) {
+        state->flags[i] = value;
+    }
+}
+
+void scope_flow_and(sf_flow_state *dst, const sf_flow_state *other) {
+    size_t n = dst->count < other->count ? dst->count : other->count;
+
+    for (size_t i = 0; i < n; i++) {
+        dst->flags[i] = dst->flags[i] && other->flags[i];
+    }
+}
+
+void scope_flow_free(sf_flow_state *state) {
+    free(state->flags);
+    state->flags = NULL;
+    state->count = 0;
 }
