@@ -9,10 +9,6 @@
 #include "sulfur/utils/token_utils.h"
 #include "sulfur/utils/log.h"
 
-typedef struct {
-    bool mut;
-} sf_qualifiers;
-
 static sf_ast_node *parse_expr_stmt(sf_parser *p);
 
 static sf_ast_node *parse_decl(sf_parser *p);
@@ -218,7 +214,8 @@ static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers quals) {
     }
 
     return (sf_ast_node *)sf_new_var_decl(
-        p->arena, name_token->value, type, value, name_token->span
+        p->arena, name_token->value, type,
+        value, quals, name_token->span
     );
 }
 

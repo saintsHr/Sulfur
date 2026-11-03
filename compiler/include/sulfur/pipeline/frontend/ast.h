@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -76,16 +77,17 @@ typedef enum {
 } sf_operation_type;
 
 typedef struct {
-    sf_value_type type;
-    char *name;
-    size_t id;
-} sf_parameter;
-
-typedef struct {
     sf_node_type type;
     sf_value_type resolved;
     sf_span span;
 } sf_ast_node;
+
+typedef struct {
+    sf_ast_node base;
+    sf_ast_node **statements;
+    size_t statement_count;
+    size_t statement_capacity;
+} sf_program_node;
 
 typedef struct {
     sf_ast_node base;
@@ -105,20 +107,25 @@ typedef struct {
     sf_ast_node *left;
     sf_ast_node *right;
     sf_operation_type op;
-} sf_binary_expr_node;
+} sf_binary_node;
 
 typedef struct {
     sf_ast_node base;
     sf_ast_node *operand;
     sf_operation_type op;
-} sf_unary_expr_node;
+} sf_unary_node;
+
+typedef struct {
+    bool mut;
+} sf_qualifiers;
 
 typedef struct {
     sf_ast_node base;
-    char *name;
+    sf_qualifiers qualifiers;
     sf_value_type var_type;
-    sf_ast_node *value;
+    char *name;
     size_t id;
+    sf_ast_node *value;
 } sf_var_decl_node;
 
 typedef struct {
@@ -133,33 +140,32 @@ typedef struct {
     sf_ast_node **statements;
     size_t statement_count;
     size_t statement_capacity;
-} sf_program_node;
-
-typedef struct {
-    sf_ast_node base;
-    sf_ast_node **statements;
-    size_t statement_count;
-    size_t statement_capacity;
 } sf_block_node;
 
 typedef struct {
     sf_ast_node base;
     sf_ast_node *operand;
     sf_value_type target_type;
-} sf_cast_expr_node;
+} sf_cast_node;
 
 typedef struct {
     sf_ast_node base;
     sf_ast_node *condition;
     sf_ast_node *branch_then;
     sf_ast_node *branch_else;
-} sf_if_stmt_node;
+} sf_if_node;
 
 typedef struct {
     sf_ast_node base;
     sf_ast_node *condition;
     sf_ast_node *branch_do;
-} sf_while_stmt_node;
+} sf_while_node;
+
+typedef struct {
+    sf_value_type type;
+    char *name;
+    size_t id;
+} sf_parameter;
 
 typedef struct {
     sf_ast_node base;
@@ -173,11 +179,6 @@ typedef struct {
 
 typedef struct {
     sf_ast_node base;
-    sf_ast_node *value;
-} sf_return_stmt_node;
-
-typedef struct {
-    sf_ast_node base;
 
     sf_ast_node *callee;
 
@@ -185,6 +186,11 @@ typedef struct {
     size_t argument_count;
     size_t argument_capacity;
 } sf_func_call_node;
+
+typedef struct {
+    sf_ast_node base;
+    sf_ast_node *value;
+} sf_return_node;
 
 void sf_print_ast(const sf_ast_node *root);
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt);
@@ -199,32 +205,32 @@ sf_literal_node *sf_new_literal(
     sf_token_type tokenType, sf_span span
 );
 sf_identifier_node *sf_new_identifier(sf_arena *arena, const char *name, sf_span span);
-sf_binary_expr_node *sf_new_binary_expr(
+sf_binary_node *sf_new_binary_expr(
     sf_arena *arena, sf_ast_node *left, sf_ast_node *right,
     sf_operation_type op, sf_span span
 );
 sf_var_decl_node *sf_new_var_decl(
     sf_arena *arena, const char *name, sf_value_type type,
-    sf_ast_node *value, sf_span span
+    sf_ast_node *value, sf_qualifiers qualifiers, sf_span span
 );
 sf_var_assign_node *sf_new_var_assign(
     sf_arena *arena, const char *name,
     sf_ast_node *value, sf_span span
 );
-sf_unary_expr_node *sf_new_unary_expr(
+sf_unary_node *sf_new_unary_expr(
     sf_arena *arena, sf_ast_node *operand,
     sf_operation_type op, sf_span span
 );
-sf_cast_expr_node *sf_new_cast_expr(
+sf_cast_node *sf_new_cast_expr(
     sf_arena *arena, sf_ast_node *operand,
     sf_value_type target_type, sf_span span
 );
-sf_if_stmt_node *sf_new_if_stmt(
+sf_if_node *sf_new_if_stmt(
     sf_arena *arena, sf_ast_node *condition,
     sf_ast_node *branch_then,
     sf_ast_node *branch_else, sf_span span
 );
-sf_while_stmt_node *sf_new_while_stmt(
+sf_while_node *sf_new_while_stmt(
     sf_arena *arena, sf_ast_node *condition,
     sf_ast_node *branch_do, sf_span span
 );
@@ -232,7 +238,7 @@ sf_func_decl_node *sf_new_func_decl(
     sf_arena *arena, const char *name,
     sf_value_type return_type, sf_span span
 );
-sf_return_stmt_node *sf_new_return_stmt(
+sf_return_node *sf_new_return_stmt(
     sf_arena *arena, sf_ast_node *value, sf_span span
 );
 sf_func_call_node *sf_new_func_call(

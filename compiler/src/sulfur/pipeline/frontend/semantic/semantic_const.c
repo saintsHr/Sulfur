@@ -17,9 +17,9 @@ static bool eval_uint_binary(
 static bool eval_int_binary(
     sf_operation_type op, int64_t l, int64_t r, int64_t *out_value
 );
-static bool eval_int_negate(const sf_unary_expr_node *un, int64_t *out_value);
-static bool eval_bool_binary(sf_binary_expr_node *bin, bool *out_value);
-static bool eval_relational(sf_binary_expr_node *bin, bool *out_value);
+static bool eval_int_negate(const sf_unary_node *un, int64_t *out_value);
+static bool eval_bool_binary(sf_binary_node *bin, bool *out_value);
+static bool eval_relational(sf_binary_node *bin, bool *out_value);
 
 static bool compare_int(sf_operation_type op, int64_t l, int64_t r, bool *out_value);
 static bool compare_uint(sf_operation_type op, uint64_t l, uint64_t r, bool *out_value);
@@ -41,7 +41,7 @@ bool sf_const_eval_uint(sf_ast_node *node, uint64_t *out_value) {
         return false;
     }
 
-    sf_binary_expr_node *bin = (sf_binary_expr_node *)node;
+    sf_binary_node *bin = (sf_binary_node *)node;
     uint64_t l, r;
 
     if (!sf_const_eval_uint(bin->left, &l)) {
@@ -72,14 +72,14 @@ bool sf_const_eval_int(sf_ast_node *node, int64_t *out_value) {
     }
 
     if (node->type == SF_NODE_UNARY_EXPR) {
-        return eval_int_negate((const sf_unary_expr_node *)node, out_value);
+        return eval_int_negate((const sf_unary_node *)node, out_value);
     }
 
     if (node->type != SF_NODE_BINARY_EXPR) {
         return false;
     }
 
-    sf_binary_expr_node *bin = (sf_binary_expr_node *)node;
+    sf_binary_node *bin = (sf_binary_node *)node;
     int64_t l, r;
 
     if (!sf_const_eval_int(bin->left, &l)) {
@@ -111,7 +111,7 @@ bool sf_const_eval_bool(sf_ast_node *node, bool *out_value) {
     }
 
     if (node->type == SF_NODE_UNARY_EXPR) {
-        sf_unary_expr_node *un = (sf_unary_expr_node *)node;
+        sf_unary_node *un = (sf_unary_node *)node;
 
         if (un->op != SF_OP_TYPE_LOGICAL_NOT) {
             return false;
@@ -128,7 +128,7 @@ bool sf_const_eval_bool(sf_ast_node *node, bool *out_value) {
     }
 
     if (node->type == SF_NODE_BINARY_EXPR) {
-        return eval_bool_binary((sf_binary_expr_node *)node, out_value);
+        return eval_bool_binary((sf_binary_node *)node, out_value);
     }
 
     return false;
@@ -344,7 +344,7 @@ static bool eval_int_binary(
     }
 }
 
-static bool eval_int_negate(const sf_unary_expr_node *un, int64_t *out_value) {
+static bool eval_int_negate(const sf_unary_node *un, int64_t *out_value) {
     if (un->op != SF_OP_TYPE_NEGATE) {
         return false;
     }
@@ -383,7 +383,7 @@ static bool eval_int_negate(const sf_unary_expr_node *un, int64_t *out_value) {
     return true;
 }
 
-static bool eval_bool_binary(sf_binary_expr_node *bin, bool *out_value) {
+static bool eval_bool_binary(sf_binary_node *bin, bool *out_value) {
     if (sf_op_is_logical(bin->op)) {
         bool l, r;
 
@@ -407,7 +407,7 @@ static bool eval_bool_binary(sf_binary_expr_node *bin, bool *out_value) {
     return false;
 }
 
-static bool eval_relational(sf_binary_expr_node *bin, bool *out_value) {
+static bool eval_relational(sf_binary_node *bin, bool *out_value) {
     sf_value_type type = bin->left->resolved;
 
     if (type == SF_VAL_TYPE_BOOL) {
@@ -577,7 +577,7 @@ static bool check_unsigned_overflow(
             return true;
         }
 
-        sf_binary_expr_node *bin = (sf_binary_expr_node *)node;
+        sf_binary_node *bin = (sf_binary_node *)node;
 
         if (bin->op != SF_OP_TYPE_SUB) {
             return true;

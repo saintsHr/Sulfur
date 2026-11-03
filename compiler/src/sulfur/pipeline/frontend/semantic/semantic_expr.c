@@ -13,46 +13,46 @@
 #include "sulfur/utils/type_utils.h"
 
 static bool analyze_binary(
-    sf_semantic *s, sf_binary_expr_node *bin, sf_value_type expected
+    sf_semantic *s, sf_binary_node *bin, sf_value_type expected
 );
 static bool analyze_binary_operands(
-    sf_semantic *s, sf_binary_expr_node *bin, sf_value_type operand_expected
+    sf_semantic *s, sf_binary_node *bin, sf_value_type operand_expected
 );
 static bool analyze_logical(
-    sf_semantic *s, sf_binary_expr_node *bin,
+    sf_semantic *s, sf_binary_node *bin,
     sf_value_type ltype, sf_value_type rtype
 );
 static bool analyze_shift(
-    sf_semantic *s, sf_binary_expr_node *bin,
+    sf_semantic *s, sf_binary_node *bin,
     sf_value_type ltype, sf_value_type rtype
 );
 static bool analyze_relational(
-    sf_semantic *s, sf_binary_expr_node *bin,
+    sf_semantic *s, sf_binary_node *bin,
     sf_value_type ltype, sf_value_type rtype
 );
 static bool analyze_arithmetic(
-    sf_semantic *s, sf_binary_expr_node *bin,
+    sf_semantic *s, sf_binary_node *bin,
     sf_value_type ltype, sf_value_type rtype
 );
 
 static bool analyze_unary(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 );
 static bool analyze_negate(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 );
 static bool analyze_negated_literal(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 );
 static bool analyze_bitwise_not(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 );
 static bool analyze_increment(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 );
-static bool analyze_logical_not(sf_semantic *s, sf_unary_expr_node *un);
+static bool analyze_logical_not(sf_semantic *s, sf_unary_node *un);
 
-static bool analyze_cast(sf_semantic *s, sf_cast_expr_node *cast);
+static bool analyze_cast(sf_semantic *s, sf_cast_node *cast);
 static bool analyze_literal(
     sf_semantic *s, sf_literal_node *lit, sf_value_type expected
 );
@@ -68,13 +68,13 @@ static bool check_argument_type(
 bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_value_type expected) {
     switch (node->type) {
         case SF_NODE_BINARY_EXPR: {
-            return analyze_binary(s, (sf_binary_expr_node *)node, expected);
+            return analyze_binary(s, (sf_binary_node *)node, expected);
         }
         case SF_NODE_UNARY_EXPR: {
-            return analyze_unary(s, (sf_unary_expr_node *)node, expected);
+            return analyze_unary(s, (sf_unary_node *)node, expected);
         }
         case SF_NODE_CAST_EXPR: {
-            return analyze_cast(s, (sf_cast_expr_node *)node);
+            return analyze_cast(s, (sf_cast_node *)node);
         }
         case SF_NODE_LITERAL: {
             return analyze_literal(s, (sf_literal_node *)node, expected);
@@ -92,7 +92,7 @@ bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_value_type expected)
 }
 
 static bool analyze_binary(
-    sf_semantic *s, sf_binary_expr_node *bin, sf_value_type expected
+    sf_semantic *s, sf_binary_node *bin, sf_value_type expected
 ) {
     sf_value_type operand_expected = expected;
 
@@ -131,7 +131,7 @@ static bool analyze_binary(
 }
 
 static bool analyze_binary_operands(
-    sf_semantic *s, sf_binary_expr_node *bin, sf_value_type operand_expected
+    sf_semantic *s, sf_binary_node *bin, sf_value_type operand_expected
 ) {
     bool is_relational = sf_op_is_relational(bin->op);
     bool is_shift = sf_op_is_shift(bin->op);
@@ -169,7 +169,7 @@ static bool analyze_binary_operands(
 }
 
 static bool analyze_logical(
-    sf_semantic *s, sf_binary_expr_node *bin,
+    sf_semantic *s, sf_binary_node *bin,
     sf_value_type ltype, sf_value_type rtype
 ) {
     if (ltype != SF_VAL_TYPE_BOOL || rtype != SF_VAL_TYPE_BOOL) {
@@ -195,7 +195,7 @@ static bool analyze_logical(
 }
 
 static bool analyze_shift(
-    sf_semantic *s, sf_binary_expr_node *bin,
+    sf_semantic *s, sf_binary_node *bin,
     sf_value_type ltype, sf_value_type rtype
 ) {
     bin->base.resolved = ltype;
@@ -224,7 +224,7 @@ static bool analyze_shift(
 }
 
 static bool analyze_relational(
-    sf_semantic *s, sf_binary_expr_node *bin,
+    sf_semantic *s, sf_binary_node *bin,
     sf_value_type ltype, sf_value_type rtype
 ) {
     if (!sf_type_value_is_same_group(ltype, rtype)) {
@@ -260,7 +260,7 @@ static bool analyze_relational(
 }
 
 static bool analyze_arithmetic(
-    sf_semantic *s, sf_binary_expr_node *bin,
+    sf_semantic *s, sf_binary_node *bin,
     sf_value_type ltype, sf_value_type rtype
 ) {
     if (!sf_type_value_is_same_group(ltype, rtype)) {
@@ -307,7 +307,7 @@ static bool analyze_arithmetic(
 }
 
 static bool analyze_unary(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 ) {
     switch (un->op) {
         case SF_OP_TYPE_NEGATE: {
@@ -332,7 +332,7 @@ static bool analyze_unary(
 }
 
 static bool analyze_negate(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 ) {
     sf_ast_node *operand = un->operand;
 
@@ -376,7 +376,7 @@ static bool analyze_negate(
 }
 
 static bool analyze_negated_literal(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 ) {
     sf_literal_node *lit = (sf_literal_node *)un->operand;
     sf_value_type target = expected;
@@ -429,7 +429,7 @@ static bool analyze_negated_literal(
 }
 
 static bool analyze_bitwise_not(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 ) {
     if (!sf_semantic_expr(s, un->operand, expected)) {
         return false;
@@ -454,7 +454,7 @@ static bool analyze_bitwise_not(
 }
 
 static bool analyze_increment(
-    sf_semantic *s, sf_unary_expr_node *un, sf_value_type expected
+    sf_semantic *s, sf_unary_node *un, sf_value_type expected
 ) {
     if (un->operand->type != SF_NODE_IDENTIFIER) {
         sf_log(
@@ -488,7 +488,7 @@ static bool analyze_increment(
     return true;
 }
 
-static bool analyze_logical_not(sf_semantic *s, sf_unary_expr_node *un) {
+static bool analyze_logical_not(sf_semantic *s, sf_unary_node *un) {
     if (!sf_semantic_expr(s, un->operand, SF_VAL_TYPE_BOOL)) {
         return false;
     }
@@ -511,7 +511,7 @@ static bool analyze_logical_not(sf_semantic *s, sf_unary_expr_node *un) {
     return true;
 }
 
-static bool analyze_cast(sf_semantic *s, sf_cast_expr_node *cast) {
+static bool analyze_cast(sf_semantic *s, sf_cast_node *cast) {
     if (!sf_semantic_expr(s, cast->operand, SF_VAL_TYPE_UNRESOLVED)) {
         return false;
     }
@@ -684,7 +684,7 @@ static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
             arg->resolved != SF_VAL_TYPE_UNRESOLVED &&
             arg->resolved != expected
         ) {
-            sf_cast_expr_node *cast = sf_new_cast_expr(
+            sf_cast_node *cast = sf_new_cast_expr(
                 s->arena, arg, expected, arg->span
             );
 
