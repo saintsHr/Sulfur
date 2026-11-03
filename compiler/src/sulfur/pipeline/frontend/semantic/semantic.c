@@ -35,6 +35,7 @@ static void check_main_function(sf_semantic *semantic);
 
 static bool stmt_always_returns(sf_ast_node *node);
 static bool has_no_effect(sf_ast_node *node);
+static bool shadows_parameter(sf_semantic *semantic, const char *name);
 
 void sf_analyze(
     sf_arena *arena, sf_program_node *program,
@@ -148,6 +149,18 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
             "give the variable '%s' a valid type", semantic->filename,
             SF_LOG_SEMANTIC_INVALID_TYPE, var->base.span, SF_LOG_SEVERITY_ERROR,
             var->name
+        );
+
+        return;
+    }
+
+    if (shadows_parameter(semantic, var->name)) {
+        sf_log(
+            "redeclaration", "'%s' shadows a parameter of function '%s'",
+            "rename the variable, or remove the declaration",
+            semantic->filename, SF_LOG_SEMANTIC_REDECLARATION,
+            var->base.span, SF_LOG_SEVERITY_ERROR,
+            var->name, semantic->current_func->name
         );
 
         return;
@@ -588,4 +601,20 @@ static bool has_no_effect(sf_ast_node *node) {
             return false;
         }
     }
+}
+
+static bool shadows_parameter(sf_semantic *semantic, const char *name) {
+    sf_func_decl_node *func = semantic->current_func;
+
+    if (func == NULL) {
+        return false;
+    }
+
+    for (size_t i = 0; i < func->parameter_count; i++) {
+        if (strcmp(func->parameters[i].name, name) == 0) {
+            return true;
+        }
+    }
+
+    return false;
 }
