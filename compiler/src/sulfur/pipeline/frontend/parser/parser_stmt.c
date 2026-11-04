@@ -10,22 +10,17 @@
 #include "sulfur/utils/log.h"
 
 static sf_ast_node *parse_expr_stmt(sf_parser *p);
-
 static sf_ast_node *parse_decl(sf_parser *p);
-
 static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers qualifiers);
 static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers qualifiers);
-
 static sf_ast_node *parse_var_assign(sf_parser *p);
-
 static sf_ast_node *parse_if(sf_parser *p);
 static sf_ast_node *parse_while(sf_parser *p);
-
 static sf_ast_node *parse_return(sf_parser *p);
-
 static sf_ast_node *parse_block(sf_parser *p);
-
 static sf_qualifiers parse_qualifiers(sf_parser *p);
+
+static void report_repeated_qual(const sf_parser *p, sf_token token);
 
 sf_ast_node *sf_parse_top_level(sf_parser *p) {
     const sf_token *token = sf_parser_peek(p);
@@ -519,15 +514,18 @@ static sf_qualifiers parse_qualifiers(sf_parser *p) {
         switch (token->type) {
             case SF_TOKEN_TYPE_KW_MUT: {
                 if (quals.is_mutable == true) {
-                    sf_log(
-                        "repeated qualifier",
-                        "declaration has 2 or more occurencies of the '%s' qualifier",
-                        "remove all duplicated qualifiers", p->filename,
-                        SF_LOG_PARSER_REPEATED_QUALIFIER, token->span,
-                        SF_LOG_SEVERITY_WARNING, sf_token_type_name(token->type)
-                    );
+                    report_repeated_qual(p, *token);
                 } else {
                     quals.is_mutable = true;
+                }
+                break;
+            }
+
+            case SF_TOKEN_TYPE_KW_PUB: {
+                if (quals.is_public == true) {
+                    report_repeated_qual(p, *token);
+                } else {
+                    quals.is_public = true;
                 }
                 break;
             }
@@ -539,4 +537,14 @@ static sf_qualifiers parse_qualifiers(sf_parser *p) {
 
         sf_parser_advance(p);
     }
+}
+
+static void report_repeated_qual(const sf_parser *p, sf_token token) {
+    sf_log(
+        "repeated qualifier",
+        "declaration has 2 or more occurencies of the '%s' qualifier",
+        "remove all duplicated qualifiers", p->filename,
+        SF_LOG_PARSER_REPEATED_QUALIFIER, token.span,
+        SF_LOG_SEVERITY_WARNING, sf_token_type_name(token.type)
+    );
 }

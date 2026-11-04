@@ -82,6 +82,7 @@ typedef enum {
     SF_TOKEN_TYPE_KW_RETURN,
 
     SF_TOKEN_TYPE_KW_MUT,
+    SF_TOKEN_TYPE_KW_PUB,
 
     SF_TOKEN_TYPE_EOF
 } sf_token_type;
