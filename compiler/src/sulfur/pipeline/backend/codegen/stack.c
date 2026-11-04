@@ -57,14 +57,14 @@ void sf_stack_push(sf_stack_map *map, sf_stack_entry entry) {
 }
 
 void sf_stack_register_operand(
-    sf_stack_map *map, sf_operand op, sf_stack_offset_size_t *next_offset
+    sf_stack_map *map, sf_ir_operand op, sf_stack_offset_size_t *next_offset
 ) {
     switch (op.type) {
-        case SF_OPERAND_TYPE_VARIABLE: {
+        case SF_IR_OPERAND_TYPE_VARIABLE: {
             add_entry(map, op.variable_name, op.value_type, next_offset);
             break;
         }
-        case SF_OPERAND_TYPE_TEMPORARY: {
+        case SF_IR_OPERAND_TYPE_TEMPORARY: {
             char name[k_temporary_name_size];
             snprintf(name, sizeof(name), "t%zu", op.temporary_id);
 
@@ -80,7 +80,7 @@ void sf_stack_register_operand(
 
 void sf_stack_populate(
     sf_stack_map *map, const sf_parameter *params, size_t param_count,
-    const sf_operation *operations, size_t operation_count
+    const sf_ir_operation *operations, size_t operation_count
 ) {
     if (map == NULL) {
         return;
@@ -91,8 +91,8 @@ void sf_stack_populate(
     for (size_t i = 0; i < param_count; i++) {
         sf_stack_register_operand(
             map,
-            (sf_operand){
-                .type = SF_OPERAND_TYPE_VARIABLE,
+            (sf_ir_operand){
+                .type = SF_IR_OPERAND_TYPE_VARIABLE,
                 .variable_name = params[i].name,
                 .value_type = params[i].type,
             },
@@ -105,12 +105,12 @@ void sf_stack_populate(
     }
 
     for (size_t i = 0; i < operation_count; i++) {
-        const sf_operation *op = &operations[i];
+        const sf_ir_operation *op = &operations[i];
 
         sf_stack_register_operand(map, op->operand1, &next_offset);
         sf_stack_register_operand(map, op->operand2, &next_offset);
 
-        if (op->opcode != SF_OPCODE_ASSIGN) {
+        if (op->opcode != SF_IR_OPCODE_ASSIGN) {
             sf_stack_register_operand(map, op->operand3, &next_offset);
         }
     }

@@ -76,7 +76,7 @@ typedef enum {
     SF_OP_TYPE_POSTFIX_INCREMENT,
     SF_OP_TYPE_PREFIX_DECREMENT,
     SF_OP_TYPE_POSTFIX_DECREMENT
-} sf_operation_type;
+} sf_ir_operation_type;
 
 typedef struct {
     sf_node_type type;
@@ -109,13 +109,13 @@ typedef struct {
     sf_ast_node base;
     sf_ast_node *left;
     sf_ast_node *right;
-    sf_operation_type op;
+    sf_ir_operation_type op;
 } sf_binary_node;
 
 typedef struct {
     sf_ast_node base;
     sf_ast_node *operand;
-    sf_operation_type op;
+    sf_ir_operation_type op;
 } sf_unary_node;
 
 typedef struct {
@@ -213,7 +213,7 @@ sf_literal_node *sf_new_literal_node(
 sf_identifier_node *sf_new_identifier_node(sf_arena *arena, const char *name, sf_span span);
 sf_binary_node *sf_new_binary_node(
     sf_arena *arena, sf_ast_node *left, sf_ast_node *right,
-    sf_operation_type op, sf_span span
+    sf_ir_operation_type op, sf_span span
 );
 sf_var_decl_node *sf_new_var_decl_node(
     sf_arena *arena, const char *name, sf_value_type type,
@@ -225,7 +225,7 @@ sf_var_assign_node *sf_new_var_assign_node(
 );
 sf_unary_node *sf_new_unary_node(
     sf_arena *arena, sf_ast_node *operand,
-    sf_operation_type op, sf_span span
+    sf_ir_operation_type op, sf_span span
 );
 sf_cast_node *sf_new_cast_node(
     sf_arena *arena, sf_ast_node *operand,

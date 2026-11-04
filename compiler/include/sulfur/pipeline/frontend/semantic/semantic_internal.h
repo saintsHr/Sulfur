@@ -34,15 +34,15 @@ bool sf_const_check_overflow(
 bool sf_const_is_zero(sf_ast_node *node, bool is_signed);
 void sf_const_warn(sf_semantic *s, sf_ast_node *node, const char *desc);
 
-static inline bool sf_op_is_logical(sf_operation_type op) {
+static inline bool sf_op_is_logical(sf_ir_operation_type op) {
     return op == SF_OP_TYPE_LOGICAL_AND || op == SF_OP_TYPE_LOGICAL_OR;
 }
 
-static inline bool sf_op_is_shift(sf_operation_type op) {
+static inline bool sf_op_is_shift(sf_ir_operation_type op) {
     return op == SF_OP_TYPE_BITWISE_LSHIFT || op == SF_OP_TYPE_BITWISE_RSHIFT;
 }
 
-static inline bool sf_op_is_relational(sf_operation_type op) {
+static inline bool sf_op_is_relational(sf_ir_operation_type op) {
     return
         op == SF_OP_TYPE_RELATIONAL_EQUAL ||
         op == SF_OP_TYPE_RELATIONAL_NOT_EQUAL ||

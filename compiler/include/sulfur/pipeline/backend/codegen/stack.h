@@ -23,11 +23,11 @@ typedef struct {
 sf_stack_offset_size_t sf_stack_lookup(const sf_stack_map *map, const char *name);
 sf_stack_entry *sf_stack_lookup_entry(const sf_stack_map *map, const char *name);
 void sf_stack_register_operand(
-    sf_stack_map *map, sf_operand op, sf_stack_offset_size_t *next_offset
+    sf_stack_map *map, sf_ir_operand op, sf_stack_offset_size_t *next_offset
 );
 void sf_stack_push(sf_stack_map *map, sf_stack_entry entry);
 void sf_stack_populate(
     sf_stack_map *map, const sf_parameter *params, size_t param_count,
-    const sf_operation *operations, size_t operation_count
+    const sf_ir_operation *operations, size_t operation_count
 );
 void sf_stack_free(sf_stack_map *map);

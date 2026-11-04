@@ -12,78 +12,78 @@
 static const size_t k_number_buffer_size = 32;
 static const uint64_t k_bit_width = 64;
 
-static bool is_arithmetic_opcode(sf_opcode opcode);
-static bool is_relational_opcode(sf_opcode opcode);
-static bool is_logical_opcode(sf_opcode opcode);
-static bool is_bitwise_opcode(sf_opcode opcode);
-static bool is_unary_opcode(sf_opcode opcode);
+static bool is_arithmetic_opcode(sf_ir_opcode opcode);
+static bool is_relational_opcode(sf_ir_opcode opcode);
+static bool is_logical_opcode(sf_ir_opcode opcode);
+static bool is_bitwise_opcode(sf_ir_opcode opcode);
+static bool is_unary_opcode(sf_ir_opcode opcode);
 
-static int64_t parse_signed(const sf_operand *operand);
-static uint64_t parse_unsigned(const sf_operand *operand);
+static int64_t parse_signed(const sf_ir_operand *operand);
+static uint64_t parse_unsigned(const sf_ir_operand *operand);
 
 static int64_t truncate_signed(int64_t value, sf_value_type type);
 static uint64_t truncate_unsigned(uint64_t value, sf_value_type type);
 
-static bool make_bool_immediate(bool value, sf_operand *out);
+static bool make_bool_immediate(bool value, sf_ir_operand *out);
 static bool make_signed_immediate(
-    sf_arena *arena, sf_value_type type, int64_t value, sf_operand *out
+    sf_arena *arena, sf_value_type type, int64_t value, sf_ir_operand *out
 );
 static bool make_unsigned_immediate(
-    sf_arena *arena, sf_value_type type, uint64_t value, sf_operand *out
+    sf_arena *arena, sf_value_type type, uint64_t value, sf_ir_operand *out
 );
 
 static bool apply_relational_signed(
-    sf_opcode opcode, int64_t l, int64_t r, bool *result
+    sf_ir_opcode opcode, int64_t l, int64_t r, bool *result
 );
 static bool apply_relational_unsigned(
-    sf_opcode opcode, uint64_t l, uint64_t r, bool *result
+    sf_ir_opcode opcode, uint64_t l, uint64_t r, bool *result
 );
 static bool apply_arithmetic_signed(
-    sf_opcode opcode, int64_t l, int64_t r, int64_t *result
+    sf_ir_opcode opcode, int64_t l, int64_t r, int64_t *result
 );
 static bool apply_arithmetic_unsigned(
-    sf_opcode opcode, uint64_t l, uint64_t r, uint64_t *result
+    sf_ir_opcode opcode, uint64_t l, uint64_t r, uint64_t *result
 );
 static bool apply_bitwise_signed(
-    sf_opcode opcode, int64_t l, int64_t r, int64_t *result
+    sf_ir_opcode opcode, int64_t l, int64_t r, int64_t *result
 );
 static bool apply_bitwise_unsigned(
-    sf_opcode opcode, uint64_t l, uint64_t r, uint64_t *result
+    sf_ir_opcode opcode, uint64_t l, uint64_t r, uint64_t *result
 );
-static bool apply_unary_signed(sf_opcode opcode, int64_t o, int64_t *result);
-static bool apply_unary_unsigned(sf_opcode opcode, uint64_t o, uint64_t *result);
+static bool apply_unary_signed(sf_ir_opcode opcode, int64_t o, int64_t *result);
+static bool apply_unary_unsigned(sf_ir_opcode opcode, uint64_t o, uint64_t *result);
 
 static bool fold_relational(
-    sf_opcode opcode, sf_operand left, sf_operand right,
-    bool is_signed, sf_operand *out
+    sf_ir_opcode opcode, sf_ir_operand left, sf_ir_operand right,
+    bool is_signed, sf_ir_operand *out
 );
 static bool fold_logical(
-    sf_opcode opcode, sf_operand left, sf_operand right, sf_operand *out
+    sf_ir_opcode opcode, sf_ir_operand left, sf_ir_operand right, sf_ir_operand *out
 );
 static bool fold_arithmetic(
-    sf_arena *arena, sf_opcode opcode, sf_operand left, sf_operand right,
-    bool is_signed, sf_value_type result_type, sf_operand *out
+    sf_arena *arena, sf_ir_opcode opcode, sf_ir_operand left, sf_ir_operand right,
+    bool is_signed, sf_value_type result_type, sf_ir_operand *out
 );
 static bool fold_bitwise(
-    sf_arena *arena, sf_opcode opcode, sf_operand left, sf_operand right,
-    bool is_signed, sf_value_type result_type, sf_operand *out
+    sf_arena *arena, sf_ir_opcode opcode, sf_ir_operand left, sf_ir_operand right,
+    bool is_signed, sf_value_type result_type, sf_ir_operand *out
 );
 static bool fold_unary(
-    sf_arena *arena, sf_opcode opcode, sf_operand operand,
-    bool is_signed, sf_value_type result_type, sf_operand *out
+    sf_arena *arena, sf_ir_opcode opcode, sf_ir_operand operand,
+    bool is_signed, sf_value_type result_type, sf_ir_operand *out
 );
 
 bool sf_fold_constants(
-    sf_arena *arena, sf_operand left, sf_operand right,
-    sf_opcode opcode, sf_value_type result_type, sf_operand *out
+    sf_arena *arena, sf_ir_operand left, sf_ir_operand right,
+    sf_ir_opcode opcode, sf_value_type result_type, sf_ir_operand *out
 ) {
     bool is_unary = is_unary_opcode(opcode);
 
-    if (left.type != SF_OPERAND_TYPE_IMMEDIATE) {
+    if (left.type != SF_IR_OPERAND_TYPE_IMMEDIATE) {
         return false;
     }
 
-    if (!is_unary && right.type != SF_OPERAND_TYPE_IMMEDIATE) {
+    if (!is_unary && right.type != SF_IR_OPERAND_TYPE_IMMEDIATE) {
         return false;
     }
 
@@ -116,49 +116,49 @@ bool sf_fold_constants(
     return false;
 }
 
-static bool is_arithmetic_opcode(sf_opcode opcode) {
+static bool is_arithmetic_opcode(sf_ir_opcode opcode) {
     return
-        opcode == SF_OPCODE_ADD ||
-        opcode == SF_OPCODE_SUB ||
-        opcode == SF_OPCODE_MULT ||
-        opcode == SF_OPCODE_DIV;
+        opcode == SF_IR_OPCODE_ADD ||
+        opcode == SF_IR_OPCODE_SUB ||
+        opcode == SF_IR_OPCODE_MULT ||
+        opcode == SF_IR_OPCODE_DIV;
 }
 
-static bool is_relational_opcode(sf_opcode opcode) {
+static bool is_relational_opcode(sf_ir_opcode opcode) {
     return
-        opcode == SF_OPCODE_RELATIONAL_EQUAL ||
-        opcode == SF_OPCODE_RELATIONAL_NOT_EQUAL ||
-        opcode == SF_OPCODE_RELATIONAL_LESS ||
-        opcode == SF_OPCODE_RELATIONAL_LESS_EQUAL ||
-        opcode == SF_OPCODE_RELATIONAL_GREATER ||
-        opcode == SF_OPCODE_RELATIONAL_GREATER_EQUAL;
+        opcode == SF_IR_OPCODE_RELATIONAL_EQUAL ||
+        opcode == SF_IR_OPCODE_RELATIONAL_NOT_EQUAL ||
+        opcode == SF_IR_OPCODE_RELATIONAL_LESS ||
+        opcode == SF_IR_OPCODE_RELATIONAL_LESS_EQUAL ||
+        opcode == SF_IR_OPCODE_RELATIONAL_GREATER ||
+        opcode == SF_IR_OPCODE_RELATIONAL_GREATER_EQUAL;
 }
 
-static bool is_logical_opcode(sf_opcode opcode) {
-    return opcode == SF_OPCODE_LOGICAL_AND || opcode == SF_OPCODE_LOGICAL_OR;
+static bool is_logical_opcode(sf_ir_opcode opcode) {
+    return opcode == SF_IR_OPCODE_LOGICAL_AND || opcode == SF_IR_OPCODE_LOGICAL_OR;
 }
 
-static bool is_bitwise_opcode(sf_opcode opcode) {
+static bool is_bitwise_opcode(sf_ir_opcode opcode) {
     return
-        opcode == SF_OPCODE_BITWISE_AND ||
-        opcode == SF_OPCODE_BITWISE_OR ||
-        opcode == SF_OPCODE_BITWISE_XOR ||
-        opcode == SF_OPCODE_BITWISE_RSHIFT ||
-        opcode == SF_OPCODE_BITWISE_LSHIFT;
+        opcode == SF_IR_OPCODE_BITWISE_AND ||
+        opcode == SF_IR_OPCODE_BITWISE_OR ||
+        opcode == SF_IR_OPCODE_BITWISE_XOR ||
+        opcode == SF_IR_OPCODE_BITWISE_RSHIFT ||
+        opcode == SF_IR_OPCODE_BITWISE_LSHIFT;
 }
 
-static bool is_unary_opcode(sf_opcode opcode) {
+static bool is_unary_opcode(sf_ir_opcode opcode) {
     return
-        opcode == SF_OPCODE_BITWISE_NOT ||
-        opcode == SF_OPCODE_LOGICAL_NOT ||
-        opcode == SF_OPCODE_NEGATE;
+        opcode == SF_IR_OPCODE_BITWISE_NOT ||
+        opcode == SF_IR_OPCODE_LOGICAL_NOT ||
+        opcode == SF_IR_OPCODE_NEGATE;
 }
 
-static int64_t parse_signed(const sf_operand *operand) {
+static int64_t parse_signed(const sf_ir_operand *operand) {
     return strtoll(operand->immediate_value, NULL, 10);
 }
 
-static uint64_t parse_unsigned(const sf_operand *operand) {
+static uint64_t parse_unsigned(const sf_ir_operand *operand) {
     return strtoull(operand->immediate_value, NULL, 10);
 }
 
@@ -186,9 +186,9 @@ static uint64_t truncate_unsigned(uint64_t value, sf_value_type type) {
     return value & ((UINT64_C(1) << bits) - 1);
 }
 
-static bool make_bool_immediate(bool value, sf_operand *out) {
-    *out = (sf_operand){
-        .type = SF_OPERAND_TYPE_IMMEDIATE,
+static bool make_bool_immediate(bool value, sf_ir_operand *out) {
+    *out = (sf_ir_operand){
+        .type = SF_IR_OPERAND_TYPE_IMMEDIATE,
         .value_type = SF_VAL_TYPE_BOOL,
         .immediate_value = value ? "1" : "0",
     };
@@ -197,7 +197,7 @@ static bool make_bool_immediate(bool value, sf_operand *out) {
 }
 
 static bool make_signed_immediate(
-    sf_arena *arena, sf_value_type type, int64_t value, sf_operand *out
+    sf_arena *arena, sf_value_type type, int64_t value, sf_ir_operand *out
 ) {
     char *buffer = sf_arena_alloc(arena, k_number_buffer_size);
 
@@ -216,8 +216,8 @@ static bool make_signed_immediate(
         (long long)truncate_signed(value, type)
     );
 
-    *out = (sf_operand){
-        .type = SF_OPERAND_TYPE_IMMEDIATE,
+    *out = (sf_ir_operand){
+        .type = SF_IR_OPERAND_TYPE_IMMEDIATE,
         .value_type = type,
         .immediate_value = buffer,
     };
@@ -226,7 +226,7 @@ static bool make_signed_immediate(
 }
 
 static bool make_unsigned_immediate(
-    sf_arena *arena, sf_value_type type, uint64_t value, sf_operand *out
+    sf_arena *arena, sf_value_type type, uint64_t value, sf_ir_operand *out
 ) {
     char *buffer = sf_arena_alloc(arena, k_number_buffer_size);
 
@@ -245,8 +245,8 @@ static bool make_unsigned_immediate(
         (unsigned long long)truncate_unsigned(value, type)
     );
 
-    *out = (sf_operand){
-        .type = SF_OPERAND_TYPE_IMMEDIATE,
+    *out = (sf_ir_operand){
+        .type = SF_IR_OPERAND_TYPE_IMMEDIATE,
         .value_type = type,
         .immediate_value = buffer,
     };
@@ -255,30 +255,30 @@ static bool make_unsigned_immediate(
 }
 
 static bool apply_relational_signed(
-    sf_opcode opcode, int64_t l, int64_t r, bool *result
+    sf_ir_opcode opcode, int64_t l, int64_t r, bool *result
 ) {
     switch (opcode) {
-        case SF_OPCODE_RELATIONAL_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_EQUAL: {
             *result = l == r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_NOT_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_NOT_EQUAL: {
             *result = l != r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_LESS: {
+        case SF_IR_OPCODE_RELATIONAL_LESS: {
             *result = l < r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_LESS_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_LESS_EQUAL: {
             *result = l <= r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_GREATER: {
+        case SF_IR_OPCODE_RELATIONAL_GREATER: {
             *result = l > r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_GREATER_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_GREATER_EQUAL: {
             *result = l >= r;
             return true;
         }
@@ -290,30 +290,30 @@ static bool apply_relational_signed(
 }
 
 static bool apply_relational_unsigned(
-    sf_opcode opcode, uint64_t l, uint64_t r, bool *result
+    sf_ir_opcode opcode, uint64_t l, uint64_t r, bool *result
 ) {
     switch (opcode) {
-        case SF_OPCODE_RELATIONAL_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_EQUAL: {
             *result = l == r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_NOT_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_NOT_EQUAL: {
             *result = l != r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_LESS: {
+        case SF_IR_OPCODE_RELATIONAL_LESS: {
             *result = l < r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_LESS_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_LESS_EQUAL: {
             *result = l <= r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_GREATER: {
+        case SF_IR_OPCODE_RELATIONAL_GREATER: {
             *result = l > r;
             return true;
         }
-        case SF_OPCODE_RELATIONAL_GREATER_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_GREATER_EQUAL: {
             *result = l >= r;
             return true;
         }
@@ -325,22 +325,22 @@ static bool apply_relational_unsigned(
 }
 
 static bool apply_arithmetic_signed(
-    sf_opcode opcode, int64_t l, int64_t r, int64_t *result
+    sf_ir_opcode opcode, int64_t l, int64_t r, int64_t *result
 ) {
     switch (opcode) {
-        case SF_OPCODE_ADD: {
+        case SF_IR_OPCODE_ADD: {
             *result = (int64_t)((uint64_t)l + (uint64_t)r);
             return true;
         }
-        case SF_OPCODE_SUB: {
+        case SF_IR_OPCODE_SUB: {
             *result = (int64_t)((uint64_t)l - (uint64_t)r);
             return true;
         }
-        case SF_OPCODE_MULT: {
+        case SF_IR_OPCODE_MULT: {
             *result = (int64_t)((uint64_t)l * (uint64_t)r);
             return true;
         }
-        case SF_OPCODE_DIV: {
+        case SF_IR_OPCODE_DIV: {
             if (r == 0 || (l == INT64_MIN && r == -1)) {
                 return false;
             }
@@ -356,22 +356,22 @@ static bool apply_arithmetic_signed(
 }
 
 static bool apply_arithmetic_unsigned(
-    sf_opcode opcode, uint64_t l, uint64_t r, uint64_t *result
+    sf_ir_opcode opcode, uint64_t l, uint64_t r, uint64_t *result
 ) {
     switch (opcode) {
-        case SF_OPCODE_ADD: {
+        case SF_IR_OPCODE_ADD: {
             *result = l + r;
             return true;
         }
-        case SF_OPCODE_SUB: {
+        case SF_IR_OPCODE_SUB: {
             *result = l - r;
             return true;
         }
-        case SF_OPCODE_MULT: {
+        case SF_IR_OPCODE_MULT: {
             *result = l * r;
             return true;
         }
-        case SF_OPCODE_DIV: {
+        case SF_IR_OPCODE_DIV: {
             if (r == 0) {
                 return false;
             }
@@ -387,22 +387,22 @@ static bool apply_arithmetic_unsigned(
 }
 
 static bool apply_bitwise_signed(
-    sf_opcode opcode, int64_t l, int64_t r, int64_t *result
+    sf_ir_opcode opcode, int64_t l, int64_t r, int64_t *result
 ) {
     switch (opcode) {
-        case SF_OPCODE_BITWISE_AND: {
+        case SF_IR_OPCODE_BITWISE_AND: {
             *result = l & r;
             return true;
         }
-        case SF_OPCODE_BITWISE_OR: {
+        case SF_IR_OPCODE_BITWISE_OR: {
             *result = l | r;
             return true;
         }
-        case SF_OPCODE_BITWISE_XOR: {
+        case SF_IR_OPCODE_BITWISE_XOR: {
             *result = l ^ r;
             return true;
         }
-        case SF_OPCODE_BITWISE_RSHIFT: {
+        case SF_IR_OPCODE_BITWISE_RSHIFT: {
             if (r < 0 || (uint64_t)r >= k_bit_width) {
                 return false;
             }
@@ -410,7 +410,7 @@ static bool apply_bitwise_signed(
             *result = l >> r;
             return true;
         }
-        case SF_OPCODE_BITWISE_LSHIFT: {
+        case SF_IR_OPCODE_BITWISE_LSHIFT: {
             if (r < 0 || (uint64_t)r >= k_bit_width) {
                 return false;
             }
@@ -426,22 +426,22 @@ static bool apply_bitwise_signed(
 }
 
 static bool apply_bitwise_unsigned(
-    sf_opcode opcode, uint64_t l, uint64_t r, uint64_t *result
+    sf_ir_opcode opcode, uint64_t l, uint64_t r, uint64_t *result
 ) {
     switch (opcode) {
-        case SF_OPCODE_BITWISE_AND: {
+        case SF_IR_OPCODE_BITWISE_AND: {
             *result = l & r;
             return true;
         }
-        case SF_OPCODE_BITWISE_OR: {
+        case SF_IR_OPCODE_BITWISE_OR: {
             *result = l | r;
             return true;
         }
-        case SF_OPCODE_BITWISE_XOR: {
+        case SF_IR_OPCODE_BITWISE_XOR: {
             *result = l ^ r;
             return true;
         }
-        case SF_OPCODE_BITWISE_RSHIFT: {
+        case SF_IR_OPCODE_BITWISE_RSHIFT: {
             if (r >= k_bit_width) {
                 return false;
             }
@@ -449,7 +449,7 @@ static bool apply_bitwise_unsigned(
             *result = l >> r;
             return true;
         }
-        case SF_OPCODE_BITWISE_LSHIFT: {
+        case SF_IR_OPCODE_BITWISE_LSHIFT: {
             if (r >= k_bit_width) {
                 return false;
             }
@@ -464,17 +464,17 @@ static bool apply_bitwise_unsigned(
     }
 }
 
-static bool apply_unary_signed(sf_opcode opcode, int64_t o, int64_t *result) {
+static bool apply_unary_signed(sf_ir_opcode opcode, int64_t o, int64_t *result) {
     switch (opcode) {
-        case SF_OPCODE_BITWISE_NOT: {
+        case SF_IR_OPCODE_BITWISE_NOT: {
             *result = ~o;
             return true;
         }
-        case SF_OPCODE_LOGICAL_NOT: {
+        case SF_IR_OPCODE_LOGICAL_NOT: {
             *result = !o;
             return true;
         }
-        case SF_OPCODE_NEGATE: {
+        case SF_IR_OPCODE_NEGATE: {
             *result = (int64_t)(0 - (uint64_t)o);
             return true;
         }
@@ -485,17 +485,17 @@ static bool apply_unary_signed(sf_opcode opcode, int64_t o, int64_t *result) {
     }
 }
 
-static bool apply_unary_unsigned(sf_opcode opcode, uint64_t o, uint64_t *result) {
+static bool apply_unary_unsigned(sf_ir_opcode opcode, uint64_t o, uint64_t *result) {
     switch (opcode) {
-        case SF_OPCODE_BITWISE_NOT: {
+        case SF_IR_OPCODE_BITWISE_NOT: {
             *result = ~o;
             return true;
         }
-        case SF_OPCODE_LOGICAL_NOT: {
+        case SF_IR_OPCODE_LOGICAL_NOT: {
             *result = !o;
             return true;
         }
-        case SF_OPCODE_NEGATE: {
+        case SF_IR_OPCODE_NEGATE: {
             *result = 0 - o;
             return true;
         }
@@ -507,8 +507,8 @@ static bool apply_unary_unsigned(sf_opcode opcode, uint64_t o, uint64_t *result)
 }
 
 static bool fold_relational(
-    sf_opcode opcode, sf_operand left, sf_operand right,
-    bool is_signed, sf_operand *out
+    sf_ir_opcode opcode, sf_ir_operand left, sf_ir_operand right,
+    bool is_signed, sf_ir_operand *out
 ) {
     bool result = false;
     bool ok;
@@ -531,16 +531,16 @@ static bool fold_relational(
 }
 
 static bool fold_logical(
-    sf_opcode opcode, sf_operand left, sf_operand right, sf_operand *out
+    sf_ir_opcode opcode, sf_ir_operand left, sf_ir_operand right, sf_ir_operand *out
 ) {
     uint64_t l = parse_unsigned(&left);
     uint64_t r = parse_unsigned(&right);
 
     switch (opcode) {
-        case SF_OPCODE_LOGICAL_AND: {
+        case SF_IR_OPCODE_LOGICAL_AND: {
             return make_bool_immediate(l && r, out);
         }
-        case SF_OPCODE_LOGICAL_OR: {
+        case SF_IR_OPCODE_LOGICAL_OR: {
             return make_bool_immediate(l || r, out);
         }
 
@@ -551,8 +551,8 @@ static bool fold_logical(
 }
 
 static bool fold_arithmetic(
-    sf_arena *arena, sf_opcode opcode, sf_operand left, sf_operand right,
-    bool is_signed, sf_value_type result_type, sf_operand *out
+    sf_arena *arena, sf_ir_opcode opcode, sf_ir_operand left, sf_ir_operand right,
+    bool is_signed, sf_value_type result_type, sf_ir_operand *out
 ) {
     if (is_signed) {
         int64_t result;
@@ -578,8 +578,8 @@ static bool fold_arithmetic(
 }
 
 static bool fold_bitwise(
-    sf_arena *arena, sf_opcode opcode, sf_operand left, sf_operand right,
-    bool is_signed, sf_value_type result_type, sf_operand *out
+    sf_arena *arena, sf_ir_opcode opcode, sf_ir_operand left, sf_ir_operand right,
+    bool is_signed, sf_value_type result_type, sf_ir_operand *out
 ) {
     if (is_signed) {
         int64_t result;
@@ -605,8 +605,8 @@ static bool fold_bitwise(
 }
 
 static bool fold_unary(
-    sf_arena *arena, sf_opcode opcode, sf_operand operand,
-    bool is_signed, sf_value_type result_type, sf_operand *out
+    sf_arena *arena, sf_ir_opcode opcode, sf_ir_operand operand,
+    bool is_signed, sf_value_type result_type, sf_ir_operand *out
 ) {
     if (is_signed) {
         int64_t result;

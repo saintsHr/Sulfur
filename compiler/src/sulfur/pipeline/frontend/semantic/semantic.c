@@ -23,6 +23,9 @@ static void analyze_while(sf_semantic *semantic, sf_while_node *while_stmt);
 static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func);
 static void analyze_return(sf_semantic *semantic, sf_return_node *ret);
 
+static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym);
+static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym);
+
 static bool check_assignment_type(
     sf_value_type resolved, sf_value_type target,
     sf_span span, const char *filename
@@ -143,7 +146,15 @@ static void analyze_statement(sf_semantic *semantic, sf_ast_node *node) {
 }
 
 static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
-    if (var->var_type == SF_VAL_TYPE_VOID) {
+    sf_var_symbol sym = {
+        .name = var->name,
+        .type = var->var_type,
+        .initialized = var->value != NULL,
+        .span = var->base.span,
+        .qualifiers = var->qualifiers
+    };
+
+    if (sym.type == SF_VAL_TYPE_VOID) {
         sf_log(
             "invalid type", "variables cannot be 'void'",
             "give the variable '%s' a valid type", semantic->filename,
@@ -154,7 +165,7 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
         return;
     }
 
-    if (shadows_parameter(semantic, var->name)) {
+    if (shadows_parameter(semantic, sym.name)) {
         sf_log(
             "redeclaration", "'%s' shadows a parameter of function '%s'",
             "rename the variable, or remove the declaration",
@@ -166,13 +177,9 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
         return;
     }
 
-    sf_var_symbol sym = {
-        .name = var->name,
-        .type = var->var_type,
-        .initialized = var->value != NULL,
-        .span = var->base.span,
-        .qualifiers = var->qualifiers
-    };
+    if (analyze_var_sym_qual(semantic, sym) == false) {
+        return;
+    }
 
     if (var->value != NULL) {
         if (!sf_semantic_expr(semantic, var->value, var->var_type)) {
@@ -328,13 +335,8 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
         .qualifiers = func->qualifiers
     };
 
-    if (sym.qualifiers.is_mutable == true) {
-        sf_log(
-            "invalid qualifier", "functions cannot have 'mut' qualifier",
-            "remove this qualifier", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_QUALIFIER, func->base.span,
-            SF_LOG_SEVERITY_ERROR
-        );
+    if (analyze_func_sym_qual(semantic, sym) == false) {
+        return;
     }
 
     for (size_t i = 0; i < func->parameter_count; i++) {
@@ -468,6 +470,36 @@ static void analyze_return(sf_semantic *semantic, sf_return_node *ret) {
         ret->value->resolved, func->return_type, func->name, ret->base.span,
         semantic->filename
     );
+}
+
+static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym) {
+    if (sym.qualifiers.is_public) {
+        sf_log(
+            "invalid qualifier", "variables cannot be public",
+            "remove the invalid qualifier", semantic->filename,
+            SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span,
+            SF_LOG_SEVERITY_ERROR
+        );
+
+        return false;
+    }
+
+    return true;
+}
+
+static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym) {
+    if (sym.qualifiers.is_mutable == true) {
+        sf_log(
+            "invalid qualifier", "functions cannot be mutable",
+            "remove the invalid qualifier", semantic->filename,
+            SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span,
+            SF_LOG_SEVERITY_ERROR
+        );
+
+        return false;
+    }
+
+    return true;
 }
 
 static bool check_assignment_type(

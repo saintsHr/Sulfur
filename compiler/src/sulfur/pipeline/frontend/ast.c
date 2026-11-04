@@ -137,7 +137,7 @@ sf_identifier_node *sf_new_identifier_node(sf_arena *arena, const char *name, sf
 
 sf_binary_node *sf_new_binary_node(
     sf_arena *arena, sf_ast_node *left,
-    sf_ast_node *right, sf_operation_type op,
+    sf_ast_node *right, sf_ir_operation_type op,
     sf_span span
 ) {
     sf_binary_node *node = new_node(
@@ -158,7 +158,7 @@ sf_binary_node *sf_new_binary_node(
 
 sf_unary_node *sf_new_unary_node(
     sf_arena *arena, sf_ast_node *operand,
-    sf_operation_type op, sf_span span
+    sf_ir_operation_type op, sf_span span
 ) {
     sf_unary_node *node = new_node(
         arena, sizeof(sf_unary_node),

@@ -228,7 +228,7 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
     sf_ast_node *value = rhs;
 
     if (op_token->type != SF_TOKEN_TYPE_EQUAL) {
-        sf_operation_type op = sf_token_to_binary_op(*op_token);
+        sf_ir_operation_type op = sf_token_to_binary_op(*op_token);
 
         if (op == SF_OP_TYPE_UNRESOLVED) {
             return NULL;

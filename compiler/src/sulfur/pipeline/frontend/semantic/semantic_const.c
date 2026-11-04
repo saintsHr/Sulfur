@@ -12,17 +12,17 @@
 static bool literal_magnitude(const sf_ast_node *node, uint64_t *out_value);
 
 static bool eval_uint_binary(
-    sf_operation_type op, uint64_t l, uint64_t r, uint64_t *out_value
+    sf_ir_operation_type op, uint64_t l, uint64_t r, uint64_t *out_value
 );
 static bool eval_int_binary(
-    sf_operation_type op, int64_t l, int64_t r, int64_t *out_value
+    sf_ir_operation_type op, int64_t l, int64_t r, int64_t *out_value
 );
 static bool eval_int_negate(const sf_unary_node *un, int64_t *out_value);
 static bool eval_bool_binary(sf_binary_node *bin, bool *out_value);
 static bool eval_relational(sf_binary_node *bin, bool *out_value);
 
-static bool compare_int(sf_operation_type op, int64_t l, int64_t r, bool *out_value);
-static bool compare_uint(sf_operation_type op, uint64_t l, uint64_t r, bool *out_value);
+static bool compare_int(sf_ir_operation_type op, int64_t l, int64_t r, bool *out_value);
+static bool compare_uint(sf_ir_operation_type op, uint64_t l, uint64_t r, bool *out_value);
 
 static bool signed_fits(sf_value_type type, int64_t value);
 static bool check_signed_overflow(
@@ -191,7 +191,7 @@ static bool literal_magnitude(const sf_ast_node *node, uint64_t *out_value) {
 }
 
 static bool eval_uint_binary(
-    sf_operation_type op, uint64_t l, uint64_t r, uint64_t *out_value
+    sf_ir_operation_type op, uint64_t l, uint64_t r, uint64_t *out_value
 ) {
     switch (op) {
         case SF_OP_TYPE_ADD: {
@@ -261,7 +261,7 @@ static bool eval_uint_binary(
 }
 
 static bool eval_int_binary(
-    sf_operation_type op, int64_t l, int64_t r, int64_t *out_value
+    sf_ir_operation_type op, int64_t l, int64_t r, int64_t *out_value
 ) {
     switch (op) {
         case SF_OP_TYPE_ADD: {
@@ -460,7 +460,7 @@ static bool eval_relational(sf_binary_node *bin, bool *out_value) {
     return compare_uint(bin->op, l, r, out_value);
 }
 
-static bool compare_int(sf_operation_type op, int64_t l, int64_t r, bool *out_value) {
+static bool compare_int(sf_ir_operation_type op, int64_t l, int64_t r, bool *out_value) {
     switch (op) {
         case SF_OP_TYPE_RELATIONAL_EQUAL: {
             *out_value = l == r;
@@ -492,7 +492,7 @@ static bool compare_int(sf_operation_type op, int64_t l, int64_t r, bool *out_va
     }
 }
 
-static bool compare_uint(sf_operation_type op, uint64_t l, uint64_t r, bool *out_value) {
+static bool compare_uint(sf_ir_operation_type op, uint64_t l, uint64_t r, bool *out_value) {
     switch (op) {
         case SF_OP_TYPE_RELATIONAL_EQUAL: {
             *out_value = l == r;

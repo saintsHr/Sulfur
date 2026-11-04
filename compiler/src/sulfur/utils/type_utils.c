@@ -97,7 +97,7 @@ const char *sf_type_value_name(sf_value_type type) {
     }
 }
 
-const char *sf_type_operation_name(sf_operation_type op) {
+const char *sf_type_operation_name(sf_ir_operation_type op) {
     switch (op) {
         case SF_OP_TYPE_ADD: {
             return "+";
@@ -247,7 +247,7 @@ bool sf_type_value_is_castable(sf_value_type from, sf_value_type to) {
     return castable;
 }
 
-bool sf_type_is_increment_or_decrement(sf_operation_type op) {
+bool sf_type_is_increment_or_decrement(sf_ir_operation_type op) {
     return (
         op == SF_OP_TYPE_PREFIX_INCREMENT ||
         op == SF_OP_TYPE_PREFIX_DECREMENT ||
@@ -286,74 +286,74 @@ sf_value_type sf_type_value_promote(sf_value_type a, sf_value_type b) {
     return sf_type_value_width_bits(a) >= sf_type_value_width_bits(b) ? a : b;
 }
 
-sf_opcode sf_type_operation_to_opcode(sf_operation_type type) {
+sf_ir_opcode sf_type_operation_to_opcode(sf_ir_operation_type type) {
     switch (type) {
         case SF_OP_TYPE_ADD: {
-            return SF_OPCODE_ADD;
+            return SF_IR_OPCODE_ADD;
         }
         case SF_OP_TYPE_SUB: {
-            return SF_OPCODE_SUB;
+            return SF_IR_OPCODE_SUB;
         }
         case SF_OP_TYPE_MUL: {
-            return SF_OPCODE_MULT;
+            return SF_IR_OPCODE_MULT;
         }
         case SF_OP_TYPE_DIV: {
-            return SF_OPCODE_DIV;
+            return SF_IR_OPCODE_DIV;
         }
         case SF_OP_TYPE_NEGATE: {
-            return SF_OPCODE_NEGATE;
+            return SF_IR_OPCODE_NEGATE;
         }
 
         case SF_OP_TYPE_BITWISE_AND: {
-            return SF_OPCODE_BITWISE_AND;
+            return SF_IR_OPCODE_BITWISE_AND;
         }
         case SF_OP_TYPE_BITWISE_OR: {
-            return SF_OPCODE_BITWISE_OR;
+            return SF_IR_OPCODE_BITWISE_OR;
         }
         case SF_OP_TYPE_BITWISE_XOR: {
-            return SF_OPCODE_BITWISE_XOR;
+            return SF_IR_OPCODE_BITWISE_XOR;
         }
         case SF_OP_TYPE_BITWISE_RSHIFT: {
-            return SF_OPCODE_BITWISE_RSHIFT;
+            return SF_IR_OPCODE_BITWISE_RSHIFT;
         }
         case SF_OP_TYPE_BITWISE_LSHIFT: {
-            return SF_OPCODE_BITWISE_LSHIFT;
+            return SF_IR_OPCODE_BITWISE_LSHIFT;
         }
         case SF_OP_TYPE_BITWISE_NOT: {
-            return SF_OPCODE_BITWISE_NOT;
+            return SF_IR_OPCODE_BITWISE_NOT;
         }
 
         case SF_OP_TYPE_RELATIONAL_EQUAL: {
-            return SF_OPCODE_RELATIONAL_EQUAL;
+            return SF_IR_OPCODE_RELATIONAL_EQUAL;
         }
         case SF_OP_TYPE_RELATIONAL_NOT_EQUAL: {
-            return SF_OPCODE_RELATIONAL_NOT_EQUAL;
+            return SF_IR_OPCODE_RELATIONAL_NOT_EQUAL;
         }
         case SF_OP_TYPE_RELATIONAL_LESS: {
-            return SF_OPCODE_RELATIONAL_LESS;
+            return SF_IR_OPCODE_RELATIONAL_LESS;
         }
         case SF_OP_TYPE_RELATIONAL_LESS_EQUAL: {
-            return SF_OPCODE_RELATIONAL_LESS_EQUAL;
+            return SF_IR_OPCODE_RELATIONAL_LESS_EQUAL;
         }
         case SF_OP_TYPE_RELATIONAL_GREATER: {
-            return SF_OPCODE_RELATIONAL_GREATER;
+            return SF_IR_OPCODE_RELATIONAL_GREATER;
         }
         case SF_OP_TYPE_RELATIONAL_GREATER_EQUAL: {
-            return SF_OPCODE_RELATIONAL_GREATER_EQUAL;
+            return SF_IR_OPCODE_RELATIONAL_GREATER_EQUAL;
         }
 
         case SF_OP_TYPE_LOGICAL_AND: {
-            return SF_OPCODE_LOGICAL_AND;
+            return SF_IR_OPCODE_LOGICAL_AND;
         }
         case SF_OP_TYPE_LOGICAL_OR: {
-            return SF_OPCODE_LOGICAL_OR;
+            return SF_IR_OPCODE_LOGICAL_OR;
         }
         case SF_OP_TYPE_LOGICAL_NOT: {
-            return SF_OPCODE_LOGICAL_NOT;
+            return SF_IR_OPCODE_LOGICAL_NOT;
         }
 
         default: {
-            return SF_OPCODE_INVALID;
+            return SF_IR_OPCODE_INVALID;
         }
     }
 }

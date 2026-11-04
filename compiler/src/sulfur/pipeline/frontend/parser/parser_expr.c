@@ -79,7 +79,7 @@ static sf_ast_node *parse_binary(sf_parser *p, size_t level) {
             return NULL;
         }
 
-        sf_operation_type op = sf_token_to_binary_op(*op_token);
+        sf_ir_operation_type op = sf_token_to_binary_op(*op_token);
 
         if (op == SF_OP_TYPE_UNRESOLVED) {
             return NULL;
@@ -134,7 +134,7 @@ static sf_ast_node *parse_cast(sf_parser *p) {
 
 static sf_ast_node *parse_unary(sf_parser *p) {
     const sf_token *token = sf_parser_peek(p);
-    sf_operation_type op = sf_token_to_unary_op(*token);
+    sf_ir_operation_type op = sf_token_to_unary_op(*token);
 
     if (op == SF_OP_TYPE_UNRESOLVED) {
         return parse_postfix(p);
@@ -163,7 +163,7 @@ static sf_ast_node *parse_postfix(sf_parser *p) {
         sf_parser_peek(p)->type == SF_TOKEN_TYPE_MINUS_MINUS
     ) {
         const sf_token *op_token = sf_parser_advance(p);
-        sf_operation_type op = sf_token_to_postfix_op(*op_token);
+        sf_ir_operation_type op = sf_token_to_postfix_op(*op_token);
 
         if (op == SF_OP_TYPE_UNRESOLVED) {
             return NULL;

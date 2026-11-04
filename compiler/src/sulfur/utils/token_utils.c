@@ -124,7 +124,7 @@ sf_value_type sf_token_to_type(sf_token token) {
     }
 }
 
-sf_operation_type sf_token_to_unary_op(sf_token token) {
+sf_ir_operation_type sf_token_to_unary_op(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_MINUS: {
             return SF_OP_TYPE_NEGATE;
@@ -148,7 +148,7 @@ sf_operation_type sf_token_to_unary_op(sf_token token) {
     }
 }
 
-sf_operation_type sf_token_to_postfix_op(sf_token token) {
+sf_ir_operation_type sf_token_to_postfix_op(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_PLUS_PLUS: {
             return SF_OP_TYPE_POSTFIX_INCREMENT;
@@ -163,7 +163,7 @@ sf_operation_type sf_token_to_postfix_op(sf_token token) {
     }
 }
 
-sf_operation_type sf_token_to_binary_op(sf_token token) {
+sf_ir_operation_type sf_token_to_binary_op(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_PLUS:
         case SF_TOKEN_TYPE_PLUS_EQUAL: {

@@ -11,23 +11,22 @@
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/type_utils.h"
 
-static const sf_operand k_no_operand = {0};
+static const sf_ir_operand k_no_operand = {0};
 static char k_empty_name[] = "";
 
-static void push(sf_arena *arena, sf_ir_context *context, sf_operation operation);
+static void push(sf_arena *arena, sf_ir_context *context, sf_ir_operation operation);
 static void emit(
-    sf_arena *arena, sf_ir_context *context, sf_opcode opcode,
-    sf_operand a, sf_operand b, sf_operand c
+    sf_arena *arena, sf_ir_context *context, sf_ir_opcode opcode,
+    sf_ir_operand a, sf_ir_operand b, sf_ir_operand c
 );
 
 static sf_ir_context context_from_program(sf_ir_program *program);
-static sf_ir_context context_from_function(
-    sf_ir_function *function, sf_ir_program *program
-);
+static sf_ir_context context_from_function(sf_ir_function *function);
 
-static sf_operand new_temporary(sf_ir_context *context, sf_value_type type);
-static sf_operand new_label(sf_ir_context *context);
-static sf_operand new_immediate(sf_value_type type, const char *value);
+static sf_ir_operand new_label(sf_ir_program *program);
+static sf_ir_operand new_temporary(sf_ir_context *context, sf_value_type type);
+static sf_ir_operand new_immediate(sf_value_type type, const char *value);
+
 static char *mangle_name(sf_arena *arena, const char *name, size_t id);
 
 static void add_function(
@@ -45,7 +44,7 @@ static void generate_var_assign(
     sf_arena *arena, sf_ir_context *context, sf_var_assign_node *as
 );
 static void generate_assignment(
-    sf_arena *arena, sf_ir_context *context, sf_operand dst, sf_ast_node *value
+    sf_arena *arena, sf_ir_context *context, sf_ir_operand dst, sf_ast_node *value
 );
 static void generate_block(
     sf_arena *arena, sf_ir_context *context,
@@ -66,51 +65,50 @@ static void generate_return(
     sf_arena *arena, sf_ir_context *context, sf_return_node *ret
 );
 
-static sf_operand generate_expression(
+static sf_ir_operand generate_expression(
     sf_arena *arena, sf_ir_context *context, sf_ast_node *node
 );
-static sf_operand generate_expression_into(
+static sf_ir_operand generate_expression_into(
     sf_arena *arena, sf_ir_context *context,
-    sf_ast_node *node, sf_operand *hint
+    sf_ast_node *node, sf_ir_operand *hint
 );
-static sf_operand generate_binary(
+static sf_ir_operand generate_binary(
     sf_arena *arena, sf_ir_context *context,
-    sf_binary_node *ex, sf_operand *hint
+    sf_binary_node *ex, sf_ir_operand *hint
 );
-static sf_operand generate_unary(
+static sf_ir_operand generate_unary(
     sf_arena *arena, sf_ir_context *context,
-    sf_unary_node *un, sf_operand *hint
+    sf_unary_node *un, sf_ir_operand *hint
 );
-static sf_operand generate_increment(
+static sf_ir_operand generate_increment(
     sf_arena *arena, sf_ir_context *context, sf_unary_node *un
 );
-static sf_operand generate_cast(
+static sf_ir_operand generate_cast(
     sf_arena *arena, sf_ir_context *context,
-    sf_cast_node *cast, sf_operand *hint
+    sf_cast_node *cast, sf_ir_operand *hint
 );
-static sf_operand generate_literal(sf_literal_node *lt);
-static sf_operand generate_identifier(sf_arena *arena, sf_identifier_node *id);
-static sf_operand generate_call(
+static sf_ir_operand generate_literal(sf_literal_node *lt);
+static sf_ir_operand generate_identifier(sf_arena *arena, sf_identifier_node *id);
+static sf_ir_operand generate_call(
     sf_arena *arena, sf_ir_context *context,
-    sf_func_call_node *call, sf_operand *hint
+    sf_func_call_node *call, sf_ir_operand *hint
 );
 
 static bool ends_with_return(const sf_ir_function *func);
 
-static void print_operand(sf_operand op);
-static void print_operation(const sf_operation *op);
-static void print_operations(const sf_operation *operations, size_t count);
+static void print_operand(sf_ir_operand op);
+static void print_operation(const sf_ir_operation *op);
+static void print_operations(const sf_ir_operation *operations, size_t count);
 
-static const char *binary_symbol(sf_opcode opcode);
-static const char *unary_symbol(sf_opcode opcode);
+static const char *binary_symbol(sf_ir_opcode opcode);
+static const char *unary_symbol(sf_ir_opcode opcode);
 
 sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program) {
     sf_ir_program ir = {
-        .operation_capacity = 0,
-        .operation_count = 0,
-        .next_temp = 0,
+        .functions = NULL,
+        .function_capacity = 0,
+        .function_count = 0,
         .next_label = 0,
-        .operations = NULL,
     };
 
     sf_ir_context ctx = context_from_program(&ir);
@@ -124,16 +122,14 @@ sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program) {
 
 
 void sf_ir_print(const sf_ir_program *program) {
-    print_operations(program->operations, program->operation_count);
-
     for (size_t f = 0; f < program->function_count; f++) {
         const sf_ir_function *func = &program->functions[f];
 
         printf("\nfunction %s(", func->name);
 
         for (size_t p = 0; p < func->parameter_count; p++) {
-            print_operand((sf_operand){
-                .type = SF_OPERAND_TYPE_VARIABLE,
+            print_operand((sf_ir_operand){
+                .type = SF_IR_OPERAND_TYPE_VARIABLE,
                 .value_type = func->parameters[p].type,
                 .variable_name = func->parameters[p].name
             });
@@ -149,13 +145,13 @@ void sf_ir_print(const sf_ir_program *program) {
     }
 }
 
-static void push(sf_arena *arena, sf_ir_context *context, sf_operation operation) {
+static void push(sf_arena *arena, sf_ir_context *context, sf_ir_operation operation) {
     if (*context->operation_count >= *context->operation_capacity) {
         size_t new_capacity = *context->operation_capacity == 0 ? 8 : *context->operation_capacity * 2;
 
-        sf_operation *grown = sf_arena_grow_array(
+        sf_ir_operation *grown = sf_arena_grow_array(
             arena, *context->operations, *context->operation_count,
-            new_capacity, sizeof(sf_operation)
+            new_capacity, sizeof(sf_ir_operation)
         );
 
         if (grown == NULL) {
@@ -178,12 +174,12 @@ static void push(sf_arena *arena, sf_ir_context *context, sf_operation operation
 }
 
 static void emit(
-    sf_arena *arena, sf_ir_context *context, sf_opcode opcode,
-    sf_operand a, sf_operand b, sf_operand c
+    sf_arena *arena, sf_ir_context *context, sf_ir_opcode opcode,
+    sf_ir_operand a, sf_ir_operand b, sf_ir_operand c
 ) {
     push(
         arena, context,
-        (sf_operation){
+        (sf_ir_operation){
             .opcode = opcode,
             .operand1 = a,
             .operand2 = b,
@@ -194,47 +190,43 @@ static void emit(
 
 static sf_ir_context context_from_program(sf_ir_program *program) {
     return (sf_ir_context){
-        .operations = &program->operations,
-        .operation_count = &program->operation_count,
-        .operation_capacity = &program->operation_capacity,
-        .next_temp = &program->next_temp,
-        .next_label = &program->next_label,
+        .operations = NULL,
+        .operation_count = 0,
+        .operation_capacity = 0,
+        .next_temp = 0,
     };
 }
 
-static sf_ir_context context_from_function(
-    sf_ir_function *function, sf_ir_program *program
-) {
+static sf_ir_context context_from_function(sf_ir_function *function) {
     return (sf_ir_context){
         .operations = &function->operations,
         .operation_count = &function->operation_count,
         .operation_capacity = &function->operation_capacity,
         .next_temp = &function->next_temp,
-        .next_label = &program->next_label,
     };
 }
 
-static sf_operand new_temporary(sf_ir_context *context, sf_value_type type) {
-    sf_operand op = {0};
-    op.type = SF_OPERAND_TYPE_TEMPORARY;
+static sf_ir_operand new_temporary(sf_ir_context *context, sf_value_type type) {
+    sf_ir_operand op = {0};
+    op.type = SF_IR_OPERAND_TYPE_TEMPORARY;
     op.value_type = type;
     op.temporary_id = (*context->next_temp)++;
 
     return op;
 }
 
-static sf_operand new_label(sf_ir_context *context) {
-    sf_operand op = {0};
-    op.type = SF_OPERAND_TYPE_LABEL;
+static sf_ir_operand new_label(sf_ir_program *program) {
+    sf_ir_operand op = {0};
+    op.type = SF_IR_OPERAND_TYPE_LABEL;
     op.value_type = SF_VAL_TYPE_UNRESOLVED;
-    op.label_id = (*context->next_label)++;
+    op.label_id = program->next_label++;
 
     return op;
 }
 
-static sf_operand new_immediate(sf_value_type type, const char *value) {
-    sf_operand op = {0};
-    op.type = SF_OPERAND_TYPE_IMMEDIATE;
+static sf_ir_operand new_immediate(sf_value_type type, const char *value) {
+    sf_ir_operand op = {0};
+    op.type = SF_IR_OPERAND_TYPE_IMMEDIATE;
     op.value_type = type;
     op.immediate_value = value;
 
@@ -344,8 +336,8 @@ static void generate_var_decl(
         return;
     }
 
-    sf_operand dst = {
-        .type = SF_OPERAND_TYPE_VARIABLE,
+    sf_ir_operand dst = {
+        .type = SF_IR_OPERAND_TYPE_VARIABLE,
         .value_type = dcl->var_type,
         .variable_name = mangle_name(arena, dcl->name, dcl->id),
     };
@@ -356,8 +348,8 @@ static void generate_var_decl(
 static void generate_var_assign(
     sf_arena *arena, sf_ir_context *context, sf_var_assign_node *as
 ) {
-    sf_operand dst = {
-        .type = SF_OPERAND_TYPE_VARIABLE,
+    sf_ir_operand dst = {
+        .type = SF_IR_OPERAND_TYPE_VARIABLE,
         .value_type = as->base.resolved,
         .variable_name = mangle_name(arena, as->name, as->id),
     };
@@ -366,15 +358,15 @@ static void generate_var_assign(
 }
 
 static void generate_assignment(
-    sf_arena *arena, sf_ir_context *context, sf_operand dst, sf_ast_node *value
+    sf_arena *arena, sf_ir_context *context, sf_ir_operand dst, sf_ast_node *value
 ) {
-    sf_operand src = generate_expression_into(arena, context, value, &dst);
+    sf_ir_operand src = generate_expression_into(arena, context, value, &dst);
 
-    bool wrote_directly = src.type == SF_OPERAND_TYPE_VARIABLE &&
+    bool wrote_directly = src.type == SF_IR_OPERAND_TYPE_VARIABLE &&
                           strcmp(src.variable_name, dst.variable_name) == 0;
 
     if (!wrote_directly) {
-        emit(arena, context, SF_OPCODE_ASSIGN, dst, src, k_no_operand);
+        emit(arena, context, SF_IR_OPCODE_ASSIGN, dst, src, k_no_operand);
     }
 }
 
@@ -391,46 +383,46 @@ static void generate_if(
     sf_arena *arena, sf_ir_context *context,
     sf_ir_program *program, sf_if_node *if_stmt
 ) {
-    sf_operand cond = generate_expression(arena, context, if_stmt->condition);
+    sf_ir_operand cond = generate_expression(arena, context, if_stmt->condition);
 
-    sf_operand else_id = new_label(context);
-    sf_operand end_id = k_no_operand;
+    sf_ir_operand else_id = new_label(program);
+    sf_ir_operand end_id = k_no_operand;
 
     bool has_else = if_stmt->branch_else != NULL;
 
     if (has_else) {
-        end_id = new_label(context);
+        end_id = new_label(program);
     }
 
-    emit(arena, context, SF_OPCODE_JMP_COND, else_id, cond, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_JMP_COND, else_id, cond, k_no_operand);
     generate_statement(arena, context, program, if_stmt->branch_then);
 
     if (!has_else) {
-        emit(arena, context, SF_OPCODE_LABEL, else_id, k_no_operand, k_no_operand);
+        emit(arena, context, SF_IR_OPCODE_LABEL, else_id, k_no_operand, k_no_operand);
         return;
     }
 
-    emit(arena, context, SF_OPCODE_JMP_INCOND, end_id, k_no_operand, k_no_operand);
-    emit(arena, context, SF_OPCODE_LABEL, else_id, k_no_operand, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_JMP_INCOND, end_id, k_no_operand, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_LABEL, else_id, k_no_operand, k_no_operand);
     generate_statement(arena, context, program, if_stmt->branch_else);
-    emit(arena, context, SF_OPCODE_LABEL, end_id, k_no_operand, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_LABEL, end_id, k_no_operand, k_no_operand);
 }
 
 static void generate_while(
     sf_arena *arena, sf_ir_context *context,
     sf_ir_program *program, sf_while_node *while_stmt
 ) {
-    sf_operand start_id = new_label(context);
-    sf_operand end_id = new_label(context);
+    sf_ir_operand start_id = new_label(program);
+    sf_ir_operand end_id = new_label(program);
 
-    emit(arena, context, SF_OPCODE_LABEL, start_id, k_no_operand, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_LABEL, start_id, k_no_operand, k_no_operand);
 
-    sf_operand cond = generate_expression(arena, context, while_stmt->condition);
+    sf_ir_operand cond = generate_expression(arena, context, while_stmt->condition);
 
-    emit(arena, context, SF_OPCODE_JMP_COND, end_id, cond, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_JMP_COND, end_id, cond, k_no_operand);
     generate_statement(arena, context, program, while_stmt->branch_do);
-    emit(arena, context, SF_OPCODE_JMP_INCOND, start_id, k_no_operand, k_no_operand);
-    emit(arena, context, SF_OPCODE_LABEL, end_id, k_no_operand, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_JMP_INCOND, start_id, k_no_operand, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_LABEL, end_id, k_no_operand, k_no_operand);
 }
 
 static void generate_function(
@@ -476,7 +468,7 @@ static void generate_function(
         }
     }
 
-    sf_ir_context ctx = context_from_function(&func_ir, program);
+    sf_ir_context ctx = context_from_function(&func_ir);
 
     generate_statement(arena, &ctx, program, func->body);
 
@@ -484,7 +476,7 @@ static void generate_function(
         func->return_type == SF_VAL_TYPE_VOID &&
         !ends_with_return(&func_ir)
     ) {
-        emit(arena, &ctx, SF_OPCODE_RETURN, k_no_operand, k_no_operand, k_no_operand);
+        emit(arena, &ctx, SF_IR_OPCODE_RETURN, k_no_operand, k_no_operand, k_no_operand);
     }
 
     add_function(arena, program, func_ir);
@@ -493,24 +485,24 @@ static void generate_function(
 static void generate_return(
     sf_arena *arena, sf_ir_context *context, sf_return_node *ret
 ) {
-    sf_operand value = k_no_operand;
+    sf_ir_operand value = k_no_operand;
 
     if (ret->value != NULL) {
         value = generate_expression(arena, context, ret->value);
     }
 
-    emit(arena, context, SF_OPCODE_RETURN, value, k_no_operand, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_RETURN, value, k_no_operand, k_no_operand);
 }
 
-static sf_operand generate_expression(
+static sf_ir_operand generate_expression(
     sf_arena *arena, sf_ir_context *context, sf_ast_node *node
 ) {
     return generate_expression_into(arena, context, node, NULL);
 }
 
-static sf_operand generate_expression_into(
+static sf_ir_operand generate_expression_into(
     sf_arena *arena, sf_ir_context *context,
-    sf_ast_node *node, sf_operand *hint
+    sf_ast_node *node, sf_ir_operand *hint
 ) {
     if (node == NULL) {
         return k_no_operand;
@@ -542,57 +534,57 @@ static sf_operand generate_expression_into(
     }
 }
 
-static sf_operand generate_binary(
+static sf_ir_operand generate_binary(
     sf_arena *arena, sf_ir_context *context,
-    sf_binary_node *ex, sf_operand *hint
+    sf_binary_node *ex, sf_ir_operand *hint
 ) {
-    sf_operand left = generate_expression(arena, context, ex->left);
-    sf_operand right = generate_expression(arena, context, ex->right);
+    sf_ir_operand left = generate_expression(arena, context, ex->left);
+    sf_ir_operand right = generate_expression(arena, context, ex->right);
 
-    sf_opcode opcode = sf_type_operation_to_opcode(ex->op);
-    sf_operand folded;
+    sf_ir_opcode opcode = sf_type_operation_to_opcode(ex->op);
+    sf_ir_operand folded;
 
     if (sf_fold_constants(arena, left, right, opcode, ex->base.resolved, &folded)) {
         return folded;
     }
 
-    sf_operand dst = hint != NULL ? *hint : new_temporary(context, ex->base.resolved);
+    sf_ir_operand dst = hint != NULL ? *hint : new_temporary(context, ex->base.resolved);
 
     emit(arena, context, opcode, dst, left, right);
 
     return dst;
 }
 
-static sf_operand generate_unary(
+static sf_ir_operand generate_unary(
     sf_arena *arena, sf_ir_context *context,
-    sf_unary_node *un, sf_operand *hint
+    sf_unary_node *un, sf_ir_operand *hint
 ) {
     if (sf_type_is_increment_or_decrement(un->op)) {
         return generate_increment(arena, context, un);
     }
 
-    sf_operand src = generate_expression(arena, context, un->operand);
+    sf_ir_operand src = generate_expression(arena, context, un->operand);
 
-    sf_opcode opcode = sf_type_operation_to_opcode(un->op);
-    sf_operand folded;
+    sf_ir_opcode opcode = sf_type_operation_to_opcode(un->op);
+    sf_ir_operand folded;
 
     if (sf_fold_constants(arena, src, k_no_operand, opcode, un->base.resolved, &folded)) {
         return folded;
     }
 
-    sf_operand dst = hint != NULL ? *hint : new_temporary(context, un->base.resolved);
+    sf_ir_operand dst = hint != NULL ? *hint : new_temporary(context, un->base.resolved);
 
     emit(arena, context, opcode, dst, src, k_no_operand);
 
     return dst;
 }
 
-static sf_operand generate_increment(
+static sf_ir_operand generate_increment(
     sf_arena *arena, sf_ir_context *context, sf_unary_node *un
 ) {
-    sf_operand variable = generate_expression(arena, context, un->operand);
-    sf_operand one = new_immediate(un->base.resolved, "1");
-    sf_operand updated = new_temporary(context, un->base.resolved);
+    sf_ir_operand variable = generate_expression(arena, context, un->operand);
+    sf_ir_operand one = new_immediate(un->base.resolved, "1");
+    sf_ir_operand updated = new_temporary(context, un->base.resolved);
 
     bool is_increment = un->op == SF_OP_TYPE_PREFIX_INCREMENT ||
                         un->op == SF_OP_TYPE_POSTFIX_INCREMENT;
@@ -600,33 +592,33 @@ static sf_operand generate_increment(
     bool is_postfix = un->op == SF_OP_TYPE_POSTFIX_INCREMENT ||
                       un->op == SF_OP_TYPE_POSTFIX_DECREMENT;
 
-    sf_opcode opcode = is_increment ? SF_OPCODE_ADD : SF_OPCODE_SUB;
-    sf_operand result = updated;
+    sf_ir_opcode opcode = is_increment ? SF_IR_OPCODE_ADD : SF_IR_OPCODE_SUB;
+    sf_ir_operand result = updated;
 
     if (is_postfix) {
         result = new_temporary(context, un->base.resolved);
-        emit(arena, context, SF_OPCODE_ASSIGN, result, variable, k_no_operand);
+        emit(arena, context, SF_IR_OPCODE_ASSIGN, result, variable, k_no_operand);
     }
 
     emit(arena, context, opcode, updated, variable, one);
-    emit(arena, context, SF_OPCODE_ASSIGN, variable, updated, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_ASSIGN, variable, updated, k_no_operand);
 
     return result;
 }
 
-static sf_operand generate_cast(
+static sf_ir_operand generate_cast(
     sf_arena *arena, sf_ir_context *context,
-    sf_cast_node *cast, sf_operand *hint
+    sf_cast_node *cast, sf_ir_operand *hint
 ) {
-    sf_operand src = generate_expression(arena, context, cast->operand);
-    sf_operand dst = hint != NULL ? *hint : new_temporary(context, cast->base.resolved);
+    sf_ir_operand src = generate_expression(arena, context, cast->operand);
+    sf_ir_operand dst = hint != NULL ? *hint : new_temporary(context, cast->base.resolved);
 
-    emit(arena, context, SF_OPCODE_CAST, dst, src, k_no_operand);
+    emit(arena, context, SF_IR_OPCODE_CAST, dst, src, k_no_operand);
 
     return dst;
 }
 
-static sf_operand generate_literal(sf_literal_node *lt) {
+static sf_ir_operand generate_literal(sf_literal_node *lt) {
     const char *value = lt->value;
 
     if (lt->token_type == SF_TOKEN_TYPE_KW_TRUE) {
@@ -638,59 +630,59 @@ static sf_operand generate_literal(sf_literal_node *lt) {
     return new_immediate(lt->base.resolved, value);
 }
 
-static sf_operand generate_identifier(sf_arena *arena, sf_identifier_node *id) {
-    sf_operand op = {0};
-    op.type = SF_OPERAND_TYPE_VARIABLE;
+static sf_ir_operand generate_identifier(sf_arena *arena, sf_identifier_node *id) {
+    sf_ir_operand op = {0};
+    op.type = SF_IR_OPERAND_TYPE_VARIABLE;
     op.value_type = id->base.resolved;
     op.variable_name = mangle_name(arena, id->name, id->id);
 
     return op;
 }
 
-static void print_operand(sf_operand op) {
+static void print_operand(sf_ir_operand op) {
     switch (op.type) {
-        case SF_OPERAND_TYPE_NONE: {
+        case SF_IR_OPERAND_TYPE_NONE: {
             break;
         }
-        case SF_OPERAND_TYPE_TEMPORARY: {
+        case SF_IR_OPERAND_TYPE_TEMPORARY: {
             printf("t%zu:%s", op.temporary_id, sf_type_value_name(op.value_type));
             break;
         }
-        case SF_OPERAND_TYPE_VARIABLE: {
+        case SF_IR_OPERAND_TYPE_VARIABLE: {
             printf("%s:%s", op.variable_name, sf_type_value_name(op.value_type));
             break;
         }
-        case SF_OPERAND_TYPE_IMMEDIATE: {
+        case SF_IR_OPERAND_TYPE_IMMEDIATE: {
             printf("%s:%s", op.immediate_value, sf_type_value_name(op.value_type));
             break;
         }
-        case SF_OPERAND_TYPE_LABEL: {
+        case SF_IR_OPERAND_TYPE_LABEL: {
             printf("L%zu", op.label_id);
             break;
         }
-        case SF_OPERAND_TYPE_FUNCTION: {
+        case SF_IR_OPERAND_TYPE_FUNCTION: {
             printf("%s", op.function_name);
             break;
         }
     }
 }
 
-static void print_operations(const sf_operation *operations, size_t count) {
+static void print_operations(const sf_ir_operation *operations, size_t count) {
     for (size_t i = 0; i < count; i++) {
         print_operation(&operations[i]);
     }
 }
 
-static void print_operation(const sf_operation *op) {
+static void print_operation(const sf_ir_operation *op) {
     bool is_control_flow =
-        op->opcode == SF_OPCODE_LABEL ||
-        op->opcode == SF_OPCODE_JMP_COND ||
-        op->opcode == SF_OPCODE_JMP_INCOND ||
-        op->opcode == SF_OPCODE_RETURN ||
-        op->opcode == SF_OPCODE_PARAM
+        op->opcode == SF_IR_OPCODE_LABEL ||
+        op->opcode == SF_IR_OPCODE_JMP_COND ||
+        op->opcode == SF_IR_OPCODE_JMP_INCOND ||
+        op->opcode == SF_IR_OPCODE_RETURN ||
+        op->opcode == SF_IR_OPCODE_PARAM
     ;
 
-    if (!is_control_flow && op->operand1.type != SF_OPERAND_TYPE_NONE) {
+    if (!is_control_flow && op->operand1.type != SF_IR_OPERAND_TYPE_NONE) {
         print_operand(op->operand1);
         printf(" = ");
     }
@@ -707,45 +699,45 @@ static void print_operation(const sf_operation *op) {
         print_operand(op->operand2);
     } else {
         switch (op->opcode) {
-            case SF_OPCODE_LABEL: {
+            case SF_IR_OPCODE_LABEL: {
                 printf("label .L%zu:", op->operand1.label_id);
                 break;
             }
-            case SF_OPCODE_JMP_COND: {
+            case SF_IR_OPCODE_JMP_COND: {
                 printf("if not ");
                 print_operand(op->operand2);
                 printf(" jmp L%zu", op->operand1.label_id);
                 break;
             }
-            case SF_OPCODE_JMP_INCOND: {
+            case SF_IR_OPCODE_JMP_INCOND: {
                 printf("jmp L%zu", op->operand1.label_id);
                 break;
             }
-            case SF_OPCODE_ASSIGN: {
+            case SF_IR_OPCODE_ASSIGN: {
                 print_operand(op->operand2);
                 break;
             }
-            case SF_OPCODE_CAST: {
+            case SF_IR_OPCODE_CAST: {
                 printf("cast ");
                 print_operand(op->operand2);
                 break;
             }
-            case SF_OPCODE_RETURN: {
+            case SF_IR_OPCODE_RETURN: {
                 printf("return");
 
-                if (op->operand1.type != SF_OPERAND_TYPE_NONE) {
+                if (op->operand1.type != SF_IR_OPERAND_TYPE_NONE) {
                     printf(" ");
                     print_operand(op->operand1);
                 }
 
                 break;
             }
-            case SF_OPCODE_PARAM: {
+            case SF_IR_OPCODE_PARAM: {
                 printf("param ");
                 print_operand(op->operand1);
                 break;
             }
-            case SF_OPCODE_CALL: {
+            case SF_IR_OPCODE_CALL: {
                 printf("call ");
                 print_operand(op->operand2);
                 break;
@@ -763,57 +755,57 @@ static void print_operation(const sf_operation *op) {
     printf("\n");
 }
 
-static const char *binary_symbol(sf_opcode opcode) {
+static const char *binary_symbol(sf_ir_opcode opcode) {
     switch (opcode) {
-        case SF_OPCODE_ADD: {
+        case SF_IR_OPCODE_ADD: {
             return "+";
         }
-        case SF_OPCODE_SUB: {
+        case SF_IR_OPCODE_SUB: {
             return "-";
         }
-        case SF_OPCODE_MULT: {
+        case SF_IR_OPCODE_MULT: {
             return "*";
         }
-        case SF_OPCODE_DIV: {
+        case SF_IR_OPCODE_DIV: {
             return "/";
         }
-        case SF_OPCODE_BITWISE_AND: {
+        case SF_IR_OPCODE_BITWISE_AND: {
             return "&";
         }
-        case SF_OPCODE_BITWISE_OR: {
+        case SF_IR_OPCODE_BITWISE_OR: {
             return "|";
         }
-        case SF_OPCODE_BITWISE_XOR: {
+        case SF_IR_OPCODE_BITWISE_XOR: {
             return "^";
         }
-        case SF_OPCODE_BITWISE_RSHIFT: {
+        case SF_IR_OPCODE_BITWISE_RSHIFT: {
             return ">>";
         }
-        case SF_OPCODE_BITWISE_LSHIFT: {
+        case SF_IR_OPCODE_BITWISE_LSHIFT: {
             return "<<";
         }
-        case SF_OPCODE_LOGICAL_AND: {
+        case SF_IR_OPCODE_LOGICAL_AND: {
             return "&&";
         }
-        case SF_OPCODE_LOGICAL_OR: {
+        case SF_IR_OPCODE_LOGICAL_OR: {
             return "||";
         }
-        case SF_OPCODE_RELATIONAL_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_EQUAL: {
             return "==";
         }
-        case SF_OPCODE_RELATIONAL_NOT_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_NOT_EQUAL: {
             return "!=";
         }
-        case SF_OPCODE_RELATIONAL_LESS: {
+        case SF_IR_OPCODE_RELATIONAL_LESS: {
             return "<";
         }
-        case SF_OPCODE_RELATIONAL_LESS_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_LESS_EQUAL: {
             return "<=";
         }
-        case SF_OPCODE_RELATIONAL_GREATER: {
+        case SF_IR_OPCODE_RELATIONAL_GREATER: {
             return ">";
         }
-        case SF_OPCODE_RELATIONAL_GREATER_EQUAL: {
+        case SF_IR_OPCODE_RELATIONAL_GREATER_EQUAL: {
             return ">=";
         }
 
@@ -823,15 +815,15 @@ static const char *binary_symbol(sf_opcode opcode) {
     }
 }
 
-static const char *unary_symbol(sf_opcode opcode) {
+static const char *unary_symbol(sf_ir_opcode opcode) {
     switch (opcode) {
-        case SF_OPCODE_NEGATE: {
+        case SF_IR_OPCODE_NEGATE: {
             return "-";
         }
-        case SF_OPCODE_BITWISE_NOT: {
+        case SF_IR_OPCODE_BITWISE_NOT: {
             return "~";
         }
-        case SF_OPCODE_LOGICAL_NOT: {
+        case SF_IR_OPCODE_LOGICAL_NOT: {
             return "!";
         }
 
@@ -841,21 +833,21 @@ static const char *unary_symbol(sf_opcode opcode) {
     }
 }
 
-static sf_operand generate_call(
+static sf_ir_operand generate_call(
     sf_arena *arena, sf_ir_context *context,
-    sf_func_call_node *call, sf_operand *hint
+    sf_func_call_node *call, sf_ir_operand *hint
 ) {
     sf_identifier_node *callee = (sf_identifier_node *)call->callee;
 
-    sf_operand func_operand = {
-        .type = SF_OPERAND_TYPE_FUNCTION,
+    sf_ir_operand func_operand = {
+        .type = SF_IR_OPERAND_TYPE_FUNCTION,
         .function_name = callee->name,
         .value_type = call->base.resolved
     };
 
     if (call->argument_count > 0) {
-        sf_operand *arg_operands = sf_arena_alloc(
-            arena, sizeof(sf_operand) * call->argument_count
+        sf_ir_operand *arg_operands = sf_arena_alloc(
+            arena, sizeof(sf_ir_operand) * call->argument_count
         );
 
         if (arg_operands == NULL) {
@@ -880,7 +872,7 @@ static sf_operand generate_call(
             emit(
                 arena, context,
 
-                SF_OPCODE_PARAM,
+                SF_IR_OPCODE_PARAM,
 
                 arg_operands[i],
                 k_no_operand,
@@ -889,7 +881,7 @@ static sf_operand generate_call(
         }
     }
 
-    sf_operand dst_operand;
+    sf_ir_operand dst_operand;
 
     if (call->base.resolved == SF_VAL_TYPE_VOID) {
         dst_operand = k_no_operand;
@@ -904,7 +896,7 @@ static sf_operand generate_call(
     emit(
         arena, context,
 
-        SF_OPCODE_CALL,
+        SF_IR_OPCODE_CALL,
 
         dst_operand,
         func_operand,
@@ -917,7 +909,7 @@ static sf_operand generate_call(
 static bool ends_with_return(const sf_ir_function *func) {
     if (
         func->operation_count > 0 &&
-        func->operations[func->operation_count - 1].opcode == SF_OPCODE_RETURN
+        func->operations[func->operation_count - 1].opcode == SF_IR_OPCODE_RETURN
     ) {
         return true;
     }
