@@ -483,6 +483,22 @@ static bool analyze_increment(
         return false;
     }
 
+    sf_identifier_node *id = (sf_identifier_node *)un->operand;
+
+    if (id->symbol->qualifiers.is_mutable == false) {
+        sf_log(
+            "invalid assign",
+            "cannot increment or decrement an immutable variable",
+            "make the variable mutable or dont assign to it",
+            s->filename,
+            SF_LOG_SEMANTIC_INVALID_ASSIGN,
+            un->base.span,
+            SF_LOG_SEVERITY_ERROR
+        );
+
+        return false;
+    }
+
     un->base.resolved = child_type;
 
     return true;
@@ -622,6 +638,7 @@ static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
     id->base.resolved = sym->type;
     id->depth = sym->depth;
     id->id = sym->id;
+    id->symbol = sym;
 
     return true;
 }

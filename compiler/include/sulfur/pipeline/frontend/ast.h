@@ -8,6 +8,8 @@
 #include "sulfur/utils/arena.h"
 #include "sulfur/utils/span.h"
 
+typedef struct sf_var_symbol sf_var_symbol;
+
 typedef enum {
     SF_NODE_PROGRAM,
     SF_NODE_VAR_DECL,
@@ -100,6 +102,7 @@ typedef struct {
     char *name;
     size_t depth;
     size_t id;
+    sf_var_symbol *symbol;
 } sf_identifier_node;
 
 typedef struct {
@@ -165,6 +168,7 @@ typedef struct {
     sf_value_type type;
     char *name;
     size_t id;
+    sf_qualifiers qualifiers;
 } sf_parameter;
 
 typedef struct {

@@ -171,6 +171,7 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
         .type = var->var_type,
         .initialized = var->value != NULL,
         .span = var->base.span,
+        .qualifiers = var->qualifiers
     };
 
     if (var->value != NULL) {
@@ -216,6 +217,16 @@ static void analyze_var_assign(sf_semantic *semantic, sf_var_assign_node *asg) {
         )
     ) {
         return;
+    }
+
+    if (sym->qualifiers.is_mutable == false) {
+        sf_log(
+            "invalid assign", "variable '%s' is not mutable",
+            "make the variable mutable or dont assign values to it",
+            semantic->filename, SF_LOG_SEMANTIC_INVALID_ASSIGN,
+            asg->base.span, SF_LOG_SEVERITY_ERROR,
+            asg->name, semantic->current_func->name
+        );
     }
 
     sym->initialized = true;
@@ -314,7 +325,17 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
         .defined = func->body != NULL,
         .span = func->base.span,
         .parameters = func->parameters,
+        .qualifiers = func->qualifiers
     };
+
+    if (sym.qualifiers.is_mutable == true) {
+        sf_log(
+            "invalid qualifier", "functions cannot have 'mut' qualifier",
+            "remove this qualifier", semantic->filename,
+            SF_LOG_SEMANTIC_INVALID_QUALIFIER, func->base.span,
+            SF_LOG_SEVERITY_ERROR
+        );
+    }
 
     for (size_t i = 0; i < func->parameter_count; i++) {
         sf_parameter param = func->parameters[i];
@@ -358,6 +379,7 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
             .name = param.name,
             .span = func->base.span,
             .type = param.type,
+            .qualifiers = param.qualifiers
         };
 
         scope_insert(semantic->scope, param_sym, semantic->filename);

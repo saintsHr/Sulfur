@@ -1,16 +1,15 @@
 #pragma once
 
-#include <stdbool.h>
-
 #include "sulfur/pipeline/frontend/ast.h"
 
-typedef struct {
+typedef struct sf_var_symbol {
     char *name;
     sf_value_type type;
     bool initialized;
     size_t depth;
     size_t id;
     sf_span span;
+    sf_qualifiers qualifiers;
 } sf_var_symbol;
 
 typedef struct {
@@ -27,6 +26,7 @@ typedef struct {
     bool defined;
     sf_span span;
     size_t id;
+    sf_qualifiers qualifiers;
 } sf_func_symbol;
 
 typedef struct {

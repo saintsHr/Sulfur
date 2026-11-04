@@ -352,6 +352,8 @@ static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers qualifiers) {
 
     if (sf_parser_peek(p)->type != SF_TOKEN_TYPE_RPAREN) {
         while (true) {
+            sf_qualifiers param_qualifiers = parse_qualifiers(p);
+
             sf_value_type param_type;
 
             if (
@@ -372,12 +374,14 @@ static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers qualifiers) {
                 return NULL;
             }
 
-            char *param_name = sf_string_dup_arena(p->arena, param_name_token->value);
+            char *param_name = sf_string_dup_arena(
+                p->arena, param_name_token->value
+            );
 
             if (param_name == NULL) {
                 sf_log(
-                    "Insufficient Memory.", "Cannot allocate memory for compiling.",
-                    "Free some memory and try again.", NULL,
+                    "insufficient memory", "cannot allocate memory for compiling.",
+                    "free some memory and try again", NULL,
                     SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0},
                     SF_LOG_SEVERITY_FATAL
                 );
@@ -387,6 +391,7 @@ static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers qualifiers) {
             sf_parameter param = {
                 .name = param_name,
                 .type = param_type,
+                .qualifiers = param_qualifiers,
                 .id = 0
             };
 
