@@ -91,6 +91,8 @@ typedef struct {
 
     sf_value_type return_type;
 
+    sf_qualifiers qualifiers;
+
     char *name;
 
     size_t next_temp;

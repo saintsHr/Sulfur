@@ -151,31 +151,43 @@ static const char *prefix_to_string(sf_size_prefix prefix);
 char *sf_generate_assembly(const sf_ir_program *program, const sf_compiler_options *options) {
     if (program == NULL || options == NULL) return NULL;
 
-    size_t as_capacity = k_initial_capacity;
-    size_t as_len = 0;
-    char *as = malloc(as_capacity);
-    if (as == NULL) return NULL;
-    as[0] = '\0';
+    size_t capacity = k_initial_capacity;
+    size_t len = 0;
+    char *buff = malloc(capacity);
+    if (buff == NULL) return NULL;
+    buff[0] = '\0';
 
-    sf_string_push("bits 64\n\n", &as, &as_len, &as_capacity);
-    sf_string_push("section .text\n\n", &as, &as_len, &as_capacity);
+    sf_string_push("bits 64\n\n", &buff, &len, &capacity);
+
+    sf_string_push("global _start\n", &buff, &len, &capacity);
+
+    for (size_t i = 0; i < program->function_count; i++) {
+        sf_ir_function func = program->functions[i];
+
+        if (func.qualifiers.is_public == true) {
+            emitf(&buff, &len, &capacity, "global %s", func.name);
+            sf_string_push("\n", &buff, &len, &capacity);
+        }
+    }
+
+    sf_string_push("\n", &buff, &len, &capacity);
+
+    sf_string_push("section .text\n\n", &buff, &len, &capacity);
 
     if (!options->no_entry) {
-        sf_string_push("global _start\n\n", &as, &as_len, &as_capacity);
-
-        sf_string_push("_start:\n", &as, &as_len, &as_capacity);
-        sf_string_push("\tcall main\n\n", &as, &as_len, &as_capacity);
-        sf_string_push("\tmov edi, eax\n", &as, &as_len, &as_capacity);
-        sf_string_push("\tmov rax, 60\n", &as, &as_len, &as_capacity);
-        sf_string_push("\tsyscall\n\n", &as, &as_len, &as_capacity);
+        sf_string_push("_start:\n", &buff, &len, &capacity);
+        sf_string_push("\tcall main\n\n", &buff, &len, &capacity);
+        sf_string_push("\tmov edi, eax\n", &buff, &len, &capacity);
+        sf_string_push("\tmov rax, 60\n", &buff, &len, &capacity);
+        sf_string_push("\tsyscall\n\n", &buff, &len, &capacity);
     }
 
     for (size_t i = 0; i < program->function_count; i++) {
-        emit_function(&as, &as_len, &as_capacity, &program->functions[i]);
-        sf_string_push("\n", &as, &as_len, &as_capacity);
+        emit_function(&buff, &len, &capacity, &program->functions[i]);
+        sf_string_push("\n", &buff, &len, &capacity);
     }
 
-    return as;
+    return buff;
 }
 
 static void format_operand(

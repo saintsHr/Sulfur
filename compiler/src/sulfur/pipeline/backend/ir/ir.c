@@ -439,6 +439,7 @@ static void generate_function(
         .next_temp = 0,
         .operation_capacity = 0,
         .operation_count = 0,
+        .qualifiers = func->qualifiers
     };
 
     if (func->parameter_count > 0) {
