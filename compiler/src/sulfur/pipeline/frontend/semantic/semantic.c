@@ -38,6 +38,7 @@ static void check_main_function(sf_semantic *semantic);
 
 static bool stmt_always_returns(sf_ast_node *node);
 static bool has_no_effect(sf_ast_node *node);
+static bool has_qualifiers(sf_func_symbol sym);
 static bool shadows_parameter(sf_semantic *semantic, const char *name);
 
 void sf_analyze(
@@ -63,7 +64,7 @@ void sf_analyze(
         analyze_statement(&semantic, program->statements[i]);
     }
 
-    if (!options->no_entry) {
+    if (options->no_entry == false) {
         check_main_function(&semantic);
     }
 
@@ -579,17 +580,19 @@ static bool check_return_type(
 }
 
 static void check_main_function(sf_semantic *semantic) {
+    const char * main_func_name = "main";
+
     const sf_func_symbol *main_func = sf_func_symbol_table_lookup(
-        semantic->funcs, "main"
+        semantic->funcs, main_func_name
     );
 
     if (main_func == NULL) {
         sf_log(
-            "missing entry point function 'main'.",
-            "the program does not define a 'main' function.",
-            "define a 'main' function as the program entry point.",
+            "missing entry point function",
+            "the program does not define a '%s' function",
+            "define a valid function as the program entry point",
             semantic->filename, SF_LOG_SEMANTIC_NO_MAIN_FUNCTION,
-            (sf_span){0}, SF_LOG_SEVERITY_ERROR
+            (sf_span){0}, SF_LOG_SEVERITY_ERROR, main_func_name
         );
 
         return;
@@ -597,21 +600,32 @@ static void check_main_function(sf_semantic *semantic) {
 
     if (main_func->return_type != SF_VAL_TYPE_I32) {
         sf_log(
-            "invalid return type for 'main'.",
-            "the 'main' function must return 'i32'",
-            "change the return type of 'main' to 'i32'.",
-            "%s", SF_LOG_SEMANTIC_INVALID_MAIN_RETURN_TYPE,
-            main_func->span, SF_LOG_SEVERITY_ERROR, semantic->filename
+            "invalid return type",
+            "the '%s' function must return '%s'",
+            "change the funtion return type",
+            semantic->filename, SF_LOG_SEMANTIC_INVALID_RETURN_TYPE,
+            main_func->span, SF_LOG_SEVERITY_ERROR,
+            main_func_name, sf_type_value_name(SF_VAL_TYPE_I32)
         );
     }
 
     if (main_func->parameter_count > 0) {
         sf_log(
-            "invalid parameters for 'main'.",
-            "the 'main' function must not have any parameters.",
-            "remove all parameters from the 'main' function.",
-            "%s", SF_LOG_SEMANTIC_INVALID_MAIN_PARAMETERS,
-            main_func->span, SF_LOG_SEVERITY_ERROR, semantic->filename
+            "invalid parameters",
+            "the '%s' function must not have any parameters",
+            "remove all parameters from the function",
+            semantic->filename, SF_LOG_SEMANTIC_INVALID_PARAMETERS,
+            main_func->span, SF_LOG_SEVERITY_ERROR, main_func_name
+        );
+    }
+
+    if (has_qualifiers(*main_func)) {
+        sf_log(
+            "invalid qualifiers",
+            "the '%s' function must not have any qualifiers",
+            "remove all qualifiers from the function",
+            semantic->filename, SF_LOG_SEMANTIC_INVALID_QUALIFIER,
+            main_func->span, SF_LOG_SEVERITY_ERROR, main_func_name
         );
     }
 }
@@ -682,6 +696,15 @@ static bool has_no_effect(sf_ast_node *node) {
         default: {
             return false;
         }
+    }
+}
+
+static bool has_qualifiers(sf_func_symbol sym) {
+    if (
+        sym.qualifiers.is_mutable == true ||
+        sym.qualifiers.is_public == true
+    ) {
+        return true;
     }
 }
 
