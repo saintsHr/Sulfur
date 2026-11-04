@@ -684,7 +684,7 @@ static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
             arg->resolved != SF_VAL_TYPE_UNRESOLVED &&
             arg->resolved != expected
         ) {
-            sf_cast_node *cast = sf_new_cast_expr(
+            sf_cast_node *cast = sf_new_cast_node(
                 s->arena, arg, expected, arg->span
             );
 

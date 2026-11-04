@@ -13,8 +13,8 @@ static sf_ast_node *parse_expr_stmt(sf_parser *p);
 
 static sf_ast_node *parse_decl(sf_parser *p);
 
-static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers quals);
-static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers quals);
+static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers qualifiers);
+static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers qualifiers);
 
 static sf_ast_node *parse_var_assign(sf_parser *p);
 
@@ -179,7 +179,7 @@ static sf_ast_node *parse_decl(sf_parser *p) {
     return NULL;
 }
 
-static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers quals) {
+static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers qualifiers) {
     sf_value_type type;
 
     if (!sf_parser_expect_type(p, &type, "a type keyword", "use any type keyword")) {
@@ -213,9 +213,9 @@ static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers quals) {
         return NULL;
     }
 
-    return (sf_ast_node *)sf_new_var_decl(
+    return (sf_ast_node *)sf_new_var_decl_node(
         p->arena, name_token->value, type,
-        value, quals, name_token->span
+        value, qualifiers, name_token->span
     );
 }
 
@@ -239,7 +239,7 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
             return NULL;
         }
 
-        sf_ast_node *lhs_ref = (sf_ast_node *)sf_new_identifier(
+        sf_ast_node *lhs_ref = (sf_ast_node *)sf_new_identifier_node(
             p->arena, name_token->value, name_token->span
         );
 
@@ -247,7 +247,7 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
             return NULL;
         }
 
-        value = (sf_ast_node *)sf_new_binary_expr(
+        value = (sf_ast_node *)sf_new_binary_node(
             p->arena, lhs_ref, rhs, op, op_token->span
         );
 
@@ -261,7 +261,7 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
         return NULL;
     }
 
-    return (sf_ast_node *)sf_new_var_assign(
+    return (sf_ast_node *)sf_new_var_assign_node(
         p->arena, name_token->value, value, name_token->span
     );
 }
@@ -298,7 +298,7 @@ static sf_ast_node *parse_if(sf_parser *p) {
         }
     }
 
-    return (sf_ast_node *)sf_new_if_stmt(
+    return (sf_ast_node *)sf_new_if_node(
         p->arena, condition, branch_then, branch_else, token->span
     );
 }
@@ -320,12 +320,12 @@ static sf_ast_node *parse_while(sf_parser *p) {
         return NULL;
     }
 
-    return (sf_ast_node *)sf_new_while_stmt(
+    return (sf_ast_node *)sf_new_while_node(
         p->arena, condition, branch_do, token->span
     );
 }
 
-static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers quals) {
+static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers qualifiers) {
     const sf_token *fn_token = sf_parser_advance(p);
 
     const sf_token *name_token = sf_parser_expect_identifier(
@@ -337,8 +337,8 @@ static sf_ast_node *parse_func_decl(sf_parser *p, sf_qualifiers quals) {
         return NULL;
     }
 
-    sf_func_decl_node *func = sf_new_func_decl(
-        p->arena, name_token->value, SF_VAL_TYPE_UNRESOLVED, fn_token->span
+    sf_func_decl_node *func = sf_new_func_decl_node(
+        p->arena, name_token->value, SF_VAL_TYPE_UNRESOLVED, qualifiers, fn_token->span
     );
 
     if (func == NULL) {
@@ -468,11 +468,11 @@ static sf_ast_node *parse_return(sf_parser *p) {
         return NULL;
     }
 
-    return (sf_ast_node *)sf_new_return_stmt(p->arena, value, token->span);
+    return (sf_ast_node *)sf_new_return_node(p->arena, value, token->span);
 }
 
 static sf_ast_node *parse_block(sf_parser *p) {
-    sf_block_node *block = sf_new_block(p->arena, sf_parser_peek(p)->span);
+    sf_block_node *block = sf_new_block_node(p->arena, sf_parser_peek(p)->span);
 
     if (block == NULL) {
         return NULL;
@@ -513,7 +513,7 @@ static sf_qualifiers parse_qualifiers(sf_parser *p) {
 
         switch (token->type) {
             case SF_TOKEN_TYPE_KW_MUT: {
-                if (quals.mut == true) {
+                if (quals.is_mutable == true) {
                     sf_log(
                         "repeated qualifier",
                         "declaration has 2 or more occurencies of the '%s' qualifier",
@@ -522,7 +522,7 @@ static sf_qualifiers parse_qualifiers(sf_parser *p) {
                         SF_LOG_SEVERITY_WARNING, sf_token_type_name(token->type)
                     );
                 } else {
-                    quals.mut = true;
+                    quals.is_mutable = true;
                 }
                 break;
             }

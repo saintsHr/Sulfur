@@ -14,7 +14,7 @@ static const sf_token *peek_at(const sf_parser *p, size_t idx);
 static void describe_token(const sf_token *token, char *buf, size_t size);
 
 sf_program_node *sf_parse(sf_arena *arena, sf_token_list list, const char *filename) {
-    sf_program_node *program = sf_new_program(arena);
+    sf_program_node *program = sf_new_program_node(arena);
 
     if (program == NULL || list.count == 0) {
         return program;

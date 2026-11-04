@@ -85,7 +85,7 @@ static sf_ast_node *parse_binary(sf_parser *p, size_t level) {
             return NULL;
         }
 
-        left = (sf_ast_node *)sf_new_binary_expr(
+        left = (sf_ast_node *)sf_new_binary_node(
             p->arena, left, right, op, op_token->span
         );
 
@@ -122,7 +122,7 @@ static sf_ast_node *parse_cast(sf_parser *p) {
             return NULL;
         }
 
-        expr = (sf_ast_node *)sf_new_cast_expr(p->arena, expr, target_type, as_span);
+        expr = (sf_ast_node *)sf_new_cast_node(p->arena, expr, target_type, as_span);
 
         if (expr == NULL) {
             return NULL;
@@ -148,7 +148,7 @@ static sf_ast_node *parse_unary(sf_parser *p) {
         return NULL;
     }
 
-    return (sf_ast_node *)sf_new_unary_expr(p->arena, operand, op, token->span);
+    return (sf_ast_node *)sf_new_unary_node(p->arena, operand, op, token->span);
 }
 
 static sf_ast_node *parse_postfix(sf_parser *p) {
@@ -169,7 +169,7 @@ static sf_ast_node *parse_postfix(sf_parser *p) {
             return NULL;
         }
 
-        operand = (sf_ast_node *)sf_new_unary_expr(
+        operand = (sf_ast_node *)sf_new_unary_node(
             p->arena, operand, op, op_token->span
         );
 
@@ -184,7 +184,7 @@ static sf_ast_node *parse_postfix(sf_parser *p) {
 static sf_ast_node *parse_call(sf_parser *p, const sf_token *name_token) {
     sf_parser_advance(p);
 
-    sf_identifier_node *callee_node = sf_new_identifier(
+    sf_identifier_node *callee_node = sf_new_identifier_node(
         p->arena,
         name_token->value,
         name_token->span
@@ -193,7 +193,7 @@ static sf_ast_node *parse_call(sf_parser *p, const sf_token *name_token) {
         return NULL;
     }
 
-    sf_func_call_node *call_node = sf_new_func_call(
+    sf_func_call_node *call_node = sf_new_func_call_node(
         p->arena,
         (sf_ast_node *)callee_node,
         name_token->span
@@ -250,7 +250,7 @@ static sf_ast_node *parse_primary(sf_parser *p) {
     ) {
         sf_parser_advance(p);
 
-        return (sf_ast_node *)sf_new_literal(
+        return (sf_ast_node *)sf_new_literal_node(
             p->arena, token->value, token->type, token->span
         );
     }
@@ -264,7 +264,7 @@ static sf_ast_node *parse_primary(sf_parser *p) {
         if (next_token->type == SF_TOKEN_TYPE_LPAREN) {
             ret = parse_call(p, token);
         } else {
-            ret = (sf_ast_node *)sf_new_identifier(p->arena, token->value, token->span);
+            ret = (sf_ast_node *)sf_new_identifier_node(p->arena, token->value, token->span);
         }
 
         return ret;
