@@ -129,6 +129,10 @@ static void emit_call(
     sf_ir_operation call, const sf_stack_map *map
 );
 
+static void emit_func_linkage(
+    char **buff, size_t *len, size_t *capacity, sf_ir_function func
+);
+
 static void emit_stack_arg(
     char **buff, size_t *len, size_t *capacity,
     sf_ir_operand param, const sf_stack_map *map
@@ -162,12 +166,7 @@ char *sf_generate_assembly(const sf_ir_program *program, const sf_compiler_optio
     sf_string_push("global _start\n", &buff, &len, &capacity);
 
     for (size_t i = 0; i < program->function_count; i++) {
-        sf_ir_function func = program->functions[i];
-
-        if (func.qualifiers.is_public == true) {
-            emitf(&buff, &len, &capacity, "global %s", func.name);
-            sf_string_push("\n", &buff, &len, &capacity);
-        }
+        emit_func_linkage(&buff, &len, &capacity, program->functions[i]);
     }
 
     sf_string_push("\n", &buff, &len, &capacity);
@@ -179,12 +178,11 @@ char *sf_generate_assembly(const sf_ir_program *program, const sf_compiler_optio
         sf_string_push("\tcall main\n\n", &buff, &len, &capacity);
         sf_string_push("\tmov edi, eax\n", &buff, &len, &capacity);
         sf_string_push("\tmov rax, 60\n", &buff, &len, &capacity);
-        sf_string_push("\tsyscall\n\n", &buff, &len, &capacity);
+        sf_string_push("\tsyscall\n", &buff, &len, &capacity);
     }
 
     for (size_t i = 0; i < program->function_count; i++) {
         emit_function(&buff, &len, &capacity, &program->functions[i]);
-        sf_string_push("\n", &buff, &len, &capacity);
     }
 
     return buff;
@@ -746,12 +744,20 @@ static void emit_return(
 
     emitf(buff, len, capacity, "\tmov rsp, rbp\n");
     emitf(buff, len, capacity, "\tpop rbp\n");
-    emitf(buff, len, capacity, "\tret");
+    emitf(buff, len, capacity, "\tret\n");
 }
 
 static void emit_function(
     char **buff, size_t *len, size_t *capacity, const sf_ir_function *func
 ) {
+    if (func->qualifiers.is_extern) {
+        return;
+    }
+
+    if (func->operation_count == 0) {
+        return;
+    }
+
     sf_stack_map map = {0};
     sf_stack_populate(
         &map,
@@ -760,6 +766,8 @@ static void emit_function(
         func->operations,
         func->operation_count
     );
+
+    emitf(buff, len, capacity, "\n");
 
     emitf(buff, len, capacity, "%s:\n", func->name);
     emitf(buff, len, capacity, "\tpush rbp\n");
@@ -803,7 +811,7 @@ static void emit_function(
         }
     }
 
-    emitf(buff, len, capacity, "\n");
+    sf_string_push("\n", buff, len, capacity);
 
     emit_operations(buff, len, capacity, func->operations, func->operation_count, &map);
 
@@ -1001,14 +1009,23 @@ static void emit_operations(
                 break;
             }
         }
-
-        sf_string_push("\n", buff, len, capacity);
     }
 
     cleanup: {
         free(params);
         param_capacity = 0;
         param_count = 0;
+    }
+}
+
+static void emit_func_linkage(
+    char **buff, size_t *len, size_t *capacity, sf_ir_function func
+) {
+    if (func.qualifiers.is_public) {
+        emitf(buff, len, capacity, "global %s\n", func.name);
+    }
+    if (func.qualifiers.is_extern) {
+        emitf(buff, len, capacity, "extern %s\n", func.name);
     }
 }
 

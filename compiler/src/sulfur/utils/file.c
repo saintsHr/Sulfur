@@ -11,8 +11,8 @@ char *sf_file_read(const char *filename, size_t *size) {
 
     if (file == NULL) {
         sf_log(
-            "Cannot open file.", "Unable to open file '%s' for reading.",
-            "Make sure the file exists and the path is correct.", filename,
+            "cannot open file", "unable to open file '%s' for reading",
+            "make sure the file exists and the path is correct", filename,
             SF_LOG_MAIN_CANNOT_OPEN_FILE, (sf_span){0}, SF_LOG_SEVERITY_FATAL, filename
         );
 
@@ -24,14 +24,14 @@ char *sf_file_read(const char *filename, size_t *size) {
     rewind(file);
     *size = read_size;
 
-    char *content = malloc(read_size + 1);
+    char *content = malloc(read_size + 2);
 
     if (content == NULL) {
         fclose(file);
 
         sf_log(
-            "Insufficient Memory.", "Cannot allocate memory for compiling.",
-            "Free some memory and try again.", NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            "insufficient memory", "cannot allocate memory for compiling",
+            "free some memory and try again", NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
             (sf_span){0}, SF_LOG_SEVERITY_FATAL
         );
 
@@ -39,7 +39,12 @@ char *sf_file_read(const char *filename, size_t *size) {
     }
 
     fread(content, sizeof(char), read_size, file);
+
+    if (read_size == 0 || content[read_size - 1] != '\n') {
+        content[read_size++] = '\n';
+    }
     content[read_size] = '\0';
+
     fclose(file);
 
     return content;

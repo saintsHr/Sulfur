@@ -108,13 +108,15 @@ static void compilation_free(sf_compilation *compilation) {
 }
 
 static void dump_stages(sf_compilation *compilation) {
+    printf("\n ---- Source ---- \n\n");
     printf("%s", compilation->input_source);
-    printf("\n");
+    printf("\n ---- Tokens ---- \n\n");
     sf_tokens_print(&compilation->tokens);
-    printf("\n");
+    printf("\n ---- AST ---- \n\n");
     sf_print_ast((sf_ast_node *)compilation->ast);
-    printf("\n");
+    printf("\n ---- IR ---- \n\n");
     sf_ir_print(&compilation->ir);
-    printf("\n");
+    printf("\n ---- Assembly ---- \n\n");
     printf("%s", compilation->assembly);
+    printf("\n ---------------- \n");
 }

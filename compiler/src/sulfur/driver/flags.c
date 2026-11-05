@@ -14,8 +14,8 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
         if (strcmp(this_arg, FLAGS_INPUT_FILE) == 0) {
             if (!has_next || next_arg[0] == '-') {
                 sf_log(
-                    "No input file", "No input file was provided after '-i'.",
-                    "Provide a filename after '%s', or remove the flag.",
+                    "no input file", "No input file was provided after '-i'",
+                    "provide a filename after '%s', or remove the flag",
                     "N/A", SF_LOG_MAIN_NO_INPUT_FILE, (sf_span){0},
                     SF_LOG_SEVERITY_FATAL, FLAGS_INPUT_FILE
                 );
@@ -31,8 +31,8 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
         if (strcmp(this_arg, FLAGS_OUTPUT_FILE) == 0) {
             if (!has_next || next_arg[0] == '-') {
                 sf_log(
-                    "No output file.", "No output file was provided after '-o'.",
-                    "Provide a filename after '%s', or remove the flag.", "N/A",
+                    "no output file", "no output file was provided after '-o'",
+                    "provide a filename after '%s', or remove the flag", "N/A",
                     SF_LOG_MAIN_NO_OUTPUT_FILE, (sf_span){0}, SF_LOG_SEVERITY_FATAL,
                     FLAGS_OUTPUT_FILE
                 );
@@ -58,8 +58,8 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
         }
 
         sf_log(
-            "Unknown flag.", "Unrecognized flag '%s'.",
-            "Check available flags or remove this flag.",
+            "unknown flag", "unrecognized flag '%s'",
+            "check available flags or remove this flag",
             "N/A", SF_LOG_MAIN_UNKNOWN_FLAG, (sf_span){0}, SF_LOG_SEVERITY_FATAL, argv[i]
         );
     }

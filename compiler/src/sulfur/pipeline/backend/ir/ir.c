@@ -125,7 +125,7 @@ void sf_ir_print(const sf_ir_program *program) {
     for (size_t f = 0; f < program->function_count; f++) {
         const sf_ir_function *func = &program->functions[f];
 
-        printf("\nfunction %s(", func->name);
+        printf("function %s(", func->name);
 
         for (size_t p = 0; p < func->parameter_count; p++) {
             print_operand((sf_ir_operand){
@@ -139,9 +139,12 @@ void sf_ir_print(const sf_ir_program *program) {
             }
         }
 
-        printf(") %s :\n", sf_type_value_name(func->return_type));
-        print_operations(func->operations, func->operation_count);
+        printf(") %s", sf_type_value_name(func->return_type));
+        if (func->operation_count > 0) {
+            printf(":");
+        }
         printf("\n");
+        print_operations(func->operations, func->operation_count);
     }
 }
 
@@ -428,8 +431,6 @@ static void generate_while(
 static void generate_function(
     sf_arena *arena, sf_ir_program *program, sf_func_decl_node *func
 ) {
-    if (func->body == NULL) return;
-
     sf_ir_function func_ir = {
         .name = func->name,
         .parameters = func->parameters,
@@ -469,15 +470,17 @@ static void generate_function(
         }
     }
 
-    sf_ir_context ctx = context_from_function(&func_ir);
+    if (func->body != NULL) {
+        sf_ir_context ctx = context_from_function(&func_ir);
 
-    generate_statement(arena, &ctx, program, func->body);
+        generate_statement(arena, &ctx, program, func->body);
 
-    if (
-        func->return_type == SF_VAL_TYPE_VOID &&
-        !ends_with_return(&func_ir)
-    ) {
-        emit(arena, &ctx, SF_IR_OPCODE_RETURN, k_no_operand, k_no_operand, k_no_operand);
+        if (
+            func->return_type == SF_VAL_TYPE_VOID &&
+            !ends_with_return(&func_ir)
+        ) {
+            emit(arena, &ctx, SF_IR_OPCODE_RETURN, k_no_operand, k_no_operand, k_no_operand);
+        }
     }
 
     add_function(arena, program, func_ir);
