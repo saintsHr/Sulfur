@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "sulfur/pipeline/backend/ir/optimization.h"
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/utils/arena.h"
 #include "sulfur/utils/log.h"
@@ -542,16 +541,10 @@ static sf_ir_operand generate_binary(
     sf_arena *arena, sf_ir_context *context,
     sf_binary_node *ex, sf_ir_operand *hint
 ) {
+    sf_ir_opcode opcode = sf_type_operation_to_opcode(ex->op);
+
     sf_ir_operand left = generate_expression(arena, context, ex->left);
     sf_ir_operand right = generate_expression(arena, context, ex->right);
-
-    sf_ir_opcode opcode = sf_type_operation_to_opcode(ex->op);
-    sf_ir_operand folded;
-
-    if (sf_fold_constants(arena, left, right, opcode, ex->base.resolved, &folded)) {
-        return folded;
-    }
-
     sf_ir_operand dst = hint != NULL ? *hint : new_temporary(context, ex->base.resolved);
 
     emit(arena, context, opcode, dst, left, right);
@@ -566,16 +559,9 @@ static sf_ir_operand generate_unary(
     if (sf_type_is_increment_or_decrement(un->op)) {
         return generate_increment(arena, context, un);
     }
+    sf_ir_opcode opcode = sf_type_operation_to_opcode(un->op);
 
     sf_ir_operand src = generate_expression(arena, context, un->operand);
-
-    sf_ir_opcode opcode = sf_type_operation_to_opcode(un->op);
-    sf_ir_operand folded;
-
-    if (sf_fold_constants(arena, src, k_no_operand, opcode, un->base.resolved, &folded)) {
-        return folded;
-    }
-
     sf_ir_operand dst = hint != NULL ? *hint : new_temporary(context, un->base.resolved);
 
     emit(arena, context, opcode, dst, src, k_no_operand);

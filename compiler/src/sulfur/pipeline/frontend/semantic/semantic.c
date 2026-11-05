@@ -506,10 +506,21 @@ static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym) {
 static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym) {
     if (sym.qualifiers.is_mutable == true) {
         sf_log(
-            "invalid qualifier", "functions cannot be mutable",
+            "invalid qualifier", "function '%' cannot be mutable",
             "remove the invalid qualifier", semantic->filename,
             SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span,
-            SF_LOG_SEVERITY_ERROR
+            SF_LOG_SEVERITY_ERROR, sym.name
+        );
+
+        return false;
+    }
+
+    if (sym.qualifiers.is_extern && sym.qualifiers.is_public) {
+        sf_log(
+            "invalid qualifier", "function '%s' cannot be both public and extern",
+            "remove one of the qualifiers", semantic->filename,
+            SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span,
+            SF_LOG_SEVERITY_ERROR, sym.name
         );
 
         return false;

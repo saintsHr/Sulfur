@@ -10,6 +10,7 @@
 
 #include "sulfur/pipeline/backend/codegen/codegen.h"
 #include "sulfur/pipeline/backend/ir/ir.h"
+#include "sulfur/pipeline/backend/optimization/optimization.h"
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/lexer.h"
 #include "sulfur/pipeline/frontend/parser/parser.h"
@@ -85,6 +86,11 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     compilation->ir = sf_ir_generate(
         &compilation->arena,
         compilation->ast
+    );
+    if (sf_log_had_errors()) return false;
+
+    sf_optimize(
+        &compilation->ir
     );
     if (sf_log_had_errors()) return false;
 
