@@ -67,13 +67,13 @@ static bool check_argument_type(
 
 bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_value_type expected) {
     switch (node->type) {
-        case SF_NODE_BINARY_EXPR: {
+        case SF_NODE_BINARY: {
             return analyze_binary(s, (sf_binary_node *)node, expected);
         }
-        case SF_NODE_UNARY_EXPR: {
+        case SF_NODE_UNARY: {
             return analyze_unary(s, (sf_unary_node *)node, expected);
         }
-        case SF_NODE_CAST_EXPR: {
+        case SF_NODE_CAST: {
             return analyze_cast(s, (sf_cast_node *)node);
         }
         case SF_NODE_LITERAL: {

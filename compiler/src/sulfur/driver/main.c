@@ -8,6 +8,7 @@
 #include "sulfur/driver/main.h"
 #include "sulfur/driver/flags.h"
 
+#include "sulfur/module/module.h"
 #include "sulfur/pipeline/backend/codegen/codegen.h"
 #include "sulfur/pipeline/backend/ir/ir.h"
 #include "sulfur/pipeline/backend/optimization/optimization.h"
@@ -72,6 +73,13 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
         &compilation->arena,
         compilation->tokens,
         options->file_input
+    );
+    if (sf_log_had_errors()) return false;
+
+    sf_module_resolve(
+        options->file_input,
+        compilation->ast->imports,
+        &compilation->modules
     );
     if (sf_log_had_errors()) return false;
 

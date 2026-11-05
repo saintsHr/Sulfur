@@ -13,18 +13,19 @@ typedef struct sf_var_symbol sf_var_symbol;
 typedef enum {
     SF_NODE_PROGRAM,
     SF_NODE_VAR_DECL,
-    SF_NODE_BINARY_EXPR,
-    SF_NODE_UNARY_EXPR,
-    SF_NODE_CAST_EXPR,
+    SF_NODE_BINARY,
+    SF_NODE_UNARY,
+    SF_NODE_CAST,
     SF_NODE_LITERAL,
     SF_NODE_IDENTIFIER,
     SF_NODE_VAR_ASSIGN,
     SF_NODE_BLOCK,
-    SF_NODE_IF_STMT,
-    SF_NODE_WHILE_STMT,
+    SF_NODE_IF,
+    SF_NODE_WHILE,
     SF_NODE_FUNC_DECL,
     SF_NODE_FUNC_CALL,
-    SF_NODE_RETURN_STMT
+    SF_NODE_RETURN,
+    SF_NODE_IMPORT
 } sf_node_type;
 
 typedef enum {
@@ -83,13 +84,6 @@ typedef struct {
     sf_value_type resolved;
     sf_span span;
 } sf_ast_node;
-
-typedef struct {
-    sf_ast_node base;
-    sf_ast_node **statements;
-    size_t statement_count;
-    size_t statement_capacity;
-} sf_program_node;
 
 typedef struct {
     sf_ast_node base;
@@ -199,8 +193,26 @@ typedef struct {
     sf_ast_node *value;
 } sf_return_node;
 
+typedef struct {
+    sf_ast_node base;
+    char *path;
+} sf_import_node;
+
+typedef struct {
+    sf_ast_node base;
+    sf_ast_node **statements;
+    size_t statement_count;
+    size_t statement_capacity;
+
+    sf_import_node **imports;
+    size_t import_count;
+    size_t import_capacity;
+} sf_program_node;
+
 void sf_print_ast(const sf_ast_node *root);
+
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt);
+void sf_program_add_import(sf_arena *arena, sf_program_node *program, sf_import_node *import);
 void sf_block_add_statement(sf_arena *arena, sf_block_node *block, sf_ast_node *stmt);
 void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function, sf_parameter param);
 void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node *argument);
@@ -251,4 +263,7 @@ sf_return_node *sf_new_return_node(
 );
 sf_func_call_node *sf_new_func_call_node(
     sf_arena *arena, sf_ast_node *callee, sf_span span
+);
+sf_import_node *sf_new_import_node(
+    sf_arena *arena, const char *path, sf_span span
 );

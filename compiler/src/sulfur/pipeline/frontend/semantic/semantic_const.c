@@ -37,7 +37,7 @@ bool sf_const_eval_uint(sf_ast_node *node, uint64_t *out_value) {
         return literal_magnitude(node, out_value);
     }
 
-    if (node->type != SF_NODE_BINARY_EXPR) {
+    if (node->type != SF_NODE_BINARY) {
         return false;
     }
 
@@ -71,11 +71,11 @@ bool sf_const_eval_int(sf_ast_node *node, int64_t *out_value) {
         return true;
     }
 
-    if (node->type == SF_NODE_UNARY_EXPR) {
+    if (node->type == SF_NODE_UNARY) {
         return eval_int_negate((const sf_unary_node *)node, out_value);
     }
 
-    if (node->type != SF_NODE_BINARY_EXPR) {
+    if (node->type != SF_NODE_BINARY) {
         return false;
     }
 
@@ -110,7 +110,7 @@ bool sf_const_eval_bool(sf_ast_node *node, bool *out_value) {
         return false;
     }
 
-    if (node->type == SF_NODE_UNARY_EXPR) {
+    if (node->type == SF_NODE_UNARY) {
         sf_unary_node *un = (sf_unary_node *)node;
 
         if (un->op != SF_OP_TYPE_LOGICAL_NOT) {
@@ -127,7 +127,7 @@ bool sf_const_eval_bool(sf_ast_node *node, bool *out_value) {
         return true;
     }
 
-    if (node->type == SF_NODE_BINARY_EXPR) {
+    if (node->type == SF_NODE_BINARY) {
         return eval_bool_binary((sf_binary_node *)node, out_value);
     }
 
@@ -573,7 +573,7 @@ static bool check_unsigned_overflow(
     uint64_t value;
 
     if (!sf_const_eval_uint(node, &value)) {
-        if (node->type != SF_NODE_BINARY_EXPR) {
+        if (node->type != SF_NODE_BINARY) {
             return true;
         }
 

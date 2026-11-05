@@ -13,7 +13,11 @@
 static const sf_token *peek_at(const sf_parser *p, size_t idx);
 static void describe_token(const sf_token *token, char *buf, size_t size);
 
-sf_program_node *sf_parse(sf_arena *arena, sf_token_list list, const char *filename) {
+sf_program_node *sf_parse(
+    sf_arena *arena,
+    sf_token_list list,
+    const char *filename
+) {
     sf_program_node *program = sf_new_program_node(arena);
 
     if (program == NULL || list.count == 0) {
@@ -29,10 +33,14 @@ sf_program_node *sf_parse(sf_arena *arena, sf_token_list list, const char *filen
 
     while (sf_parser_peek(&parser)->type != SF_TOKEN_TYPE_EOF) {
         size_t start = parser.current;
-        sf_ast_node *stmt = sf_parse_top_level(&parser);
+        sf_ast_node *node = sf_parse_top_level(&parser);
 
-        if (stmt != NULL) {
-            sf_program_add_statement(arena, program, stmt);
+        if (node != NULL) {
+            if (node->type == SF_NODE_IMPORT) {
+                sf_program_add_import(arena, program, (sf_import_node *)node);
+            } else {
+                sf_program_add_statement(arena, program, node);
+            }
         } else if (parser.current == start) {
             sf_parser_advance(&parser);
         }

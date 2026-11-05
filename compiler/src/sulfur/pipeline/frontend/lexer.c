@@ -65,6 +65,7 @@ static const sf_token_spelling k_symbols[] = {
     {SF_TOKEN_TYPE_LBRACE, "{"},
     {SF_TOKEN_TYPE_RBRACE, "}"},
     {SF_TOKEN_TYPE_COMMA, ","},
+    {SF_TOKEN_TYPE_DOT, "."}
 };
 
 static const sf_token_spelling k_keywords[] = {
@@ -96,6 +97,8 @@ static const sf_token_spelling k_keywords[] = {
     {SF_TOKEN_TYPE_KW_MUT, "mut"},
     {SF_TOKEN_TYPE_KW_PUB, "pub"},
     {SF_TOKEN_TYPE_KW_EXTERN, "extern"},
+
+    {SF_TOKEN_TYPE_KW_IMPORT, "import"}
 };
 
 static bool is_digit(char c);

@@ -34,6 +34,8 @@ set(SOURCES
 	src/sulfur/pipeline/backend/optimization/optimization.c
 	src/sulfur/pipeline/backend/codegen/codegen.c
 	src/sulfur/pipeline/backend/codegen/stack.c
+
+	src/sulfur/module/module.c
 )
 
 add_executable(sulfur-compiler ${SOURCES})

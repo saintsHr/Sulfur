@@ -2,6 +2,8 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/lexer.h"
@@ -18,7 +20,9 @@ static sf_ast_node *parse_if(sf_parser *p);
 static sf_ast_node *parse_while(sf_parser *p);
 static sf_ast_node *parse_return(sf_parser *p);
 static sf_ast_node *parse_block(sf_parser *p);
+
 static sf_qualifiers parse_qualifiers(sf_parser *p);
+static sf_ast_node *parse_import(sf_parser *p);
 
 static void report_repeated_qual(const sf_parser *p, sf_token token);
 
@@ -29,7 +33,25 @@ sf_ast_node *sf_parse_top_level(sf_parser *p) {
         sf_token_is_fn(*token) ||
         sf_token_is_qual(*token)
     ) {
-        return parse_decl(p);
+        sf_ast_node *node = parse_decl(p);
+
+        if (node == NULL) {
+            sf_parser_recover_top_level(p);
+        };
+
+        return node;
+    }
+
+    if (
+        sf_token_is_import(*token)
+    ) {
+        sf_ast_node *node = parse_import(p);
+
+        if (node == NULL) {
+            sf_parser_recover_top_level(p);
+        };
+
+        return node;
     }
 
     sf_log(
@@ -546,6 +568,94 @@ static sf_qualifiers parse_qualifiers(sf_parser *p) {
 
         sf_parser_advance(p);
     }
+}
+
+#define IMPORT_PATH_SIZE 512
+
+static sf_ast_node *parse_import(sf_parser *p) {
+    const sf_token *token_import = sf_parser_peek(p);
+
+    if (!sf_parser_expect(p, SF_TOKEN_TYPE_KW_IMPORT)) {
+        return NULL;
+    }
+
+    char path[IMPORT_PATH_SIZE] = {0};
+    size_t path_len = 0;
+
+    bool expect_identifier = true;
+
+    while (true) {
+        const sf_token *token = sf_parser_peek(p);
+
+        if (token->type == SF_TOKEN_TYPE_SEMICOLON) {
+            if (expect_identifier) {
+                sf_parser_report_unexpected(
+                    p, token, "identifier",
+                    "import paths must contain valid identifiers separated by dots, ending with ';'"
+                );
+                return NULL;
+            }
+
+            sf_parser_advance(p);
+            break;
+        }
+
+        if (expect_identifier) {
+            if (token->type != SF_TOKEN_TYPE_IDENTIFIER) {
+                sf_parser_report_unexpected(
+                    p, token, "identifier",
+                    "import paths must contain valid identifiers separated by dots, ending with ';'"
+                );
+                return NULL;
+            }
+
+            token = sf_parser_advance(p);
+
+            size_t len = strlen(token->value);
+
+            if (path_len + len >= IMPORT_PATH_SIZE) {
+                return NULL;
+            }
+
+            memcpy(path + path_len, token->value, len);
+            path_len += len;
+
+            expect_identifier = false;
+        } else {
+            if (token->type != SF_TOKEN_TYPE_DOT) {
+                sf_parser_report_unexpected(
+                    p, token, "'.' or ';'",
+                    "import paths must contain valid identifiers separated by dots, ending with ';'"
+                );
+
+                return NULL;
+            }
+
+            token = sf_parser_advance(p);
+
+            if (path_len + 1 >= IMPORT_PATH_SIZE) {
+                return NULL;
+            }
+
+            path[path_len++] = '/';
+            expect_identifier = true;
+        }
+    }
+
+    static const char extension[] = ".slfr";
+    const size_t extension_len = sizeof(extension) - 1;
+
+    if (path_len + extension_len >= IMPORT_PATH_SIZE) {
+        return NULL;
+    }
+
+    memcpy(path + path_len, extension, extension_len + 1);
+
+    return (sf_ast_node *)sf_new_import_node(
+        p->arena,
+        path,
+        token_import->span
+    );
 }
 
 static void report_repeated_qual(const sf_parser *p, sf_token token) {

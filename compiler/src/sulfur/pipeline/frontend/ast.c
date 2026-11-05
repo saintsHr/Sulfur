@@ -39,6 +39,7 @@ static void print_while_node(const sf_while_node *node, size_t indent);
 static void print_func_decl_node(const sf_func_decl_node *node, size_t indent);
 static void print_func_call_node(const sf_func_call_node *node, size_t indent);
 static void print_return_node(const sf_return_node *node, size_t indent);
+static void print_import_node(const sf_import_node *node, size_t indent);
 
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt) {
     sf_ast_node **statements = grow_for_one(
@@ -52,6 +53,20 @@ void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_
 
     program->statements = statements;
     program->statements[program->statement_count++] = stmt;
+}
+
+void sf_program_add_import(sf_arena *arena, sf_program_node *program, sf_import_node *import) {
+    sf_import_node **imports = grow_for_one(
+        arena, program->imports, program->import_count,
+        &program->import_capacity, sizeof(sf_import_node *)
+    );
+
+    if (imports == NULL) {
+        return;
+    }
+
+    program->imports = imports;
+    program->imports[program->import_count++] = import;
 }
 
 void sf_block_add_statement(sf_arena *arena, sf_block_node *block, sf_ast_node *stmt) {
@@ -142,7 +157,7 @@ sf_binary_node *sf_new_binary_node(
 ) {
     sf_binary_node *node = new_node(
         arena, sizeof(sf_binary_node),
-        SF_NODE_BINARY_EXPR, span
+        SF_NODE_BINARY, span
     );
 
     if (node == NULL) {
@@ -162,7 +177,7 @@ sf_unary_node *sf_new_unary_node(
 ) {
     sf_unary_node *node = new_node(
         arena, sizeof(sf_unary_node),
-        SF_NODE_UNARY_EXPR, span
+        SF_NODE_UNARY, span
     );
 
     if (node == NULL) {
@@ -181,7 +196,7 @@ sf_cast_node *sf_new_cast_node(
 ) {
     sf_cast_node *node = new_node(
         arena, sizeof(sf_cast_node),
-        SF_NODE_CAST_EXPR, span
+        SF_NODE_CAST, span
     );
 
     if (node == NULL) {
@@ -241,7 +256,7 @@ sf_if_node *sf_new_if_node(
 ) {
     sf_if_node *node = new_node(
         arena, sizeof(sf_if_node),
-        SF_NODE_IF_STMT, span
+        SF_NODE_IF, span
     );
 
     if (node == NULL) {
@@ -261,7 +276,7 @@ sf_while_node *sf_new_while_node(
 ) {
     sf_while_node *node = new_node(
         arena, sizeof(sf_while_node),
-        SF_NODE_WHILE_STMT, span
+        SF_NODE_WHILE, span
     );
 
     if (node == NULL) {
@@ -318,7 +333,7 @@ sf_return_node *sf_new_return_node(
 ) {
     sf_return_node *node = new_node(
         arena, sizeof(sf_return_node),
-        SF_NODE_RETURN_STMT, span
+        SF_NODE_RETURN, span
     );
 
     if (node == NULL) {
@@ -326,6 +341,20 @@ sf_return_node *sf_new_return_node(
     }
 
     node->value = value;
+
+    return node;
+}
+
+sf_import_node *sf_new_import_node(
+    sf_arena *arena, const char *path, sf_span span
+) {
+    sf_import_node *node = new_node(arena, sizeof(sf_import_node), SF_NODE_IMPORT, span);
+
+    if (node == NULL) {
+        return NULL;
+    }
+
+    node->path = copy_string(arena, path);
 
     return node;
 }
@@ -358,11 +387,11 @@ static void print_node(const sf_ast_node *node, size_t indent) {
             print_var_assign_node((const sf_var_assign_node *)node, indent);
             break;
         }
-        case SF_NODE_BINARY_EXPR: {
+        case SF_NODE_BINARY: {
             print_binary_node((const sf_binary_node *)node, indent);
             break;
         }
-        case SF_NODE_UNARY_EXPR: {
+        case SF_NODE_UNARY: {
             print_unary_node((const sf_unary_node *)node, indent);
             break;
         }
@@ -378,15 +407,15 @@ static void print_node(const sf_ast_node *node, size_t indent) {
             print_block_node((const sf_block_node *)node, indent);
             break;
         }
-        case SF_NODE_CAST_EXPR: {
+        case SF_NODE_CAST: {
             print_cast_node((const sf_cast_node *)node, indent);
             break;
         }
-        case SF_NODE_IF_STMT: {
+        case SF_NODE_IF: {
             print_if_node((const sf_if_node *)node, indent);
             break;
         }
-        case SF_NODE_WHILE_STMT: {
+        case SF_NODE_WHILE: {
             print_while_node((const sf_while_node *)node, indent);
             break;
         }
@@ -398,8 +427,12 @@ static void print_node(const sf_ast_node *node, size_t indent) {
             print_func_call_node((const sf_func_call_node *)node, indent);
             break;
         }
-        case SF_NODE_RETURN_STMT: {
+        case SF_NODE_RETURN: {
             print_return_node((const sf_return_node *)node, indent);
+            break;
+        }
+
+        default: {
             break;
         }
     }
@@ -409,8 +442,22 @@ static void print_program_node(const sf_program_node *node, size_t indent) {
     print_indent(indent);
     printf("Program\n");
 
-    for (size_t i = 0; i < node->statement_count; i++) {
-        print_node(node->statements[i], indent + 1);
+    if (node->import_count > 0) {
+        print_indent(indent + 1);
+        printf("Imports\n");
+
+        for (size_t i = 0; i < node->import_count; i++) {
+            print_import_node(node->imports[i], indent + 2);
+        }
+    }
+
+    if (node->statement_count > 0) {
+        print_indent(indent + 1);
+        printf("Statements\n");
+
+        for (size_t i = 0; i < node->statement_count; i++) {
+            print_node(node->statements[i], indent + 2);
+        }
     }
 }
 
@@ -542,6 +589,15 @@ static void print_return_node(const sf_return_node *node, size_t indent) {
     if (node->value != NULL) {
         print_node(node->value, indent + 1);
     }
+}
+
+static void print_import_node(const sf_import_node *node, size_t indent) {
+    if (node == NULL) {
+        return;
+    }
+
+    print_indent(indent);
+    printf("Import %s\n", node->path);
 }
 
 static void report_out_of_memory(void) {

@@ -307,11 +307,11 @@ static void generate_statement(
             generate_block(arena, context, program, (sf_block_node *)node);
             break;
         }
-        case SF_NODE_IF_STMT: {
+        case SF_NODE_IF: {
             generate_if(arena, context, program, (sf_if_node *)node);
             break;
         }
-        case SF_NODE_WHILE_STMT: {
+        case SF_NODE_WHILE: {
             generate_while(arena, context, program, (sf_while_node *)node);
             break;
         }
@@ -319,7 +319,7 @@ static void generate_statement(
             generate_function(arena, program, (sf_func_decl_node *)node);
             break;
         }
-        case SF_NODE_RETURN_STMT: {
+        case SF_NODE_RETURN: {
             generate_return(arena, context, (sf_return_node *)node);
             break;
         }
@@ -512,13 +512,13 @@ static sf_ir_operand generate_expression_into(
     }
 
     switch (node->type) {
-        case SF_NODE_BINARY_EXPR: {
+        case SF_NODE_BINARY: {
             return generate_binary(arena, context, (sf_binary_node *)node, hint);
         }
-        case SF_NODE_UNARY_EXPR: {
+        case SF_NODE_UNARY: {
             return generate_unary(arena, context, (sf_unary_node *)node, hint);
         }
-        case SF_NODE_CAST_EXPR: {
+        case SF_NODE_CAST: {
             return generate_cast(arena, context, (sf_cast_node *)node, hint);
         }
         case SF_NODE_LITERAL: {

@@ -62,6 +62,10 @@ bool sf_token_is_qual(sf_token token) {
     }
 }
 
+bool sf_token_is_import(sf_token token) {
+    return token.type == SF_TOKEN_TYPE_KW_IMPORT;
+}
+
 bool sf_token_is_assign(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_EQUAL:

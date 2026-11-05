@@ -57,6 +57,7 @@ typedef enum {
     SF_TOKEN_TYPE_LBRACE,
     SF_TOKEN_TYPE_RBRACE,
     SF_TOKEN_TYPE_COMMA,
+    SF_TOKEN_TYPE_DOT,
 
     SF_TOKEN_TYPE_KW_I8,
     SF_TOKEN_TYPE_KW_I16,
@@ -84,6 +85,8 @@ typedef enum {
     SF_TOKEN_TYPE_KW_MUT,
     SF_TOKEN_TYPE_KW_PUB,
     SF_TOKEN_TYPE_KW_EXTERN,
+
+    SF_TOKEN_TYPE_KW_IMPORT,
 
     SF_TOKEN_TYPE_EOF
 } sf_token_type;

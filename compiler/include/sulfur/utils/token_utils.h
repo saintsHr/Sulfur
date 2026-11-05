@@ -13,6 +13,7 @@ bool sf_token_is_while(sf_token token);
 bool sf_token_is_fn(sf_token token);
 bool sf_token_is_return(sf_token token);
 bool sf_token_is_qual(sf_token token);
+bool sf_token_is_import(sf_token token);
 bool sf_token_is_assign(sf_token token);
 
 sf_value_type sf_token_to_type(sf_token token);

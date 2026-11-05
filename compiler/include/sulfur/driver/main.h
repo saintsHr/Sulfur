@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "sulfur/module/module.h"
 #include "sulfur/utils/arena.h"
 #include "sulfur/pipeline/frontend/lexer.h"
 #include "sulfur/pipeline/frontend/ast.h"
@@ -27,4 +28,6 @@ typedef struct {
     sf_program_node *ast;
     sf_ir_program ir;
     char *assembly;
+
+    sf_module_list modules;
 } sf_compilation;

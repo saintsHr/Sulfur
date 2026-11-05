@@ -110,11 +110,11 @@ static void analyze_statement(sf_semantic *semantic, sf_ast_node *node) {
             analyze_block(semantic, (sf_block_node *)node);
             break;
         }
-        case SF_NODE_IF_STMT: {
+        case SF_NODE_IF: {
             analyze_if(semantic, (sf_if_node *)node);
             break;
         }
-        case SF_NODE_WHILE_STMT: {
+        case SF_NODE_WHILE: {
             analyze_while(semantic, (sf_while_node *)node);
             break;
         }
@@ -126,7 +126,7 @@ static void analyze_statement(sf_semantic *semantic, sf_ast_node *node) {
             sf_semantic_expr(semantic, node, SF_VAL_TYPE_UNRESOLVED);
             break;
         }
-        case SF_NODE_RETURN_STMT: {
+        case SF_NODE_RETURN: {
             analyze_return(semantic, (sf_return_node *)node);
             break;
         }
@@ -662,7 +662,7 @@ static bool stmt_always_returns(sf_ast_node *node) {
     }
 
     switch (node->type) {
-        case SF_NODE_RETURN_STMT: {
+        case SF_NODE_RETURN: {
             return true;
         }
         case SF_NODE_BLOCK: {
@@ -676,7 +676,7 @@ static bool stmt_always_returns(sf_ast_node *node) {
 
             return false;
         }
-        case SF_NODE_IF_STMT: {
+        case SF_NODE_IF: {
             sf_if_node *if_stmt = (sf_if_node *)node;
 
             if (if_stmt->branch_else == NULL) {
@@ -702,11 +702,11 @@ static bool has_no_effect(sf_ast_node *node) {
         case SF_NODE_IDENTIFIER: {
             return true;
         }
-        case SF_NODE_BINARY_EXPR: {
+        case SF_NODE_BINARY: {
             sf_binary_node *ex = (sf_binary_node *)node;
             return has_no_effect(ex->left) && has_no_effect(ex->right);
         }
-        case SF_NODE_UNARY_EXPR: {
+        case SF_NODE_UNARY: {
             sf_unary_node *un = (sf_unary_node *)node;
 
             if (sf_type_is_increment_or_decrement(un->op)) {
@@ -715,7 +715,7 @@ static bool has_no_effect(sf_ast_node *node) {
 
             return has_no_effect(un->operand);
         }
-        case SF_NODE_CAST_EXPR: {
+        case SF_NODE_CAST: {
             sf_cast_node *cast = (sf_cast_node *)node;
             return has_no_effect(cast->operand);
         }
