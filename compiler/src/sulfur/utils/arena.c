@@ -1,4 +1,5 @@
 #include "sulfur/utils/arena.h"
+#include "sulfur/utils/log.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -66,6 +67,32 @@ void sf_arena_free(sf_arena *arena) {
 
     arena->first = NULL;
     arena->current = NULL;
+}
+
+void *sf_arena_grow_one(
+    sf_arena *arena, void *items, size_t count,
+    size_t *capacity, size_t elem_size
+) {
+    if (count < *capacity) {
+        return items;
+    }
+
+    size_t new_capacity = *capacity == 0 ? 8 : *capacity * 2;
+
+    void *grown = sf_arena_grow_array(arena, items, count, new_capacity, elem_size);
+
+    if (grown == NULL) {
+        sf_log(
+            "insufficient memory", "cannot allocate memory for compiling",
+            "free some memory and try again", "N/A",
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+        );
+        return NULL;
+    }
+
+    *capacity = new_capacity;
+
+    return grown;
 }
 
 static bool align_up_overflows(size_t n, size_t align) {

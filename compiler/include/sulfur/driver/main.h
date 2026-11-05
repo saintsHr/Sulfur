@@ -15,6 +15,10 @@ typedef struct {
 
     bool dump_stages;
     bool no_entry;
+
+    const char **module_paths;
+    size_t module_path_count;
+    size_t module_path_capacity;
 } sf_compiler_options;
 
 typedef struct {

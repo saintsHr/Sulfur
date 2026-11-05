@@ -6,5 +6,6 @@
 #define FLAGS_OUTPUT_FILE "-o"
 #define FLAGS_DUMP_STAGES "--dump-stages"
 #define FLAGS_NO_ENTRY "--no-entry"
+#define FLAGS_MODULE_PATH "-m"
 
 void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options);

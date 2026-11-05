@@ -32,6 +32,9 @@ int main(int argc, char *argv[]) {
         .file_output = "output.asm",
         .dump_stages = false,
         .no_entry = false,
+        .module_paths = NULL,
+        .module_path_capacity = 0,
+        .module_path_count = 0
     };
 
     sf_compilation compilation = {0};
@@ -41,7 +44,9 @@ int main(int argc, char *argv[]) {
     if (sf_log_had_fatal()) return EXIT_FAILURE;
 
     bool ok = compilation_run(&compilation, &options);
+
     compilation_free(&compilation);
+    free(options.module_paths);
 
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
@@ -77,9 +82,12 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     if (sf_log_had_errors()) return false;
 
     sf_module_resolve(
-        options->file_input,
         compilation->ast->imports,
-        &compilation->modules
+        compilation->ast->import_count,
+        &compilation->modules,
+        options->module_paths,
+        options->module_path_count,
+        &compilation->arena
     );
     if (sf_log_had_errors()) return false;
 

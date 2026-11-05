@@ -5,7 +5,8 @@
 typedef enum {
     SF_MODULE_STATE_UNLOADED,
     SF_MODULE_STATE_LOADING,
-    SF_MODULE_STATE_LOADED
+    SF_MODULE_STATE_LOADED,
+    SF_MODULE_STATE_FAILED,
 } sf_module_state;
 
 typedef struct {
@@ -21,7 +22,10 @@ typedef struct {
 } sf_module_list;
 
 void sf_module_resolve(
-    const char *filename,
     sf_import_node **imports,
-    sf_module_list *modules
+    size_t import_count,
+    sf_module_list *modules,
+    const char **module_paths,
+    size_t module_path_count,
+    sf_arena *arena
 );

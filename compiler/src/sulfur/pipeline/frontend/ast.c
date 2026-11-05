@@ -17,10 +17,6 @@ static void *new_node(
     sf_arena *arena, size_t size,
     sf_node_type type, sf_span span
 );
-static void *grow_for_one(
-    sf_arena *arena, void *items, size_t count,
-    size_t *capacity, size_t elem_size
-);
 
 static void print_indent(size_t indent);
 static void print_node(const sf_ast_node *node, size_t indent);
@@ -42,7 +38,7 @@ static void print_return_node(const sf_return_node *node, size_t indent);
 static void print_import_node(const sf_import_node *node, size_t indent);
 
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt) {
-    sf_ast_node **statements = grow_for_one(
+    sf_ast_node **statements = sf_arena_grow_one(
         arena, program->statements, program->statement_count,
         &program->statement_capacity, sizeof(sf_ast_node *)
     );
@@ -56,7 +52,7 @@ void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_
 }
 
 void sf_program_add_import(sf_arena *arena, sf_program_node *program, sf_import_node *import) {
-    sf_import_node **imports = grow_for_one(
+    sf_import_node **imports = sf_arena_grow_one(
         arena, program->imports, program->import_count,
         &program->import_capacity, sizeof(sf_import_node *)
     );
@@ -70,7 +66,7 @@ void sf_program_add_import(sf_arena *arena, sf_program_node *program, sf_import_
 }
 
 void sf_block_add_statement(sf_arena *arena, sf_block_node *block, sf_ast_node *stmt) {
-    sf_ast_node **statements = grow_for_one(
+    sf_ast_node **statements = sf_arena_grow_one(
         arena, block->statements, block->statement_count,
         &block->statement_capacity, sizeof(sf_ast_node *)
     );
@@ -84,7 +80,7 @@ void sf_block_add_statement(sf_arena *arena, sf_block_node *block, sf_ast_node *
 }
 
 void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function, sf_parameter param) {
-    sf_parameter *parameters = grow_for_one(
+    sf_parameter *parameters = sf_arena_grow_one(
         arena, function->parameters, function->parameter_count,
         &function->parameter_capacity, sizeof(sf_parameter)
     );
@@ -98,7 +94,7 @@ void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function, sf_
 }
 
 void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node *argument) {
-    sf_ast_node **arguments = grow_for_one(
+    sf_ast_node **arguments = sf_arena_grow_one(
         arena, call->arguments, call->argument_count,
         &call->argument_capacity, sizeof(sf_ast_node *)
     );
@@ -636,26 +632,4 @@ static char *copy_string(sf_arena *arena, const char *str) {
     }
 
     return copy;
-}
-
-static void *grow_for_one(
-    sf_arena *arena, void *items, size_t count,
-    size_t *capacity, size_t elem_size
-) {
-    if (count < *capacity) {
-        return items;
-    }
-
-    size_t new_capacity = *capacity == 0 ? 8 : *capacity * 2;
-
-    void *grown = sf_arena_grow_array(arena, items, count, new_capacity, elem_size);
-
-    if (grown == NULL) {
-        report_out_of_memory();
-        return NULL;
-    }
-
-    *capacity = new_capacity;
-
-    return grown;
 }

@@ -165,7 +165,7 @@ static void command_new(int argc, char **argv) {
         "version = \"v0.0.0\"\n"
         "\n"
         "[build]\n"
-        "flags = []\n"
+        "flags = [\"-m src\"]\n"
         "entry = \"main.slfr\"\n",
 
         project_name

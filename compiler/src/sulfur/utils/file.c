@@ -13,7 +13,7 @@ char *sf_file_read(const char *filename, size_t *size) {
         sf_log(
             "cannot open file", "unable to open file '%s' for reading",
             "make sure the file exists and the path is correct", filename,
-            SF_LOG_MAIN_CANNOT_OPEN_FILE, (sf_span){0}, SF_LOG_SEVERITY_FATAL, filename
+            SF_LOG_DRIVER_CANNOT_OPEN_FILE, (sf_span){0}, SF_LOG_SEVERITY_FATAL, filename
         );
 
         return NULL;
@@ -57,7 +57,7 @@ bool sf_file_write(const char *filename, const char *content) {
         sf_log(
             "cannot open file", "unable to open file '%s' for writing",
             "check disk space and write permissions, then try again", filename,
-            SF_LOG_MAIN_CANNOT_OPEN_FILE, (sf_span){0}, SF_LOG_SEVERITY_FATAL, filename
+            SF_LOG_DRIVER_CANNOT_OPEN_FILE, (sf_span){0}, SF_LOG_SEVERITY_FATAL, filename
         );
 
         return false;
