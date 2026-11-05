@@ -95,6 +95,7 @@ static const sf_token_spelling k_keywords[] = {
 
     {SF_TOKEN_TYPE_KW_MUT, "mut"},
     {SF_TOKEN_TYPE_KW_PUB, "pub"},
+    {SF_TOKEN_TYPE_KW_EXTERN, "extern"},
 };
 
 static bool is_digit(char c);

@@ -121,6 +121,7 @@ typedef struct {
 typedef struct {
     bool is_mutable;
     bool is_public;
+    bool is_extern;
 } sf_qualifiers;
 
 typedef struct {

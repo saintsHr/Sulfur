@@ -530,6 +530,15 @@ static sf_qualifiers parse_qualifiers(sf_parser *p) {
                 break;
             }
 
+            case SF_TOKEN_TYPE_KW_EXTERN: {
+                if (quals.is_extern == true) {
+                    report_repeated_qual(p, *token);
+                } else {
+                    quals.is_extern = true;
+                }
+                break;
+            }
+
             default: {
                 return quals;
             }

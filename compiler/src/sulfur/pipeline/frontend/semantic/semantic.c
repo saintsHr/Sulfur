@@ -368,6 +368,10 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
     bool insert_result = sf_func_symbol_table_insert(semantic->funcs, sym, semantic->filename);
     if (insert_result == false) return;
 
+    if (sym.qualifiers.is_extern) {
+        sym.defined = true;
+    }
+
     if (func->body == NULL) return;
 
     scope_push(semantic->scope);
@@ -477,6 +481,17 @@ static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym) {
     if (sym.qualifiers.is_public) {
         sf_log(
             "invalid qualifier", "variables cannot be public",
+            "remove the invalid qualifier", semantic->filename,
+            SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span,
+            SF_LOG_SEVERITY_ERROR
+        );
+
+        return false;
+    }
+
+    if (sym.qualifiers.is_extern) {
+        sf_log(
+            "invalid qualifier", "variables cannot be extern",
             "remove the invalid qualifier", semantic->filename,
             SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span,
             SF_LOG_SEVERITY_ERROR

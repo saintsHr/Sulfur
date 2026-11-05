@@ -81,14 +81,36 @@ bool sf_func_symbol_table_insert(
     sf_func_symbol_table *table,
     sf_func_symbol func, const char *filename
 ) {
+    if (func.qualifiers.is_extern && is_definition(func)) {
+        sf_log(
+            "invalid definition",
+            "extern function '%s' cannot be defined here",
+            "do not define extern functions where it is declared",
+            filename, SF_LOG_SEMANTIC_INVALID_DEFINITION, func.span,
+            SF_LOG_SEVERITY_ERROR, func.name
+        );
+
+        return false;
+    }
+
     sf_func_symbol *existing = sf_func_symbol_table_lookup(table, func.name);
 
     if (existing != NULL) {
+        if (!is_definition(func)) {
+            sf_log(
+                "redeclaration",
+                "'%s' is already declared",
+                "remove the duplicate declaration",
+                filename, SF_LOG_SEMANTIC_REDECLARATION, func.span,
+                SF_LOG_SEVERITY_WARNING, func.name
+            );
+        }
+
         if (!has_same_signature(func, *existing)) {
             sf_log(
                 "conflicting declaration",
                 "'%s' was previously declared with a different signature",
-                "make the return type and parameter types match the previous declaration",
+                "make the return type and parameters match the previous declaration",
                 filename, SF_LOG_SEMANTIC_CONFLICTING_DECLARATION, func.span,
                 SF_LOG_SEVERITY_ERROR, func.name
             );
@@ -98,16 +120,18 @@ bool sf_func_symbol_table_insert(
 
         if (is_definition(func) && is_definition(*existing)) {
             sf_log(
-                "symbol redefinition", "'%s' is already defined",
+                "redefinition", "'%s' is already defined",
                 "rename the new function, or remove the duplicate definition",
-                filename, SF_LOG_SEMANTIC_REDECLARATION, func.span,
+                filename, SF_LOG_SEMANTIC_REDEFINITION, func.span,
                 SF_LOG_SEVERITY_ERROR, func.name
             );
 
             return false;
         }
 
-        if (is_definition(func)) existing->defined = true;
+        if (is_definition(func)) {
+            existing->defined = true;
+        }
 
         return true;
     }
