@@ -203,7 +203,7 @@ static void command_new(int argc, char **argv) {
         "emit = \"bin\"\n"
         "slfr_flags = [\"-m src\"]\n"
         "asm_flags = []\n"
-        "link_flags = []\n",
+        "link_flags = [\"/usr/local/lib/sulfur/libsulfurstd.a\"]\n",
 
         project_name
     );

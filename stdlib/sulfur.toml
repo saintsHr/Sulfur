@@ -1,0 +1,8 @@
+[project]
+name = "sulfurstd"
+
+[build]
+emit = "lib"
+slfr_flags = ["-m src"]
+asm_flags = []
+link_flags = []
