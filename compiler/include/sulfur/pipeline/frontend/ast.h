@@ -162,7 +162,7 @@ typedef struct {
 
 typedef struct {
     sf_value_type type;
-    char *name;
+    const char *name;
     size_t id;
     sf_qualifiers qualifiers;
 } sf_parameter;
@@ -170,6 +170,7 @@ typedef struct {
 typedef struct {
     sf_ast_node base;
     char *name;
+    const char *link_name;
     sf_qualifiers qualifiers;
     sf_parameter *parameters;
     size_t parameter_count;
@@ -182,6 +183,8 @@ typedef struct {
     sf_ast_node base;
 
     sf_ast_node *callee;
+
+    const char *link_name;
 
     sf_ast_node **arguments;
     size_t argument_count;
@@ -196,6 +199,8 @@ typedef struct {
 typedef struct {
     sf_ast_node base;
     char *path;
+    size_t module_index;
+    bool resolved;
 } sf_import_node;
 
 typedef struct {

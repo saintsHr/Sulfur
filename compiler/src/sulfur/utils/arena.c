@@ -57,6 +57,8 @@ void *sf_arena_grow_array(sf_arena *arena, void *old_array, size_t old_count, si
 }
 
 void sf_arena_free(sf_arena *arena) {
+    if (arena == NULL) return;
+
     sf_arena_chunk *chunk = arena->first;
 
     while (chunk) {

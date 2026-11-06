@@ -1,8 +1,10 @@
+#include "sulfur/utils/file.h"
+
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "sulfur/utils/file.h"
+#include <sys/stat.h>
 
 #include "sulfur/utils/log.h"
 
@@ -66,5 +68,25 @@ bool sf_file_write(const char *filename, const char *content) {
     fwrite(content, sizeof(char), strlen(content), file);
     fclose(file);
 
+    return true;
+}
+
+bool sf_file_make_parents(const char *path) {
+    char *tmp = malloc(strlen(path) + 1);
+    if (tmp == NULL) return false;
+    strcpy(tmp, path);
+
+    for (char *p = tmp + 1; *p != '\0'; p++) {
+        if (*p != '/') continue;
+
+        *p = '\0';
+        if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
+            free(tmp);
+            return false;
+        }
+        *p = '/';
+    }
+
+    free(tmp);
     return true;
 }

@@ -43,6 +43,7 @@ typedef enum {
     SF_LOG_DRIVER_UNKNOWN_FLAG = 0x1002,
     SF_LOG_DRIVER_CANNOT_OPEN_FILE = 0x1003,
     SF_LOG_DRIVER_NO_MODULE_PATH = 0x1004,
+    SF_LOG_DRIVER_NO_MODULE_FILE = 0x1005,
 
     SF_LOG_PREP_TOO_MANY_DEFINES = 0x2000,
 
@@ -77,6 +78,7 @@ typedef enum {
     SF_LOG_SEMANTIC_UNUSED_EXPRESSION = 0x5016,
     SF_LOG_SEMANTIC_USELESS_CAST = 0x5017,
     SF_LOG_SEMANTIC_ARGUMENT_COUNT = 0x5018,
+    SF_LOG_SEMANTIC_CYCLIC_IMPORT = 0x5019,
 
     SF_LOG_MODULE_NOT_FOUND = 0x6000
 } sf_log_error_code;
@@ -92,6 +94,7 @@ typedef struct {
 } sf_log_info;
 
 void sf_log_init(void);
+void sf_log_shutdown(void);
 void sf_log_set_source(const char *filename, const char *content);
 
 void sf_log(

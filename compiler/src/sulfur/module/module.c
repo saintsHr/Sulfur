@@ -1,4 +1,3 @@
-
 #include "sulfur/module/module.h"
 
 #include <stddef.h>
@@ -16,12 +15,11 @@
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/string.h"
 
-static sf_module *find_module(
-    sf_module_list *list,
-    const char *filename
+static bool find_module_index(
+    sf_module_list *list, const char *filename, size_t *index
 );
 
-static void add_module(
+static bool add_module(
     sf_arena *arena,
     sf_module_list *list,
     sf_module module,
@@ -30,6 +28,7 @@ static void add_module(
 
 static void resolve_import(
     sf_import_node *import,
+    const char *importer_filename,
     sf_module_list *modules,
     const char **module_paths,
     size_t module_path_count,
@@ -39,6 +38,7 @@ static void resolve_import(
 static void resolve_imports(
     sf_import_node **imports,
     size_t import_count,
+    const char *importer_filename,
     sf_module_list *modules,
     const char **module_paths,
     size_t module_path_count,
@@ -62,6 +62,7 @@ static char *find_module_path(
 void sf_module_resolve(
     sf_import_node **imports,
     size_t import_count,
+    const char *importer_filename,
     sf_module_list *modules,
     const char **module_paths,
     size_t module_path_count,
@@ -70,6 +71,7 @@ void sf_module_resolve(
     resolve_imports(
         imports,
         import_count,
+        importer_filename,
         modules,
         module_paths,
         module_path_count,
@@ -77,20 +79,41 @@ void sf_module_resolve(
     );
 }
 
-static sf_module *find_module(
-    sf_module_list *list,
-    const char *filename
+const char *sf_module_name_from_path(
+    const char *file, const char **module_paths, size_t module_path_count
 ) {
-    for (size_t i = 0; i < list->module_count; i++) {
-        if (strcmp(list->modules[i].filename, filename) == 0) {
-            return &list->modules[i];
+    if (strncmp(file, "./", 2) == 0) file += 2;
+
+    for (size_t i = 0; i < module_path_count; i++) {
+        const char *dir = module_paths[i];
+
+        if (strncmp(dir, "./", 2) == 0) dir += 2;
+
+        size_t len = strlen(dir);
+        while (len > 0 && dir[len - 1] == '/') len--;
+
+        if (len > 0 && strncmp(file, dir, len) == 0 && file[len] == '/') {
+            return file + len + 1;
         }
     }
 
     return NULL;
 }
 
-static void add_module(
+static bool find_module_index(
+    sf_module_list *list, const char *filename, size_t *index
+) {
+    for (size_t i = 0; i < list->module_count; i++) {
+        if (strcmp(list->modules[i].filename, filename) == 0) {
+            *index = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool add_module(
     sf_arena *arena,
     sf_module_list *list,
     sf_module module,
@@ -110,17 +133,21 @@ static void add_module(
             "free some memory and try again", "N/A",
             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
         );
-        return;
+
+        return false;
     }
 
     list->modules = modules;
     *index = list->module_count;
     list->modules[list->module_count++] = module;
+
+    return true;
 }
 
 static void resolve_imports(
     sf_import_node **imports,
     size_t import_count,
+    const char *importer_filename,
     sf_module_list *modules,
     const char **module_paths,
     size_t module_path_count,
@@ -129,6 +156,7 @@ static void resolve_imports(
     for (size_t i = 0; i < import_count; i++) {
         resolve_import(
             imports[i],
+            importer_filename,
             modules,
             module_paths,
             module_path_count,
@@ -143,6 +171,7 @@ static void resolve_imports(
 
 static void resolve_import(
     sf_import_node *import,
+    const char *importer_filename,
     sf_module_list *modules,
     const char **module_paths,
     size_t module_path_count,
@@ -160,55 +189,69 @@ static void resolve_import(
             "module not found",
             "unable to find module '%s'",
             "check the import path and configured module search directories",
-            import->path, SF_LOG_MODULE_NOT_FOUND, import->base.span,
+            importer_filename, SF_LOG_MODULE_NOT_FOUND, import->base.span,
             SF_LOG_SEVERITY_ERROR, import->path
         );
+
         return;
     }
 
-    sf_module *existing = find_module(modules, filename);
+    size_t module_index = 0;
 
-    if (existing != NULL) {
+    if (find_module_index(modules, filename, &module_index)) {
+        import->module_index = module_index;
+        import->resolved = true;
+
         return;
     }
 
     sf_module module = {
         .filename = filename,
         .state = SF_MODULE_STATE_LOADING,
-        .ast = NULL
+        .analysis = SF_MODULE_ANALYSIS_PENDING,
+        .ast = NULL,
+        .funcs = {0},
+        .name = import->path
     };
 
-    size_t module_index;
-
-    add_module(arena, modules, module, &module_index);
-
-    if (sf_log_had_errors()) {
+    if (!add_module(arena, modules, module, &module_index)) {
         return;
     }
+
+    import->module_index = module_index;
+    import->resolved = true;
+
+    char *input = NULL;
+    char *preprocessed = NULL;
+    sf_token_list tokens = {0};
+    bool has_tokens = false;
+    bool ok = false;
+    sf_program_node *ast = NULL;
 
     size_t input_size = 0;
-    char *input = sf_file_read(filename, &input_size);
+    input = sf_file_read(filename, &input_size);
 
     if (input == NULL) {
-        return;
+        goto cleanup;
     }
 
-    char *preprocessed = sf_preprocess(input, input_size, filename);
+    preprocessed = sf_preprocess(input, input_size, filename);
 
     if (preprocessed == NULL || sf_log_had_errors()) {
-        return;
+        goto cleanup;
     }
 
-    sf_token_list tokens = sf_tokenize(preprocessed, filename);
+    tokens = sf_tokenize(preprocessed, filename);
+    has_tokens = true;
 
     if (sf_log_had_errors()) {
-        return;
+        goto cleanup;
     }
 
-    sf_program_node *ast = sf_parse(arena, tokens, filename);
+    ast = sf_parse(arena, tokens, filename);
 
     if (ast == NULL || sf_log_had_errors()) {
-        return;
+        goto cleanup;
     }
 
     modules->modules[module_index].ast = ast;
@@ -216,6 +259,7 @@ static void resolve_import(
     resolve_imports(
         ast->imports,
         ast->import_count,
+        filename,
         modules,
         module_paths,
         module_path_count,
@@ -223,12 +267,19 @@ static void resolve_import(
     );
 
     if (sf_log_had_fatal()) {
-        return;
+        goto cleanup;
     }
 
-    modules->modules[module_index].state = SF_MODULE_STATE_LOADED;
+    ok = true;
 
-    sf_tokens_free(&tokens);
+cleanup:
+    modules->modules[module_index].state =
+        ok ? SF_MODULE_STATE_LOADED : SF_MODULE_STATE_FAILED;
+
+    if (has_tokens) {
+        sf_tokens_free(&tokens);
+    }
+
     free(preprocessed);
     free(input);
 }
@@ -251,6 +302,7 @@ static char *join_path(
             "free some memory and try again", "N/A",
             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
         );
+
         return NULL;
     }
 
@@ -274,6 +326,7 @@ static bool file_exists(const char *filename) {
     }
 
     fclose(file);
+
     return true;
 }
 
@@ -297,6 +350,7 @@ static char *find_module_path(
         if (file_exists(candidate)) {
             char *result = sf_string_dup_arena(arena, candidate);
             free(candidate);
+
             return result;
         }
 

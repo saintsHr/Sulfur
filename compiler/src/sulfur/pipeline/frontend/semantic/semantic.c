@@ -11,6 +11,7 @@
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
 #include "sulfur/utils/arena.h"
 #include "sulfur/utils/log.h"
+#include "sulfur/utils/mangle.h"
 #include "sulfur/utils/span.h"
 #include "sulfur/utils/type_utils.h"
 
@@ -25,6 +26,18 @@ static void analyze_return(sf_semantic *semantic, sf_return_node *ret);
 
 static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym);
 static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym);
+
+static bool analyze_program(
+    sf_arena *arena, sf_module_list *modules, sf_program_node *program,
+    const char *filename, sf_func_symbol_table *funcs,
+    const sf_compiler_options *options, bool is_root,
+    const char *module_name
+);
+static bool analyze_module(
+    sf_arena *arena, sf_module_list *modules, size_t index,
+    const sf_compiler_options *options
+);
+static void import_public_symbols(sf_semantic *semantic, const sf_module *dep);
 
 static bool check_assignment_type(
     sf_value_type resolved, sf_value_type target,
@@ -41,36 +54,141 @@ static bool has_no_effect(sf_ast_node *node);
 static bool has_qualifiers(sf_func_symbol sym);
 static bool shadows_parameter(sf_semantic *semantic, const char *name);
 
-void sf_analyze(
+bool sf_analyze(
     sf_arena *arena, sf_program_node *program,
-    const char *filename, const sf_compiler_options *options
+    const char *filename, const sf_compiler_options *options,
+    sf_module_list *modules
+) {
+    sf_func_symbol_table funcs;
+    sf_func_symbol_table_init(&funcs);
+
+    const char *module_name = options->is_module
+        ? sf_module_name_from_path(
+            filename, options->module_paths, options->module_path_count
+        )
+        : NULL;
+
+    bool ok = analyze_program(
+        arena, modules, program, filename, &funcs,
+        options, !options->is_module, module_name
+    );
+
+    sf_func_symbol_table_free(&funcs);
+
+    for (size_t i = 0; i < modules->module_count; i++) {
+        if (modules->modules[i].analysis != SF_MODULE_ANALYSIS_PENDING) {
+            sf_func_symbol_table_free(&modules->modules[i].funcs);
+        }
+    }
+
+    return ok;
+}
+
+static bool analyze_program(
+    sf_arena *arena, sf_module_list *modules, sf_program_node *program,
+    const char *filename, sf_func_symbol_table *funcs,
+    const sf_compiler_options *options, bool is_root,
+    const char *module_name
 ) {
     sf_scope scope;
-    sf_func_symbol_table funcs;
-
     scope_init(&scope);
     scope_push(&scope);
-    sf_func_symbol_table_init(&funcs);
 
     sf_semantic semantic = {
         .scope = &scope,
-        .funcs = &funcs,
+        .funcs = funcs,
         .current_func = NULL,
         .filename = filename,
-        .arena = arena
+        .arena = arena,
+        .module_prefix = module_name != NULL
+            ? sf_mangle_module_prefix(arena, module_name) : NULL,
     };
+
+    bool ok = true;
+
+    for (size_t i = 0; i < program->import_count; i++) {
+        sf_import_node *imp = program->imports[i];
+
+        if (!imp->resolved) { ok = false; continue; }
+
+        if (!analyze_module(arena, modules, imp->module_index, options)) {
+            ok = false;
+            continue;
+        }
+
+        import_public_symbols(&semantic, &modules->modules[imp->module_index]);
+    }
 
     for (size_t i = 0; i < program->statement_count; i++) {
         analyze_statement(&semantic, program->statements[i]);
     }
 
-    if (options->no_entry == false) {
+    if (is_root) {
         check_main_function(&semantic);
     }
 
     scope_pop(&scope);
     scope_free(&scope);
-    sf_func_symbol_table_free(&funcs);
+
+    return ok;
+}
+
+static bool analyze_module(
+    sf_arena *arena, sf_module_list *modules, size_t index,
+    const sf_compiler_options *options
+) {
+    sf_module *mod = &modules->modules[index];
+
+    switch (mod->analysis) {
+        case SF_MODULE_ANALYSIS_DONE: {
+            return true;
+        }
+        case SF_MODULE_ANALYSIS_FAILED: {
+            return false;
+        }
+        case SF_MODULE_ANALYSIS_IN_PROGRESS: {
+            sf_log(
+                "cyclic import", "module '%s' is part of an import cycle",
+                "remove the circular import", mod->filename,
+                SF_LOG_SEMANTIC_CYCLIC_IMPORT, (sf_span){0},
+                SF_LOG_SEVERITY_ERROR, mod->filename
+            );
+            return false;
+        }
+
+        default: {
+            break;
+        }
+    }
+
+    if (mod->state != SF_MODULE_STATE_LOADED || mod->ast == NULL) {
+        mod->analysis = SF_MODULE_ANALYSIS_FAILED;
+        return false;
+    }
+
+    mod->analysis = SF_MODULE_ANALYSIS_IN_PROGRESS;
+    sf_func_symbol_table_init(&mod->funcs);
+
+    bool ok = analyze_program(
+        arena, modules, mod->ast, mod->filename, &mod->funcs, options, false, mod->name
+    );
+
+    mod->analysis = ok ? SF_MODULE_ANALYSIS_DONE : SF_MODULE_ANALYSIS_FAILED;
+    return ok;
+}
+
+static void import_public_symbols(sf_semantic *semantic, const sf_module *dep) {
+    for (size_t i = 0; i < dep->funcs.count; i++) {
+        const sf_func_symbol *src = &dep->funcs.functions[i];
+
+        if (!src->qualifiers.is_public || src->imported) continue;
+
+        sf_func_symbol sym = *src;
+        sym.imported = true;
+        sym.defined = true;
+
+        sf_func_symbol_table_insert(semantic->funcs, sym, semantic->filename);
+    }
 }
 
 void sf_semantic_report_undeclared(
@@ -233,7 +351,7 @@ static void analyze_var_assign(sf_semantic *semantic, sf_var_assign_node *asg) {
             "make the variable mutable or dont assign values to it",
             semantic->filename, SF_LOG_SEMANTIC_INVALID_ASSIGN,
             asg->base.span, SF_LOG_SEVERITY_ERROR,
-            asg->name, semantic->current_func->name
+            asg->name
         );
     }
 
@@ -336,6 +454,12 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
         .qualifiers = func->qualifiers
     };
 
+    sym.link_name = sf_mangle_function(
+        semantic->arena, semantic->module_prefix,
+        func->name, func->qualifiers.is_extern
+    );
+    func->link_name = sym.link_name;
+
     if (analyze_func_sym_qual(semantic, sym) == false) {
         return;
     }
@@ -367,10 +491,6 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
 
     bool insert_result = sf_func_symbol_table_insert(semantic->funcs, sym, semantic->filename);
     if (insert_result == false) return;
-
-    if (sym.qualifiers.is_extern) {
-        sym.defined = true;
-    }
 
     if (func->body == NULL) return;
 
@@ -506,7 +626,7 @@ static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym) {
 static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym) {
     if (sym.qualifiers.is_mutable == true) {
         sf_log(
-            "invalid qualifier", "function '%' cannot be mutable",
+            "invalid qualifier", "function '%s' cannot be mutable",
             "remove the invalid qualifier", semantic->filename,
             SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span,
             SF_LOG_SEVERITY_ERROR, sym.name
@@ -727,11 +847,14 @@ static bool has_no_effect(sf_ast_node *node) {
 
 static bool has_qualifiers(sf_func_symbol sym) {
     if (
-        sym.qualifiers.is_mutable == true ||
-        sym.qualifiers.is_public == true
+        sym.qualifiers.is_mutable ||
+        sym.qualifiers.is_public ||
+        sym.qualifiers.is_extern
     ) {
         return true;
     }
+
+    return false;
 }
 
 static bool shadows_parameter(sf_semantic *semantic, const char *name) {

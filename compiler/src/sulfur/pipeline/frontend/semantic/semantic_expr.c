@@ -725,6 +725,7 @@ static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
 
     if (ok == true) {
         call->base.resolved = sym->return_type;
+        call->link_name = sym->link_name;
     }
 
     return ok;

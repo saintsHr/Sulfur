@@ -3,7 +3,7 @@
 #include "sulfur/pipeline/frontend/ast.h"
 
 typedef struct sf_var_symbol {
-    char *name;
+    const char *name;
     sf_value_type type;
     bool initialized;
     size_t depth;
@@ -20,6 +20,7 @@ typedef struct {
 
 typedef struct {
     char *name;
+    const char *link_name;
     sf_value_type return_type;
     sf_parameter *parameters;
     size_t parameter_count;
@@ -27,6 +28,7 @@ typedef struct {
     sf_span span;
     size_t id;
     sf_qualifiers qualifiers;
+    bool imported;
 } sf_func_symbol;
 
 typedef struct {

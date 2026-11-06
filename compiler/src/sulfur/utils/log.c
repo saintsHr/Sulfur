@@ -1,5 +1,7 @@
 #include "sulfur/utils/log.h"
+#include "sulfur/utils/string.h"
 
+#include <stdlib.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -11,6 +13,9 @@
 static const char *g_source_filename = NULL;
 static const char *g_source_content = NULL;
 
+static char *g_cache_filename = NULL;
+static char *g_cache_content = NULL;
+
 static bool g_had_fatal = false;
 static size_t g_error_count = 0;
 
@@ -20,7 +25,7 @@ static const char *severity_label(sf_log_severity sev);
 static void format_message(char *buf, size_t size, const char *fmt, va_list *args);
 static const char *find_line(const char *content, size_t target_line, size_t *out_len);
 
-static void print_source_snippet(sf_span span, const char *msg);
+static void print_source_snippet(sf_span span, const char *content, const char *msg);
 static void print_highlighted_line(
     const char *line_num, const char *line,
     size_t line_len, size_t col_start, size_t col_end
@@ -29,6 +34,8 @@ static void print_underline(
     int gutter, const char *line, size_t line_len,
     size_t col, size_t carets, const char *msg
 );
+
+static const char *load_source(const char *file);
 
 void sf_log_set_source(const char *filename, const char *content) {
     g_source_filename = filename;
@@ -58,6 +65,13 @@ void sf_log(
 void sf_log_init(void) {
     g_had_fatal = false;
     g_error_count = 0;
+}
+
+void sf_log_shutdown(void) {
+    free(g_cache_filename);
+    free(g_cache_content);
+    g_cache_filename = NULL;
+    g_cache_content = NULL;
 }
 
 bool sf_log_had_fatal(void) {
@@ -93,7 +107,7 @@ static void emit_log(sf_log_info info, va_list *args) {
             file, info.span.line, info.span.col
         );
 
-        print_source_snippet(info.span, info.desc ? desc : NULL);
+        print_source_snippet(info.span, load_source(info.file), info.desc ? desc : NULL);
     } else if (info.desc) {
         printf("  %s\n", desc);
     }
@@ -164,13 +178,13 @@ static const char *find_line(const char *content, size_t target_line, size_t *ou
     return p;
 }
 
-static void print_source_snippet(sf_span span, const char *msg) {
-    if (span.line == 0 || g_source_content == NULL) {
+static void print_source_snippet(sf_span span, const char *content, const char *msg) {
+    if (span.line == 0 || content == NULL) {
         return;
     }
 
     size_t line_len = 0;
-    const char *line = find_line(g_source_content, span.line, &line_len);
+    const char *line = find_line(content, span.line, &line_len);
     if (line == NULL) {
         return;
     }
@@ -239,4 +253,44 @@ static void print_underline(
     }
 
     printf("\n");
+}
+
+static const char *load_source(const char *file) {
+    if (file == NULL) {
+        return g_source_content;
+    }
+
+    if (g_source_filename != NULL && strcmp(file, g_source_filename) == 0) {
+        return g_source_content;
+    }
+
+    if (g_cache_filename != NULL && strcmp(file, g_cache_filename) == 0) {
+        return g_cache_content;
+    }
+
+    FILE *f = fopen(file, "rb");
+    if (f == NULL) {
+        return NULL;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    rewind(f);
+
+    char *content = size >= 0 ? malloc((size_t)size + 1) : NULL;
+    if (content == NULL) {
+        fclose(f);
+        return NULL;
+    }
+
+    size_t read = fread(content, 1, (size_t)size, f);
+    content[read] = '\0';
+    fclose(f);
+
+    free(g_cache_filename);
+    free(g_cache_content);
+    g_cache_filename = sf_string_dup(file);
+    g_cache_content = content;
+
+    return g_cache_content;
 }

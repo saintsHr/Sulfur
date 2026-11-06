@@ -152,7 +152,9 @@ static const char *counter_register(uint8_t size);
 static const char *register_to_string(sf_register reg);
 static const char *prefix_to_string(sf_size_prefix prefix);
 
-char *sf_generate_assembly(const sf_ir_program *program, const sf_compiler_options *options) {
+char *sf_generate_assembly(
+    const sf_ir_program *program, const sf_compiler_options *options, bool is_root
+) {
     if (program == NULL || options == NULL) return NULL;
 
     size_t capacity = k_initial_capacity;
@@ -161,19 +163,26 @@ char *sf_generate_assembly(const sf_ir_program *program, const sf_compiler_optio
     if (buff == NULL) return NULL;
     buff[0] = '\0';
 
+    bool emit_start = is_root;
+
     sf_string_push("bits 64\n\n", &buff, &len, &capacity);
 
-    sf_string_push("global _start\n", &buff, &len, &capacity);
+    if (emit_start) {
+        sf_string_push("global _start\n", &buff, &len, &capacity);
+    }
+
+    for (size_t i = 0; i < program->extern_count; i++) {
+        emitf(&buff, &len, &capacity, "extern %s\n", program->externs[i]);
+    }
 
     for (size_t i = 0; i < program->function_count; i++) {
         emit_func_linkage(&buff, &len, &capacity, program->functions[i]);
     }
 
     sf_string_push("\n", &buff, &len, &capacity);
-
     sf_string_push("section .text\n\n", &buff, &len, &capacity);
 
-    if (!options->no_entry) {
+    if (emit_start) {
         sf_string_push("_start:\n", &buff, &len, &capacity);
         sf_string_push("\tcall main\n\n", &buff, &len, &capacity);
         sf_string_push("\tmov edi, eax\n", &buff, &len, &capacity);
@@ -1021,11 +1030,8 @@ static void emit_operations(
 static void emit_func_linkage(
     char **buff, size_t *len, size_t *capacity, sf_ir_function func
 ) {
-    if (func.qualifiers.is_public) {
+    if (func.defined && func.qualifiers.is_public) {
         emitf(buff, len, capacity, "global %s\n", func.name);
-    }
-    if (func.qualifiers.is_extern) {
-        emitf(buff, len, capacity, "extern %s\n", func.name);
     }
 }
 

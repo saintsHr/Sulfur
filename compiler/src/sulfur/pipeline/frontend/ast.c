@@ -303,6 +303,7 @@ sf_func_decl_node *sf_new_func_decl_node(
     node->name = copy_string(arena, name);
     node->return_type = return_type;
     node->qualifiers = qualifiers;
+    node->link_name = NULL;
 
     return node->name != NULL ? node : NULL;
 }
@@ -320,6 +321,7 @@ sf_func_call_node *sf_new_func_call_node(
     }
 
     node->callee = callee;
+    node->link_name = NULL;
 
     return node;
 }
@@ -351,6 +353,8 @@ sf_import_node *sf_new_import_node(
     }
 
     node->path = copy_string(arena, path);
+    node->module_index = 0;
+    node->resolved = false;
 
     return node;
 }

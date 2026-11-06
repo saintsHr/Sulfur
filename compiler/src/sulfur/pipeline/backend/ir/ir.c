@@ -8,6 +8,7 @@
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/utils/arena.h"
 #include "sulfur/utils/log.h"
+#include "sulfur/utils/mangle.h"
 #include "sulfur/utils/type_utils.h"
 
 static const sf_ir_operand k_no_operand = {0};
@@ -25,8 +26,6 @@ static sf_ir_context context_from_function(sf_ir_function *function);
 static sf_ir_operand new_label(sf_ir_program *program);
 static sf_ir_operand new_temporary(sf_ir_context *context, sf_value_type type);
 static sf_ir_operand new_immediate(sf_value_type type, const char *value);
-
-static char *mangle_name(sf_arena *arena, const char *name, size_t id);
 
 static void add_function(
     sf_arena *arena, sf_ir_program *program, sf_ir_function function
@@ -102,23 +101,21 @@ static void print_operations(const sf_ir_operation *operations, size_t count);
 static const char *binary_symbol(sf_ir_opcode opcode);
 static const char *unary_symbol(sf_ir_opcode opcode);
 
-sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program) {
-    sf_ir_program ir = {
-        .functions = NULL,
-        .function_capacity = 0,
-        .function_count = 0,
-        .next_label = 0,
-    };
+static bool is_defined_here(const sf_ir_program *ir, const char *name);
+static bool has_extern(const sf_ir_program *ir, const char *name);
+static void collect_externs(sf_arena *arena, sf_ir_program *ir);
 
+sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program) {
+    sf_ir_program ir = {0};
     sf_ir_context ctx = context_from_program(&ir);
 
     for (size_t i = 0; i < program->statement_count; i++) {
         generate_statement(arena, &ctx, &ir, program->statements[i]);
     }
 
+    collect_externs(arena, &ir);
     return ir;
 }
-
 
 void sf_ir_print(const sf_ir_program *program) {
     for (size_t f = 0; f < program->function_count; f++) {
@@ -235,27 +232,6 @@ static sf_ir_operand new_immediate(sf_value_type type, const char *value) {
     return op;
 }
 
-static char *mangle_name(sf_arena *arena, const char *name, size_t id) {
-    size_t length = strlen(name) + 32;
-    char *mangled = sf_arena_alloc(arena, length);
-
-    if (mangled == NULL) {
-        sf_log(
-            "insufficient memory",
-            "cannot allocate memory for compiling",
-            "free some memory and try again",
-            NULL, SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-            (sf_span){0}, SF_LOG_SEVERITY_FATAL
-        );
-
-        return k_empty_name;
-    }
-
-    snprintf(mangled, length, "%s@%zu", name, id);
-
-    return mangled;
-}
-
 static void add_function(
     sf_arena *arena, sf_ir_program *program, sf_ir_function function
 ) {
@@ -341,7 +317,7 @@ static void generate_var_decl(
     sf_ir_operand dst = {
         .type = SF_IR_OPERAND_TYPE_VARIABLE,
         .value_type = dcl->var_type,
-        .variable_name = mangle_name(arena, dcl->name, dcl->id),
+        .variable_name = sf_mangle_variable(arena, dcl->name, dcl->id),
     };
 
     generate_assignment(arena, context, dst, dcl->value);
@@ -353,7 +329,7 @@ static void generate_var_assign(
     sf_ir_operand dst = {
         .type = SF_IR_OPERAND_TYPE_VARIABLE,
         .value_type = as->base.resolved,
-        .variable_name = mangle_name(arena, as->name, as->id),
+        .variable_name = sf_mangle_variable(arena, as->name, as->id),
     };
 
     generate_assignment(arena, context, dst, as->value);
@@ -431,7 +407,7 @@ static void generate_function(
     sf_arena *arena, sf_ir_program *program, sf_func_decl_node *func
 ) {
     sf_ir_function func_ir = {
-        .name = func->name,
+        .name = (char *)(func->link_name != NULL ? func->link_name : func->name),
         .parameters = func->parameters,
         .parameter_count = func->parameter_count,
         .return_type = func->return_type,
@@ -439,7 +415,8 @@ static void generate_function(
         .next_temp = 0,
         .operation_capacity = 0,
         .operation_count = 0,
-        .qualifiers = func->qualifiers
+        .qualifiers = func->qualifiers,
+        .defined = func->body != NULL
     };
 
     if (func->parameter_count > 0) {
@@ -463,7 +440,7 @@ static void generate_function(
             sf_parameter p_ast = func->parameters[i];
             sf_parameter* p_ir = &func_ir.parameters[i];
 
-            p_ir->name = mangle_name(arena, p_ast.name, p_ast.id);
+            p_ir->name = sf_mangle_variable(arena, p_ast.name, p_ast.id);
             p_ir->type = p_ast.type;
             p_ir->id = p_ast.id;
         }
@@ -624,7 +601,7 @@ static sf_ir_operand generate_identifier(sf_arena *arena, sf_identifier_node *id
     sf_ir_operand op = {0};
     op.type = SF_IR_OPERAND_TYPE_VARIABLE;
     op.value_type = id->base.resolved;
-    op.variable_name = mangle_name(arena, id->name, id->id);
+    op.variable_name = sf_mangle_variable(arena, id->name, id->id);
 
     return op;
 }
@@ -831,7 +808,7 @@ static sf_ir_operand generate_call(
 
     sf_ir_operand func_operand = {
         .type = SF_IR_OPERAND_TYPE_FUNCTION,
-        .function_name = callee->name,
+        .function_name = (char *)(call->link_name != NULL ? call->link_name : callee->name),
         .value_type = call->base.resolved
     };
 
@@ -905,4 +882,58 @@ static bool ends_with_return(const sf_ir_function *func) {
     }
 
     return false;
+}
+
+static bool is_defined_here(const sf_ir_program *ir, const char *name) {
+    for (size_t i = 0; i < ir->function_count; i++) {
+        if (ir->functions[i].defined && strcmp(ir->functions[i].name, name) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool has_extern(const sf_ir_program *ir, const char *name) {
+    for (size_t i = 0; i < ir->extern_count; i++) {
+        if (strcmp(ir->externs[i], name) == 0) return true;
+    }
+    return false;
+}
+
+static void collect_externs(sf_arena *arena, sf_ir_program *ir) {
+    for (size_t f = 0; f < ir->function_count; f++) {
+        const sf_ir_function *func = &ir->functions[f];
+
+        for (size_t o = 0; o < func->operation_count; o++) {
+            const sf_ir_operation *op = &func->operations[o];
+
+            if (op->opcode != SF_IR_OPCODE_CALL) continue;
+
+            const char *name = op->operand2.function_name;
+
+            if (is_defined_here(ir, name) || has_extern(ir, name)) continue;
+
+            if (ir->extern_count >= ir->extern_capacity) {
+                size_t cap = ir->extern_capacity == 0 ? 8 : ir->extern_capacity * 2;
+                const char **grown = sf_arena_grow_array(
+                    arena, ir->externs, ir->extern_count, cap, sizeof(char *)
+                );
+
+                if (grown == NULL) {
+                    sf_log(
+                        "insufficient memory", "cannot allocate memory for compiling",
+                        "free some memory and try again", NULL,
+                        SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0},
+                        SF_LOG_SEVERITY_FATAL
+                    );
+                    return;
+                }
+
+                ir->externs = grown;
+                ir->extern_capacity = cap;
+            }
+
+            ir->externs[ir->extern_count++] = name;
+        }
+    }
 }

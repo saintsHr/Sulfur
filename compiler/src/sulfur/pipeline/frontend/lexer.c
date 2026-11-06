@@ -187,6 +187,8 @@ void sf_tokens_print(const sf_token_list *list) {
 }
 
 void sf_tokens_free(sf_token_list *list) {
+    if (list == NULL) return;
+
     free(list->tokens);
 
     list->tokens = NULL;

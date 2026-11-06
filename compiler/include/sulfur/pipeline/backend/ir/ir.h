@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "sulfur/module/module.h"
 #include "sulfur/pipeline/frontend/ast.h"
 
 typedef enum {
@@ -63,8 +64,8 @@ typedef struct {
     union {
         size_t temporary_id;
         size_t label_id;
-        char *variable_name;
-        char *function_name;
+        const char *variable_name;
+        const char *function_name;
         const char *immediate_value;
     };
 } sf_ir_operand;
@@ -96,6 +97,8 @@ typedef struct {
     char *name;
 
     size_t next_temp;
+
+    bool defined;
 } sf_ir_function;
 
 typedef struct {
@@ -104,6 +107,10 @@ typedef struct {
     size_t function_capacity;
 
     size_t next_label;
+
+    const char **externs;
+    size_t extern_count;
+    size_t extern_capacity;
 } sf_ir_program;
 
 typedef struct {

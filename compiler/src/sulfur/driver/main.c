@@ -31,30 +31,48 @@ int main(int argc, char *argv[]) {
         .file_input = "input.slfr",
         .file_output = "output.asm",
         .dump_stages = false,
-        .no_entry = false,
+        .is_module = false,
         .module_paths = NULL,
         .module_path_capacity = 0,
-        .module_path_count = 0
+        .module_path_count = 0,
     };
 
     sf_compilation compilation = {0};
+    bool ok = false;
 
     sf_log_init();
     sf_flags_parse(argc, argv, &options);
-    if (sf_log_had_fatal()) return EXIT_FAILURE;
+    if (sf_log_had_fatal()) goto cleanup;
 
-    bool ok = compilation_run(&compilation, &options);
+    if (
+        options.is_module &&
+        sf_module_name_from_path(
+            options.file_input, options.module_paths, options.module_path_count
+        ) == NULL
+    ) {
+        sf_log(
+            "invalid module", "'%s' is not inside any module search directory",
+            "pass the directory that contains this file with '-m'",
+            "N/A", SF_LOG_DRIVER_UNKNOWN_FLAG, (sf_span){0},
+            SF_LOG_SEVERITY_FATAL, options.file_input
+        );
+        goto cleanup;
+    }
 
-    compilation_free(&compilation);
-    free(options.module_paths);
+    ok = compilation_run(&compilation, &options);
+
+    cleanup: {
+        compilation_free(&compilation);
+        free(options.module_paths);
+        sf_log_shutdown();
+    }
 
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 static bool compilation_run(sf_compilation *compilation, const sf_compiler_options *options) {
     compilation->input_source = sf_file_read(
-        options->file_input,
-        &compilation->input_size
+        options->file_input, &compilation->input_size
     );
     if (compilation->input_source == NULL) return false;
 
@@ -62,46 +80,40 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     sf_arena_init(&compilation->arena, 32);
 
     compilation->preprocessed = sf_preprocess(
-        compilation->input_source,
-        compilation->input_size,
-        options->file_input
+        compilation->input_source, compilation->input_size, options->file_input
     );
     if (sf_log_had_errors()) return false;
 
     compilation->tokens = sf_tokenize(
-        compilation->preprocessed,
-        options->file_input
+        compilation->preprocessed, options->file_input
     );
     if (sf_log_had_errors()) return false;
 
     compilation->ast = sf_parse(
-        &compilation->arena,
-        compilation->tokens,
-        options->file_input
+        &compilation->arena, compilation->tokens, options->file_input
     );
     if (sf_log_had_errors()) return false;
 
     sf_module_resolve(
         compilation->ast->imports,
         compilation->ast->import_count,
+        options->file_input,
         &compilation->modules,
         options->module_paths,
         options->module_path_count,
         &compilation->arena
     );
+
     if (sf_log_had_errors()) return false;
 
     sf_analyze(
-        &compilation->arena,
-        compilation->ast,
-        options->file_input,
-        options
+        &compilation->arena, compilation->ast, options->file_input,
+        options, &compilation->modules
     );
     if (sf_log_had_errors()) return false;
 
     compilation->ir = sf_ir_generate(
-        &compilation->arena,
-        compilation->ast
+        &compilation->arena, compilation->ast
     );
     if (sf_log_had_errors()) return false;
 
@@ -111,8 +123,7 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     if (sf_log_had_errors()) return false;
 
     compilation->assembly = sf_generate_assembly(
-        &compilation->ir,
-        options
+        &compilation->ir, options, !options->is_module
     );
     if (sf_log_had_errors()) return false;
 

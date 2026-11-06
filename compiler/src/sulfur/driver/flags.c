@@ -57,12 +57,6 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
             continue;
         }
 
-        if (strcmp(this_arg, FLAGS_NO_ENTRY) == 0) {
-            options->no_entry = true;
-
-            continue;
-        }
-
         if (strcmp(this_arg, FLAGS_MODULE_PATH) == 0) {
             size_t added = 0;
 
@@ -97,6 +91,11 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
             continue;
         }
 
+        if (strcmp(this_arg, FLAGS_MODULE) == 0) {
+            options->is_module = true;
+            continue;
+        }
+
         sf_log(
             "unknown flag", "unrecognized flag '%s'",
             "check available flags or remove this flag",
@@ -110,6 +109,10 @@ static bool add_module_path(
     sf_compiler_options *options,
     const char *path
 ) {
+    if (path == NULL) {
+        return false;
+    }
+
     if (options->module_path_count == options->module_path_capacity) {
         size_t new_capacity = options->module_path_capacity == 0
             ? 4

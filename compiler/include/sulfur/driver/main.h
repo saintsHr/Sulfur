@@ -14,7 +14,7 @@ typedef struct {
     const char *file_output;
 
     bool dump_stages;
-    bool no_entry;
+    bool is_module;
 
     const char **module_paths;
     size_t module_path_count;

@@ -17,6 +17,7 @@ set(SOURCES
 	src/sulfur/utils/string.c
 	src/sulfur/utils/arena.c
 	src/sulfur/utils/file.c
+	src/sulfur/utils/mangle.c
 
 	src/sulfur/pipeline/frontend/ast.c
 	src/sulfur/pipeline/frontend/lexer.c

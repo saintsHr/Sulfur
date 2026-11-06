@@ -50,6 +50,8 @@ static void log_failure(const char *title, const char *msg, ...);
 static void log_success(const char *title, const char *msg, ...);
 static void log_action(const char *action, const char *msg, ...);
 
+static bool append_flag(char *buffer, size_t size, size_t *length, const char *flag);
+
 bool cmd_parse(int argc, char **argv) {
     if (argc < 2) {
         return false;
@@ -202,7 +204,6 @@ static void command_build(int argc, char **argv) {
     (void)argv;
 
     static const char *src_folder = "src";
-    static const char *build_folder = "build";
     static const char *asm_folder = "build/asm";
     static const char *obj_folder = "build/obj";
     static const char *link_folder = "build/bin";
@@ -212,6 +213,7 @@ static void command_build(int argc, char **argv) {
     sf_files source_files = {0};
     char **object_files = NULL;
     char binary_path[PATH_BUFFER_SIZE];
+    char binary_name[PATH_BUFFER_SIZE];
     bool entry_found = false;
 
     sf_toml_parse_result parse_result = sf_toml_parse_project(toml_path, &cfg);
@@ -220,45 +222,39 @@ static void command_build(int argc, char **argv) {
         case SF_TOML_PARSE_RESULT_OK: break;
 
         case SF_TOML_PARSE_RESULT_FAILED_TO_OPEN: {
-            log_failure(
-                "Build failed", "Failed to open '%s'", toml_path
-            );
-
+            log_failure("Build failed", "Failed to open '%s'", toml_path);
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_NAME_INVALID: {
             log_failure(
-                "Build failed", "Failed to read '%s' in file '%s'", "project.name", toml_path
+                "Build failed", "Failed to read '%s' in file '%s'",
+                "project.name", toml_path
             );
-
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_VERSION_INVALID: {
             log_failure(
-                "Build failed", "Failed to read '%s' in file '%s'", "project.version", toml_path
+                "Build failed", "Failed to read '%s' in file '%s'",
+                "project.version", toml_path
             );
-
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_FLAGS_INVALID: {
             log_failure(
-                "Build failed", "Failed to read '%s' in file '%s'", "build.flags", toml_path
+                "Build failed", "Failed to read '%s' in file '%s'",
+                "build.flags", toml_path
             );
-
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_ENTRY_INVALID: {
             log_failure(
-                "Build failed", "Failed to read '%s' in file '%s'", "build.entry", toml_path
+                "Build failed", "Failed to read '%s' in file '%s'",
+                "build.entry", toml_path
             );
-
             goto cleanup;
         }
         case SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY: {
-            log_failure(
-                "Build failed", "Failed to allocate memory"
-            );
-
+            log_failure("Build failed", "Failed to allocate memory");
             goto cleanup;
         }
     }
@@ -296,7 +292,7 @@ static void command_build(int argc, char **argv) {
         char asm_path[PATH_BUFFER_SIZE];
         char obj_path[PATH_BUFFER_SIZE];
         char directory[PATH_BUFFER_SIZE];
-        char flags[PATH_BUFFER_SIZE];
+        char flags[CMD_BUFFER_SIZE / 2];
 
         if (strncmp(source, "src/", 4) == 0) {
             relative = source + 4;
@@ -343,23 +339,20 @@ static void command_build(int argc, char **argv) {
         }
 
         size_t flags_length = 0;
-        size_t flags_total = cfg.flags_count + (is_entry ? 0 : 1);
-
         flags[0] = '\0';
 
-        for (size_t k = 0; k < flags_total; k++) {
-            const char *flag = k < cfg.flags_count ? cfg.flags[k] : "--no-entry";
-
-            int written = snprintf(
-                flags + flags_length, sizeof(flags) - flags_length,
-                "%s%s", flags_length > 0 ? " " : "", flag
-            );
-
-            if (written < 0 || (size_t)written >= sizeof(flags) - flags_length) {
+        for (size_t k = 0; k < cfg.flags_count; k++) {
+            if (!append_flag(flags, sizeof(flags), &flags_length, cfg.flags[k])) {
+                log_failure("Build failed", "Compiler flags are too long");
                 goto cleanup;
             }
+        }
 
-            flags_length += (size_t)written;
+        if (!is_entry) {
+            if (!append_flag(flags, sizeof(flags), &flags_length, "--module")) {
+                log_failure("Build failed", "Compiler flags are too long");
+                goto cleanup;
+            }
         }
 
         if (!compile_file(source, asm_path, flags)) {
@@ -387,8 +380,6 @@ static void command_build(int argc, char **argv) {
         log_failure("Build failed", "Entry file '%s' not found", cfg.entry);
         goto cleanup;
     }
-
-    char binary_name[PATH_BUFFER_SIZE];
 
     snprintf(
         binary_name, sizeof(binary_name),
@@ -616,4 +607,18 @@ static void log_action(const char *action, const char *msg, ...) {
     va_end(args);
 
     putchar('\n');
+}
+
+static bool append_flag(char *buffer, size_t size, size_t *length, const char *flag) {
+    int written = snprintf(
+        buffer + *length, size - *length,
+        "%s%s", *length > 0 ? " " : "", flag
+    );
+
+    if (written < 0 || (size_t)written >= size - *length) {
+        return false;
+    }
+
+    *length += (size_t)written;
+    return true;
 }
