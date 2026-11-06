@@ -14,7 +14,7 @@
 #include <limits.h>
 
 #define PERMS 0755
-#define PATH_BUFFER_SIZE 256
+#define PATH_BUFFER_SIZE 1024
 
 bool sf_create_folder(const char *path) {
     if (mkdir(path, PERMS) == 0) {

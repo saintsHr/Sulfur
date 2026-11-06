@@ -16,3 +16,4 @@ enable_testing()
 
 add_subdirectory(compiler)
 add_subdirectory(cli)
+add_subdirectory(stdlib)

@@ -1,0 +1,11 @@
+pub fn pow(i64 n, u64 p) i64 {
+    mut i64 result = 1;
+
+    mut u64 i = 0;
+    while (i < p) {
+        result *= n;
+        i++;
+    }
+
+    return result;
+}

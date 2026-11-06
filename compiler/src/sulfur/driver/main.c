@@ -21,8 +21,12 @@
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/file.h"
 
+#define SF_STDLIB_DIR "/usr/local/share/sulfur"
+
 static bool compilation_run(sf_compilation *compilation, const sf_compiler_options *options);
 static void compilation_free(sf_compilation *compilation);
+
+static bool include_stdlib(sf_compiler_options *options);
 
 static void dump_stages(sf_compilation *compilation);
 
@@ -42,7 +46,13 @@ int main(int argc, char *argv[]) {
 
     sf_log_init();
     sf_flags_parse(argc, argv, &options);
-    if (sf_log_had_fatal()) goto cleanup;
+    if (sf_log_had_fatal()) {
+        goto cleanup;
+    }
+
+    if (!include_stdlib(&options)) {
+        goto cleanup;
+    }
 
     if (
         options.is_module &&
@@ -74,7 +84,9 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     compilation->input_source = sf_file_read(
         options->file_input, &compilation->input_size
     );
-    if (compilation->input_source == NULL) return false;
+    if (compilation->input_source == NULL) {
+        return false;
+    }
 
     sf_log_set_source(options->file_input, compilation->input_source);
     sf_arena_init(&compilation->arena, 32);
@@ -82,17 +94,23 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     compilation->preprocessed = sf_preprocess(
         compilation->input_source, compilation->input_size, options->file_input
     );
-    if (sf_log_had_errors()) return false;
+    if (sf_log_had_errors()) {
+        return false;
+    }
 
     compilation->tokens = sf_tokenize(
         compilation->preprocessed, options->file_input
     );
-    if (sf_log_had_errors()) return false;
+    if (sf_log_had_errors()) {
+        return false;
+    }
 
     compilation->ast = sf_parse(
         &compilation->arena, compilation->tokens, options->file_input
     );
-    if (sf_log_had_errors()) return false;
+    if (sf_log_had_errors()) {
+        return false;
+    }
 
     sf_module_resolve(
         compilation->ast->imports,
@@ -104,28 +122,38 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
         &compilation->arena
     );
 
-    if (sf_log_had_errors()) return false;
+    if (sf_log_had_errors()) {
+        return false;
+    }
 
     sf_analyze(
         &compilation->arena, compilation->ast, options->file_input,
         options, &compilation->modules
     );
-    if (sf_log_had_errors()) return false;
+    if (sf_log_had_errors()) {
+        return false;
+    }
 
     compilation->ir = sf_ir_generate(
         &compilation->arena, compilation->ast
     );
-    if (sf_log_had_errors()) return false;
+    if (sf_log_had_errors()) {
+        return false;
+    }
 
     sf_optimize(
         &compilation->ir
     );
-    if (sf_log_had_errors()) return false;
+    if (sf_log_had_errors()) {
+        return false;
+    }
 
     compilation->assembly = sf_generate_assembly(
         &compilation->ir, options, !options->is_module
     );
-    if (sf_log_had_errors()) return false;
+    if (sf_log_had_errors()) {
+        return false;
+    }
 
     if (options->dump_stages) dump_stages(compilation);
 
@@ -138,6 +166,38 @@ static void compilation_free(sf_compilation *compilation) {
     free(compilation->preprocessed);
     sf_arena_free(&compilation->arena);
     free(compilation->input_source);
+}
+
+static bool include_stdlib(sf_compiler_options *options) {
+    if (options->module_path_count == options->module_path_capacity) {
+        size_t new_capacity = options->module_path_capacity == 0
+            ? 4
+            : options->module_path_capacity * 2;
+
+        const char **module_paths = realloc(
+            options->module_paths,
+            new_capacity * sizeof(*module_paths)
+        );
+
+        if (module_paths == NULL) {
+            sf_log(
+                "insufficient memory",
+                "cannot allocate memory for module paths",
+                "free some memory and try again",
+                "N/A", SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            );
+
+            return false;
+        }
+
+        options->module_paths = module_paths;
+        options->module_path_capacity = new_capacity;
+    }
+
+    options->module_paths[options->module_path_count++] = SF_STDLIB_DIR;
+
+    return true;
 }
 
 static void dump_stages(sf_compilation *compilation) {

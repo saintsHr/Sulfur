@@ -1,10 +1,19 @@
 #include "sulfur/toml.h"
 
-#include <string.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include <tomlc17.h>
 
 static char *string_dup(const char *string);
+static void list_free(sf_string_list *list);
+static bool name_is_valid(const char *name);
+static sf_toml_parse_result parse_emit(toml_datum_t datum, sf_emit *out);
+static sf_toml_parse_result parse_list(
+    toml_datum_t datum,
+    sf_toml_parse_result invalid,
+    sf_string_list *out
+);
 
 sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg *output) {
     if (!filename || !output) {
@@ -23,64 +32,49 @@ sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg 
     sf_toml_parse_result result = SF_TOML_PARSE_RESULT_OK;
 
     toml_datum_t name_d = toml_seek(toml.toptab, "project.name");
-    toml_datum_t version_d = toml_seek(toml.toptab, "project.version");
-    toml_datum_t flags_d = toml_seek(toml.toptab, "build.flags");
-    toml_datum_t entry_d = toml_seek(toml.toptab, "build.entry");
+    toml_datum_t emit_d = toml_seek(toml.toptab, "build.emit");
+    toml_datum_t slfr_flags_d = toml_seek(toml.toptab, "build.slfr_flags");
+    toml_datum_t asm_flags_d = toml_seek(toml.toptab, "build.asm_flags");
+    toml_datum_t link_flags_d = toml_seek(toml.toptab, "build.link_flags");
 
-    if (name_d.type != TOML_STRING) {
+    if (name_d.type != TOML_STRING || !name_is_valid(name_d.u.s)) {
         result = SF_TOML_PARSE_RESULT_NAME_INVALID;
         goto cleanup;
     }
-    if (version_d.type != TOML_STRING) {
-        result = SF_TOML_PARSE_RESULT_VERSION_INVALID;
-        goto cleanup;
-    }
-    if (flags_d.type != TOML_ARRAY) {
-        result = SF_TOML_PARSE_RESULT_FLAGS_INVALID;
-        goto cleanup;
-    }
-    if (entry_d.type != TOML_STRING) {
-        result = SF_TOML_PARSE_RESULT_ENTRY_INVALID;
+
+    result = parse_emit(emit_d, &output->emit);
+    if (result != SF_TOML_PARSE_RESULT_OK) {
         goto cleanup;
     }
 
     output->name = string_dup(name_d.u.s);
-    output->version = string_dup(version_d.u.s);
-    output->entry = string_dup(entry_d.u.s);
-
-    if (!output->name || !output->version || !output->entry) {
+    if (!output->name) {
         result = SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY;
         goto cleanup;
     }
 
-    output->flags_count = flags_d.u.arr.size;
+    result = parse_list(
+        slfr_flags_d, SF_TOML_PARSE_RESULT_SLFR_FLAGS_INVALID,
+        &output->slfr_flags
+    );
+    if (result != SF_TOML_PARSE_RESULT_OK) {
+        goto cleanup;
+    }
 
-    if (output->flags_count > 0) {
-        output->flags = calloc(
-            output->flags_count,
-            sizeof(*output->flags)
-        );
+    result = parse_list(
+        asm_flags_d, SF_TOML_PARSE_RESULT_ASM_FLAGS_INVALID,
+        &output->asm_flags
+    );
+    if (result != SF_TOML_PARSE_RESULT_OK) {
+        goto cleanup;
+    }
 
-        if (!output->flags) {
-            result = SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY;
-            goto cleanup;
-        }
-
-        for (size_t i = 0; i < output->flags_count; i++) {
-            toml_datum_t flag = flags_d.u.arr.elem[i];
-
-            if (flag.type != TOML_STRING) {
-                result = SF_TOML_PARSE_RESULT_FLAGS_INVALID;
-                goto cleanup;
-            }
-
-            output->flags[i] = string_dup(flag.u.s);
-
-            if (!output->flags[i]) {
-                result = SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY;
-                goto cleanup;
-            }
-        }
+    result = parse_list(
+        link_flags_d, SF_TOML_PARSE_RESULT_LINK_FLAGS_INVALID,
+        &output->link_flags
+    );
+    if (result != SF_TOML_PARSE_RESULT_OK) {
+        goto cleanup;
     }
 
     goto done;
@@ -101,16 +95,103 @@ void sf_toml_free_project(sf_project_cfg *cfg) {
     }
 
     free(cfg->name);
-    free(cfg->version);
-    free(cfg->entry);
 
-    for (size_t i = 0; i < cfg->flags_count; i++) {
-        free(cfg->flags[i]);
-    }
-
-    free(cfg->flags);
+    list_free(&cfg->slfr_flags);
+    list_free(&cfg->asm_flags);
+    list_free(&cfg->link_flags);
 
     *cfg = (sf_project_cfg){0};
+}
+
+static bool name_is_valid(const char *name) {
+    return name[0] != '\0' && name[0] != '.' && strchr(name, '/') == NULL;
+}
+
+static sf_toml_parse_result parse_emit(toml_datum_t datum, sf_emit *out) {
+    static const struct {
+        const char *name;
+        sf_emit value;
+    } table[] = {
+        {"asm", SF_EMIT_ASM},
+        {"obj", SF_EMIT_OBJ},
+        {"bin", SF_EMIT_BIN},
+        {"lib", SF_EMIT_LIB},
+    };
+
+    if (datum.type == TOML_UNKNOWN) {
+        *out = SF_EMIT_BIN;
+        return SF_TOML_PARSE_RESULT_OK;
+    }
+
+    if (datum.type != TOML_STRING) {
+        return SF_TOML_PARSE_RESULT_EMIT_INVALID;
+    }
+
+    for (size_t i = 0; i < sizeof(table) / sizeof(*table); i++) {
+        if (strcmp(datum.u.s, table[i].name) == 0) {
+            *out = table[i].value;
+            return SF_TOML_PARSE_RESULT_OK;
+        }
+    }
+
+    return SF_TOML_PARSE_RESULT_EMIT_INVALID;
+}
+
+static sf_toml_parse_result parse_list(
+    toml_datum_t datum,
+    sf_toml_parse_result invalid,
+    sf_string_list *out
+) {
+    if (datum.type == TOML_UNKNOWN) {
+        return SF_TOML_PARSE_RESULT_OK;
+    }
+
+    if (datum.type != TOML_ARRAY) {
+        return invalid;
+    }
+
+    size_t count = (size_t)datum.u.arr.size;
+
+    if (count == 0) {
+        return SF_TOML_PARSE_RESULT_OK;
+    }
+
+    sf_string_list list = {
+        .items = calloc(count, sizeof(*list.items)),
+        .count = count,
+    };
+
+    if (!list.items) {
+        return SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        toml_datum_t element = datum.u.arr.elem[i];
+
+        if (element.type != TOML_STRING) {
+            list_free(&list);
+            return invalid;
+        }
+
+        list.items[i] = string_dup(element.u.s);
+
+        if (!list.items[i]) {
+            list_free(&list);
+            return SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY;
+        }
+    }
+
+    *out = list;
+    return SF_TOML_PARSE_RESULT_OK;
+}
+
+static void list_free(sf_string_list *list) {
+    for (size_t i = 0; i < list->count; i++) {
+        free(list->items[i]);
+    }
+
+    free(list->items);
+    *list = (sf_string_list){0};
 }
 
 static char *string_dup(const char *string) {
