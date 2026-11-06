@@ -14,3 +14,38 @@ pub fn pow(mut i64 base, mut u64 exp) i64 {
 
     return result;
 }
+
+pub fn abs(i64 n) u64 {
+    if (n < 0) {
+        return -(n + 1) as u64 + 1;
+    } else {
+        return n as u64;
+    }
+}
+
+pub fn max(i64 a, i64 b) i64 {
+    if (a > b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+pub fn min(i64 a, i64 b) i64 {
+    if (a < b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+pub fn clamp(i64 n, i64 min, i64 max) i64 {
+    if (n > max) {
+        return max;
+    }
+    if (n < min) {
+        return min;
+    }
+
+    return n;
+}
