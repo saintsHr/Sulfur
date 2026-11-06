@@ -1,10 +1,15 @@
-pub fn pow(i64 n, u64 p) i64 {
+pub fn pow(mut i64 base, mut u64 exp) i64 {
     mut i64 result = 1;
 
-    mut u64 i = 0;
-    while (i < p) {
-        result *= n;
-        i++;
+    while (exp > 0) {
+        u64 h = exp / 2;
+
+        if (h * 2 != exp) {
+            result *= base;
+        }
+
+        base *= base;
+        exp = h;
     }
 
     return result;
