@@ -49,3 +49,24 @@ pub fn clamp(i64 n, i64 min, i64 max) i64 {
 
     return n;
 }
+
+pub fn gcd(mut i64 a, mut i64 b) i64 {
+    a = abs(a) as i64;
+    b = abs(b) as i64;
+
+    while (b != 0) {
+        i64 r = a - (a / b) * b;
+        a = b;
+        b = r;
+    }
+
+    return a;
+}
+
+pub fn lcm(i64 a, i64 b) i64 {
+    if (a == 0 || b == 0) {
+        return 0;
+    }
+
+    return abs((a / gcd(a, b)) * b) as i64;
+}
