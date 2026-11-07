@@ -20,3 +20,7 @@ to represent values throughout the language.
 | Type   | Description             |
 |--------|-------------------------|
 | `bool` | Boolean (true or false) |
+
+| Type   | Description             |
+|--------|-------------------------|
+| `void` | Represents nothing      |

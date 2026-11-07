@@ -10,9 +10,13 @@ Specifies the input file to be compiled.
 
 Specifies the output file where the compilation result will be written.
 
-## `--no-entry`
+## `--module`
 
-Instructs the compiler's backend to omit the entry point and the call to the `main` function from the generated output.
+Compiles the provided input file as an module.
+
+## `-m <path>`
+
+Provided a folder, the compiler looks for modules inside it.
 
 ## `--dump-stages`
 
