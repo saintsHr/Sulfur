@@ -45,6 +45,7 @@ static const sf_token_spelling k_symbols[] = {
     {SF_TOKEN_TYPE_PIPE_PIPE, "||"},
     {SF_TOKEN_TYPE_LEFT_SHIFT, "<<"},
     {SF_TOKEN_TYPE_RIGHT_SHIFT, ">>"},
+    {SF_TOKEN_TYPE_COLON_COLON, "::"},
 
     {SF_TOKEN_TYPE_PLUS, "+"},
     {SF_TOKEN_TYPE_MINUS, "-"},
@@ -98,7 +99,9 @@ static const sf_token_spelling k_keywords[] = {
     {SF_TOKEN_TYPE_KW_PUB, "pub"},
     {SF_TOKEN_TYPE_KW_EXTERN, "extern"},
 
-    {SF_TOKEN_TYPE_KW_IMPORT, "import"}
+    {SF_TOKEN_TYPE_KW_IMPORT, "import"},
+
+    {SF_TOKEN_TYPE_KW_NAMESPACE, "namespace"}
 };
 
 static bool is_digit(char c);
@@ -179,7 +182,7 @@ sf_token_list sf_tokenize(const char *input, const char *filename) {
 void sf_tokens_print(const sf_token_list *list) {
     for (size_t i = 0; i < list->count; i++) {
         printf(
-            "Token %zu: type= %d value= %s (%lu:%lu)\n",
+            "Token %zu: type= %d value= %s (%zu:%zu)\n",
             i, list->tokens[i].type, list->tokens[i].value,
             list->tokens[i].span.line, list->tokens[i].span.col
         );

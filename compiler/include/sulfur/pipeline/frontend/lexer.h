@@ -59,6 +59,8 @@ typedef enum {
     SF_TOKEN_TYPE_COMMA,
     SF_TOKEN_TYPE_DOT,
 
+    SF_TOKEN_TYPE_COLON_COLON,
+
     SF_TOKEN_TYPE_KW_I8,
     SF_TOKEN_TYPE_KW_I16,
     SF_TOKEN_TYPE_KW_I32,
@@ -87,6 +89,8 @@ typedef enum {
     SF_TOKEN_TYPE_KW_EXTERN,
 
     SF_TOKEN_TYPE_KW_IMPORT,
+
+    SF_TOKEN_TYPE_KW_NAMESPACE,
 
     SF_TOKEN_TYPE_EOF
 } sf_token_type;
