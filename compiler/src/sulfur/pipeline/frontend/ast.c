@@ -36,6 +36,11 @@ static void print_func_decl_node(const sf_func_decl_node *node, size_t indent);
 static void print_func_call_node(const sf_func_call_node *node, size_t indent);
 static void print_return_node(const sf_return_node *node, size_t indent);
 static void print_import_node(const sf_import_node *node, size_t indent);
+static void print_namespace_node(const sf_namespace_node *node, size_t indent);
+
+void sf_print_ast(const sf_ast_node *root) {
+    print_node(root, 0);
+}
 
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt) {
     sf_ast_node **statements = sf_arena_grow_one(
@@ -105,6 +110,46 @@ void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node 
 
     call->arguments = arguments;
     call->arguments[call->argument_count++] = argument;
+}
+
+void sf_namespace_add_segment(
+    sf_arena *arena, sf_namespace_node *namespace,
+    const char *name, sf_span span
+) {
+    char *name_copy = copy_string(arena, name);
+
+    if (name_copy == NULL) {
+        return;
+    }
+
+    sf_path_segment *segments = sf_arena_grow_one(
+        arena, namespace->segments, namespace->segment_count,
+        &namespace->segment_capacity, sizeof(sf_path_segment)
+    );
+
+    if (segments == NULL) {
+        return;
+    }
+
+    namespace->segments = segments;
+    namespace->segments[namespace->segment_count++] = (sf_path_segment){
+        .name = name_copy,
+        .span = span
+    };
+}
+
+void sf_namespace_add_item(sf_arena *arena, sf_namespace_node *namespace, sf_ast_node *item) {
+    sf_ast_node **items = sf_arena_grow_one(
+        arena, namespace->items, namespace->item_count,
+        &namespace->item_capacity, sizeof(sf_ast_node *)
+    );
+
+    if (items == NULL) {
+        return;
+    }
+
+    namespace->items = items;
+    namespace->items[namespace->item_count++] = item;
 }
 
 sf_program_node *sf_new_program_node(sf_arena *arena) {
@@ -359,8 +404,17 @@ sf_import_node *sf_new_import_node(
     return node;
 }
 
-void sf_print_ast(const sf_ast_node *root) {
-    print_node(root, 0);
+sf_namespace_node *sf_new_namespace_node(sf_arena *arena, sf_span span) {
+    sf_namespace_node *node = new_node(
+        arena, sizeof(sf_namespace_node),
+        SF_NODE_NAMESPACE, span
+    );
+
+    if (node == NULL) {
+        return NULL;
+    }
+
+    return node;
 }
 
 static void print_indent(size_t indent) {
@@ -429,6 +483,10 @@ static void print_node(const sf_ast_node *node, size_t indent) {
         }
         case SF_NODE_RETURN: {
             print_return_node((const sf_return_node *)node, indent);
+            break;
+        }
+        case SF_NODE_NAMESPACE: {
+            print_namespace_node((const sf_namespace_node *)node, indent);
             break;
         }
 
@@ -598,6 +656,25 @@ static void print_import_node(const sf_import_node *node, size_t indent) {
 
     print_indent(indent);
     printf("Import %s\n", node->path);
+}
+
+static void print_namespace_node(const sf_namespace_node *node, size_t indent) {
+    print_indent(indent);
+    printf("Namespace ");
+
+    for (size_t i = 0; i < node->segment_count; i++) {
+        if (i > 0) {
+            printf("::");
+        }
+
+        printf("%s", node->segments[i].name);
+    }
+
+    printf("\n");
+
+    for (size_t i = 0; i < node->item_count; i++) {
+        print_node(node->items[i], indent + 1);
+    }
 }
 
 static void report_out_of_memory(void) {

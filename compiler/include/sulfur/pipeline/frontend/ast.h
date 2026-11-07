@@ -25,7 +25,8 @@ typedef enum {
     SF_NODE_FUNC_DECL,
     SF_NODE_FUNC_CALL,
     SF_NODE_RETURN,
-    SF_NODE_IMPORT
+    SF_NODE_IMPORT,
+    SF_NODE_NAMESPACE
 } sf_node_type;
 
 typedef enum {
@@ -204,6 +205,23 @@ typedef struct {
 } sf_import_node;
 
 typedef struct {
+    sf_span span;
+    const char *name;
+} sf_path_segment;
+
+typedef struct {
+    sf_ast_node base;
+
+    sf_path_segment *segments;
+    size_t segment_count;
+    size_t segment_capacity;
+
+    sf_ast_node **items;
+    size_t item_count;
+    size_t item_capacity;
+} sf_namespace_node;
+
+typedef struct {
     sf_ast_node base;
     sf_ast_node **statements;
     size_t statement_count;
@@ -213,7 +231,6 @@ typedef struct {
     size_t import_count;
     size_t import_capacity;
 } sf_program_node;
-
 void sf_print_ast(const sf_ast_node *root);
 
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt);
@@ -221,6 +238,11 @@ void sf_program_add_import(sf_arena *arena, sf_program_node *program, sf_import_
 void sf_block_add_statement(sf_arena *arena, sf_block_node *block, sf_ast_node *stmt);
 void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function, sf_parameter param);
 void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node *argument);
+void sf_namespace_add_segment(
+    sf_arena *arena, sf_namespace_node *namespace,
+    const char *name, sf_span span
+);
+void sf_namespace_add_item(sf_arena *arena, sf_namespace_node *namespace, sf_ast_node *item);
 
 sf_program_node *sf_new_program_node(sf_arena *arena);
 sf_block_node *sf_new_block_node(sf_arena *arena, sf_span span);
@@ -272,3 +294,4 @@ sf_func_call_node *sf_new_func_call_node(
 sf_import_node *sf_new_import_node(
     sf_arena *arena, const char *path, sf_span span
 );
+sf_namespace_node *sf_new_namespace_node(sf_arena *arena, sf_span span);
