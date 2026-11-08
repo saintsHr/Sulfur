@@ -207,6 +207,13 @@ const char *sf_token_type_name(sf_token_type type) {
         case SF_TOKEN_TYPE_INTEGER: {
             return "an integer";
         }
+        case SF_TOKEN_TYPE_EOF: {
+            return "end of file";
+        }
+        case SF_TOKEN_TYPE_UNDEFINED: {
+            return "an invalid token";
+        }
+
         default: {
             break;
         }

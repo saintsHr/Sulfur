@@ -85,7 +85,7 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
         options->file_input, &compilation->input_size
     );
     if (compilation->input_source == NULL) {
-        return false;
+        goto exit;
     }
 
     sf_log_set_source(options->file_input, compilation->input_source);
@@ -95,21 +95,21 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
         compilation->input_source, compilation->input_size, options->file_input
     );
     if (sf_log_had_errors()) {
-        return false;
+        goto exit;
     }
 
     compilation->tokens = sf_tokenize(
         compilation->preprocessed, options->file_input
     );
     if (sf_log_had_errors()) {
-        return false;
+        goto exit;
     }
 
     compilation->ast = sf_parse(
         &compilation->arena, compilation->tokens, options->file_input
     );
     if (sf_log_had_errors()) {
-        return false;
+        goto exit;
     }
 
     sf_module_resolve(
@@ -123,7 +123,7 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     );
 
     if (sf_log_had_errors()) {
-        return false;
+        goto exit;
     }
 
     sf_analyze(
@@ -131,33 +131,38 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
         options, &compilation->modules
     );
     if (sf_log_had_errors()) {
-        return false;
+        goto exit;
     }
 
     compilation->ir = sf_ir_generate(
         &compilation->arena, compilation->ast
     );
     if (sf_log_had_errors()) {
-        return false;
+        goto exit;
     }
 
     sf_optimize(
         &compilation->ir
     );
     if (sf_log_had_errors()) {
-        return false;
+        goto exit;
     }
 
     compilation->assembly = sf_generate_assembly(
         &compilation->ir, options, !options->is_module
     );
     if (sf_log_had_errors()) {
-        return false;
+        goto exit;
     }
 
     if (options->dump_stages) dump_stages(compilation);
 
     return sf_file_write(options->file_output, compilation->assembly);
+
+    exit: {
+        if (options->dump_stages) dump_stages(compilation);
+        return false;
+    }
 }
 
 static void compilation_free(sf_compilation *compilation) {
@@ -201,15 +206,35 @@ static bool include_stdlib(sf_compiler_options *options) {
 }
 
 static void dump_stages(sf_compilation *compilation) {
-    printf("\n ---- Source ---- \n\n");
-    printf("%s", compilation->input_source);
-    printf("\n ---- Tokens ---- \n\n");
-    sf_tokens_print(&compilation->tokens);
-    printf("\n ---- AST ---- \n\n");
-    sf_print_ast((sf_ast_node *)compilation->ast);
-    printf("\n ---- IR ---- \n\n");
-    sf_ir_print(&compilation->ir);
-    printf("\n ---- Assembly ---- \n\n");
-    printf("%s", compilation->assembly);
+    printf("\n ---------------- \n");
+
+    if (compilation->input_source != NULL) {
+        printf("\n[Source]:\n\n");
+        printf("%s", compilation->input_source);
+    }
+
+    if (compilation->tokens.count > 0) {
+        printf("\n[Tokens]:\n\n");
+        sf_tokens_print(&compilation->tokens);
+    }
+
+    if (compilation->ast != NULL) {
+        printf("\n[AST]:\n\n");
+        sf_print_ast((sf_ast_node *)compilation->ast);
+    }
+
+    if (
+        compilation->ir.function_count > 0 &&
+        compilation->ir.extern_count > 0
+    ) {
+        printf("\n[IR]:\n\n");
+        sf_ir_print(&compilation->ir);
+    }
+
+    if (compilation->assembly != NULL) {
+        printf("\n[Assembly]:\n\n");
+        printf("%s", compilation->assembly);
+    }
+
     printf("\n ---------------- \n");
 }

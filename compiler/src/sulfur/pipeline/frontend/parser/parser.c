@@ -231,3 +231,23 @@ sf_identifier_node *sf_parser_make_identifier(sf_parser *p, const sf_token *toke
 
     return id;
 }
+
+bool sf_parser_parse_path(sf_parser *p, sf_path *path) {
+    if (sf_parser_match(p, SF_TOKEN_TYPE_COLON_COLON)) {
+        path->is_global = true;
+    }
+
+    while (true) {
+        const sf_token *seg = sf_parser_expect_identifier(
+            p, "a name", "qualified names are identifiers separated by '::'"
+        );
+
+        if (seg == NULL || !sf_path_add_segment(p->arena, path, seg->value, seg->span)) {
+            return false;
+        }
+
+        if (!sf_parser_match(p, SF_TOKEN_TYPE_COLON_COLON)) {
+            return true;
+        }
+    }
+}

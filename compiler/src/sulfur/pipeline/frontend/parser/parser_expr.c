@@ -40,7 +40,7 @@ static sf_ast_node *parse_binary(sf_parser *p, size_t level);
 static sf_ast_node *parse_cast(sf_parser *p);
 static sf_ast_node *parse_unary(sf_parser *p);
 static sf_ast_node *parse_postfix(sf_parser *p);
-static sf_ast_node *parse_call(sf_parser *p, const sf_token *name_token);
+static sf_ast_node *parse_call(sf_parser *p, sf_identifier_node *callee);
 static sf_ast_node *parse_primary(sf_parser *p);
 
 sf_ast_node *sf_parse_expression(sf_parser *p) {
@@ -181,18 +181,11 @@ static sf_ast_node *parse_postfix(sf_parser *p) {
     return operand;
 }
 
-static sf_ast_node *parse_call(sf_parser *p, const sf_token *name_token) {
+static sf_ast_node *parse_call(sf_parser *p, sf_identifier_node *callee) {
     sf_parser_advance(p);
 
-    sf_identifier_node *callee_node = sf_parser_make_identifier(p, name_token);
-    if (callee_node == NULL) {
-        return NULL;
-    }
-
     sf_func_call_node *call_node = sf_new_func_call_node(
-        p->arena,
-        (sf_ast_node *)callee_node,
-        name_token->span
+        p->arena, (sf_ast_node *)callee, callee->base.span
     );
     if (call_node == NULL) {
         return NULL;
@@ -251,19 +244,22 @@ static sf_ast_node *parse_primary(sf_parser *p) {
         );
     }
 
-    if (token->type == SF_TOKEN_TYPE_IDENTIFIER) {
-        sf_parser_advance(p);
+    if (
+        token->type == SF_TOKEN_TYPE_IDENTIFIER ||
+        token->type == SF_TOKEN_TYPE_COLON_COLON
+    ) {
+        sf_identifier_node *id = sf_new_identifier_node(p->arena, token->span);
 
-        const sf_token *next_token = sf_parser_peek(p);
-        sf_ast_node *ret = NULL;
-
-        if (next_token->type == SF_TOKEN_TYPE_LPAREN) {
-            ret = parse_call(p, token);
-        } else {
-            ret = (sf_ast_node *)sf_parser_make_identifier(p, token);
+        if (id == NULL || !sf_parser_parse_path(p, &id->path)) {
+            sf_parser_recover_expression(p);
+            return NULL;
         }
 
-        return ret;
+        if (sf_parser_peek(p)->type == SF_TOKEN_TYPE_LPAREN) {
+            return parse_call(p, id);
+        }
+
+        return (sf_ast_node *)id;
     }
 
     sf_parser_report_unexpected(

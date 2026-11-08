@@ -26,8 +26,11 @@ static sf_qualifiers parse_qualifiers(sf_parser *p);
 static sf_ast_node *parse_import(sf_parser *p);
 
 static void report_repeated_qual(const sf_parser *p, sf_token token);
-
 static void skip_invalid_import(sf_parser *p);
+static sf_identifier_node *clone_path_identifier(
+    sf_parser *p, const sf_var_assign_node *assign
+);
+static bool path_followed_by_assign(const sf_parser *p);
 
 sf_ast_node *sf_parse_top_level(sf_parser *p) {
     const sf_token *token = sf_parser_peek(p);
@@ -80,10 +83,7 @@ sf_ast_node *sf_parse_statement(sf_parser *p) {
         return parse_decl(p);
     }
 
-    if (
-        sf_token_is_ident(*token) &&
-        sf_token_is_assign(*sf_parser_peek_next(p))
-    ) {
+    if (path_followed_by_assign(p)) {
         return parse_var_assign(p);
     }
 
@@ -160,6 +160,14 @@ void sf_parser_recover_top_level(sf_parser *p) {
             }
         }
     }
+}
+
+const char *sf_path_simple_name(const sf_path *path) {
+    if (path->is_global || path->segment_count != 1) {
+        return NULL;
+    }
+
+    return path->segments[0].name;
 }
 
 static sf_ast_node *parse_expr_stmt(sf_parser *p) {
@@ -240,7 +248,15 @@ static sf_ast_node *parse_var_decl(sf_parser *p, sf_qualifiers qualifiers) {
 }
 
 static sf_ast_node *parse_var_assign(sf_parser *p) {
-    const sf_token *name_token = sf_parser_advance(p);
+    sf_var_assign_node *assign = sf_new_var_assign_node(
+        p->arena, NULL, sf_parser_peek(p)->span
+    );
+
+    if (assign == NULL || !sf_parser_parse_path(p, &assign->path)) {
+        sf_parser_recover_statement(p);
+        return NULL;
+    }
+
     const sf_token *op_token = sf_parser_advance(p);
 
     sf_ast_node *rhs = sf_parse_expression(p);
@@ -259,14 +275,14 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
             return NULL;
         }
 
-        sf_ast_node *lhs_ref = (sf_ast_node *)sf_parser_make_identifier(p, name_token);
+        sf_identifier_node *lhs = clone_path_identifier(p, assign);
 
-        if (lhs_ref == NULL) {
+        if (lhs == NULL) {
             return NULL;
         }
 
         value = (sf_ast_node *)sf_new_binary_node(
-            p->arena, lhs_ref, rhs, op, op_token->span
+            p->arena, (sf_ast_node *)lhs, rhs, op, op_token->span
         );
 
         if (value == NULL) {
@@ -279,15 +295,7 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
         return NULL;
     }
 
-    sf_var_assign_node *assign = sf_new_var_assign_node(p->arena, value, name_token->span);
-
-    if (assign == NULL) {
-        return NULL;
-    }
-
-    if (!sf_path_add_segment(p->arena, &assign->path, name_token->value, name_token->span)) {
-        return NULL;
-    }
+    assign->value = value;
 
     return (sf_ast_node *)assign;
 }
@@ -537,35 +545,51 @@ static sf_ast_node *parse_block(sf_parser *p) {
 }
 
 static sf_ast_node *parse_namespace(sf_parser *p) {
-    const sf_token *token_ns = sf_parser_advance(p);
+    sf_parser_advance(p);
+
+    if (sf_parser_peek(p)->type == SF_TOKEN_TYPE_COLON_COLON) {
+        sf_log(
+            "invalid namespace name", "namespace names cannot start with '::'",
+            "remove the leading '::'", p->filename,
+            SF_LOG_PARSER_UNEXPECTED_TOKEN, sf_parser_peek(p)->span,
+            SF_LOG_SEVERITY_ERROR
+        );
+
+        sf_parser_advance(p);
+    }
+
     const sf_token *token_seg = sf_parser_expect_identifier(
-        p, "a namespace name", "namespace names are identifiers separated by '::'"
+        p, "a namespace name",
+        "namespace names are identifiers separated by '::'"
     );
 
     if (token_seg == NULL) {
         return NULL;
     }
 
-    sf_namespace_node *ns = sf_new_namespace_node(p->arena, token_ns->span);
+    sf_namespace_node *ns = sf_new_namespace_node(p->arena, token_seg->span);
 
     if (ns == NULL) {
         return NULL;
     }
 
-    sf_path_add_segment(p->arena, &ns->path, token_seg->value, token_seg->span);
+    if (!sf_path_add_segment(p->arena, &ns->path, token_seg->value, token_seg->span)) {
+        return NULL;
+    }
 
     while (sf_parser_match(p, SF_TOKEN_TYPE_COLON_COLON)) {
         const sf_token *token = sf_parser_expect_identifier(
-            p, "a name after '::'", "namespace names are identifiers separated by '::'"
+            p, "a name after '::'",
+            "namespace names are identifiers separated by '::'"
         );
 
         if (token == NULL) {
             return NULL;
         }
 
-        sf_path_add_segment(
-            p->arena, &ns->path, token->value, token->span
-        );
+        if (!sf_path_add_segment(p->arena, &ns->path, token->value, token->span)) {
+            return NULL;
+        }
     }
 
     if (!sf_parser_expect(p, SF_TOKEN_TYPE_LBRACE)) {
@@ -577,10 +601,9 @@ static sf_ast_node *parse_namespace(sf_parser *p) {
         sf_parser_peek(p)->type != SF_TOKEN_TYPE_EOF
     ) {
         const sf_token *token = sf_parser_peek(p);
-
         size_t start = p->current;
-
         sf_ast_node *item = NULL;
+
         if (token->type != SF_TOKEN_TYPE_KW_IMPORT) {
             item = sf_parse_top_level(p);
         } else {
@@ -763,10 +786,45 @@ static void skip_invalid_import(sf_parser *p) {
     }
 }
 
-const char *sf_path_simple_name(const sf_path *path) {
-    if (path->is_global || path->segment_count != 1) {
+static sf_identifier_node *clone_path_identifier(
+    sf_parser *p, const sf_var_assign_node *assign
+) {
+    sf_identifier_node *id = sf_new_identifier_node(p->arena, assign->base.span);
+
+    if (id == NULL) {
         return NULL;
     }
 
-    return path->segments[0].name;
+    id->path.is_global = assign->path.is_global;
+
+    for (size_t i = 0; i < assign->path.segment_count; i++) {
+        const sf_path_segment *seg = &assign->path.segments[i];
+
+        if (!sf_path_add_segment(p->arena, &id->path, seg->name, seg->span)) {
+            return NULL;
+        }
+    }
+
+    return id;
+}
+
+static bool path_followed_by_assign(const sf_parser *p) {
+    size_t i = p->current;
+    const sf_token *t = p->tokens.tokens;
+
+    if (t[i].type == SF_TOKEN_TYPE_COLON_COLON) {
+        i++;
+    }
+
+    while (t[i].type == SF_TOKEN_TYPE_IDENTIFIER) {
+        i++;
+
+        if (t[i].type != SF_TOKEN_TYPE_COLON_COLON) {
+            break;
+        }
+
+        i++;
+    }
+
+    return i > p->current && sf_token_is_assign(t[i]);
 }
