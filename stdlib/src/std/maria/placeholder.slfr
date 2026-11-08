@@ -1,5 +1,5 @@
 // i love you, Maria <3
 
-pub fn maria() i64 {
+pub fn placeholder() i64 {
     return 7;
 }

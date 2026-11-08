@@ -20,19 +20,19 @@ static sf_ast_node *parse_if(sf_parser *p);
 static sf_ast_node *parse_while(sf_parser *p);
 static sf_ast_node *parse_return(sf_parser *p);
 static sf_ast_node *parse_block(sf_parser *p);
+static sf_ast_node *parse_namespace(sf_parser *p);
 
 static sf_qualifiers parse_qualifiers(sf_parser *p);
 static sf_ast_node *parse_import(sf_parser *p);
 
 static void report_repeated_qual(const sf_parser *p, sf_token token);
 
+static void skip_invalid_import(sf_parser *p);
+
 sf_ast_node *sf_parse_top_level(sf_parser *p) {
     const sf_token *token = sf_parser_peek(p);
 
-    if (
-        sf_token_is_fn(*token) ||
-        sf_token_is_qual(*token)
-    ) {
+    if (sf_token_is_fn(*token) || sf_token_is_qual(*token)) {
         sf_ast_node *node = parse_decl(p);
 
         if (node == NULL) {
@@ -42,15 +42,18 @@ sf_ast_node *sf_parse_top_level(sf_parser *p) {
         return node;
     }
 
-    if (
-        sf_token_is_import(*token)
-    ) {
+    if (sf_token_is_import(*token)) {
         sf_ast_node *node = parse_import(p);
 
         if (node == NULL) {
             sf_parser_recover_top_level(p);
         };
 
+        return node;
+    }
+
+    if (sf_token_is_namespace(*token)) {
+        sf_ast_node *node = parse_namespace(p);
         return node;
     }
 
@@ -527,6 +530,78 @@ static sf_ast_node *parse_block(sf_parser *p) {
     return (sf_ast_node *)block;
 }
 
+static sf_ast_node *parse_namespace(sf_parser *p) {
+    const sf_token *token_ns = sf_parser_advance(p);
+    const sf_token *token_seg = sf_parser_expect_identifier(
+        p, "a namespace name", "namespace names are identifiers separated by '::'"
+    );
+
+    if (token_seg == NULL) {
+        return NULL;
+    }
+
+    sf_namespace_node *ns = sf_new_namespace_node(p->arena, token_ns->span);
+
+    if (ns == NULL) {
+        return NULL;
+    }
+
+    sf_namespace_add_segment(
+        p->arena, ns, token_seg->value, token_seg->span
+    );
+
+    while (sf_parser_match(p, SF_TOKEN_TYPE_COLON_COLON)) {
+        const sf_token *token = sf_parser_expect_identifier(
+            p, "a name after '::'", "namespace names are identifiers separated by '::'"
+        );
+
+        if (token == NULL) {
+            return NULL;
+        }
+
+        sf_namespace_add_segment(
+            p->arena, ns, token->value, token->span
+        );
+    }
+
+    if (!sf_parser_expect(p, SF_TOKEN_TYPE_LBRACE)) {
+        return NULL;
+    }
+
+    while (
+        sf_parser_peek(p)->type != SF_TOKEN_TYPE_RBRACE &&
+        sf_parser_peek(p)->type != SF_TOKEN_TYPE_EOF
+    ) {
+        const sf_token *token = sf_parser_peek(p);
+
+        size_t start = p->current;
+
+        sf_ast_node *item = NULL;
+        if (token->type != SF_TOKEN_TYPE_KW_IMPORT) {
+            item = sf_parse_top_level(p);
+        } else {
+            sf_log(
+                "invalid import", "imports are not allowed inside namespaces",
+                "move the import somewhere else or remove it", p->filename,
+                SF_LOG_PARSER_INVALID_IMPORT, token->span,
+                SF_LOG_SEVERITY_ERROR
+            );
+
+            skip_invalid_import(p);
+        }
+
+        if (item != NULL) {
+            sf_namespace_add_item(p->arena, ns, item);
+        } else if (p->current == start) {
+            sf_parser_advance(p);
+        }
+    }
+
+    sf_parser_expect(p, SF_TOKEN_TYPE_RBRACE);
+
+    return (sf_ast_node *)ns;
+}
+
 static sf_qualifiers parse_qualifiers(sf_parser *p) {
     sf_qualifiers quals = {0};
 
@@ -666,4 +741,20 @@ static void report_repeated_qual(const sf_parser *p, sf_token token) {
         SF_LOG_PARSER_REPEATED_QUALIFIER, token.span,
         SF_LOG_SEVERITY_WARNING, sf_token_type_name(token.type)
     );
+}
+
+static void skip_invalid_import(sf_parser *p) {
+    sf_parser_advance(p);
+
+    while (
+        sf_parser_peek(p)->type != SF_TOKEN_TYPE_SEMICOLON &&
+        sf_parser_peek(p)->type != SF_TOKEN_TYPE_RBRACE &&
+        sf_parser_peek(p)->type != SF_TOKEN_TYPE_EOF
+    ) {
+        sf_parser_advance(p);
+    }
+
+    if (sf_parser_peek(p)->type == SF_TOKEN_TYPE_SEMICOLON) {
+        sf_parser_advance(p);
+    }
 }
