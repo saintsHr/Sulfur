@@ -1,5 +1,6 @@
 #include "sulfur/pipeline/backend/ir/ir.h"
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -326,10 +327,13 @@ static void generate_var_decl(
 static void generate_var_assign(
     sf_arena *arena, sf_ir_context *context, sf_var_assign_node *as
 ) {
+    const char *name = sf_path_simple_name(&as->path);
+    assert(name != NULL);
+
     sf_ir_operand dst = {
         .type = SF_IR_OPERAND_TYPE_VARIABLE,
         .value_type = as->base.resolved,
-        .variable_name = sf_mangle_variable(arena, as->name, as->id),
+        .variable_name = sf_mangle_variable(arena, name, as->id),
     };
 
     generate_assignment(arena, context, dst, as->value);
@@ -598,10 +602,13 @@ static sf_ir_operand generate_literal(sf_literal_node *lt) {
 }
 
 static sf_ir_operand generate_identifier(sf_arena *arena, sf_identifier_node *id) {
+    const char *name = sf_path_simple_name(&id->path);
+    assert(name != NULL);
+
     sf_ir_operand op = {0};
     op.type = SF_IR_OPERAND_TYPE_VARIABLE;
     op.value_type = id->base.resolved;
-    op.variable_name = sf_mangle_variable(arena, id->name, id->id);
+    op.variable_name = sf_mangle_variable(arena, name, id->id);
 
     return op;
 }
@@ -806,9 +813,12 @@ static sf_ir_operand generate_call(
 ) {
     sf_identifier_node *callee = (sf_identifier_node *)call->callee;
 
+    const char *callee_name = sf_path_simple_name(&callee->path);
+    assert(callee_name != NULL);
+
     sf_ir_operand func_operand = {
         .type = SF_IR_OPERAND_TYPE_FUNCTION,
-        .function_name = (char *)(call->link_name != NULL ? call->link_name : callee->name),
+        .function_name = (char *)(call->link_name != NULL ? call->link_name : callee_name),
         .value_type = call->base.resolved
     };
 

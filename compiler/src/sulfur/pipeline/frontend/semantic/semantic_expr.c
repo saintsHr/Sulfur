@@ -617,10 +617,17 @@ static bool analyze_literal(
 }
 
 static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
-    sf_var_symbol *sym = scope_lookup(s->scope, id->name);
+    const char *name = sf_path_simple_name(&id->path);
+
+    if (name == NULL) {
+        sf_semantic_report_qualified_unsupported(s, id->base.span);
+        return false;
+    }
+
+    sf_var_symbol *sym = scope_lookup(s->scope, name);
 
     if (sym == NULL) {
-        sf_semantic_report_undeclared(s, id->name, id->base.span);
+        sf_semantic_report_undeclared(s, name, id->base.span);
         return false;
     }
 
@@ -629,7 +636,7 @@ static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
             "uninitialized variable", "'%s' may be used before being initialized",
             "assign a value to the variable in every path before using it",
             s->filename, SF_LOG_SEMANTIC_UNINITIALIZED, id->base.span,
-            SF_LOG_SEVERITY_ERROR, id->name
+            SF_LOG_SEVERITY_ERROR, name
         );
 
         return false;
@@ -645,22 +652,30 @@ static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
 
 static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
     sf_identifier_node *callee = (sf_identifier_node *)call->callee;
-    const sf_func_symbol *sym = sf_func_symbol_table_lookup(s->funcs, callee->name);
+
+    const char *name = sf_path_simple_name(&callee->path);
+
+    if (name == NULL) {
+        sf_semantic_report_qualified_unsupported(s, callee->base.span);
+        return false;
+    }
+
+    const sf_func_symbol *sym = sf_func_symbol_table_lookup(s->funcs, name);
 
     if (sym == NULL) {
-        const char* closest = sf_func_symbol_table_find_closest(s->funcs, callee->name);
+        const char* closest = sf_func_symbol_table_find_closest(s->funcs, name);
 
         if (closest != NULL) {
             sf_log(
                 "undeclared function", "function '%s' is not declared until this call",
                 "did you mean '%s'?", s->filename, SF_LOG_SEMANTIC_UNDECLARED,
-                callee->base.span, SF_LOG_SEVERITY_ERROR, callee->name, closest
+                callee->base.span, SF_LOG_SEVERITY_ERROR, name, closest
             );
         } else {
             sf_log(
                 "undeclared function", "function '%s' is not declared until this call",
                 "declare the function before calling", s->filename, SF_LOG_SEMANTIC_UNDECLARED,
-                callee->base.span, SF_LOG_SEVERITY_ERROR, callee->name
+                callee->base.span, SF_LOG_SEVERITY_ERROR, name
             );
         }
 

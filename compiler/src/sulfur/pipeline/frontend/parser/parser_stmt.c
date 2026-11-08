@@ -259,9 +259,7 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
             return NULL;
         }
 
-        sf_ast_node *lhs_ref = (sf_ast_node *)sf_new_identifier_node(
-            p->arena, name_token->value, name_token->span
-        );
+        sf_ast_node *lhs_ref = (sf_ast_node *)sf_parser_make_identifier(p, name_token);
 
         if (lhs_ref == NULL) {
             return NULL;
@@ -281,9 +279,17 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
         return NULL;
     }
 
-    return (sf_ast_node *)sf_new_var_assign_node(
-        p->arena, name_token->value, value, name_token->span
-    );
+    sf_var_assign_node *assign = sf_new_var_assign_node(p->arena, value, name_token->span);
+
+    if (assign == NULL) {
+        return NULL;
+    }
+
+    if (!sf_path_add_segment(p->arena, &assign->path, name_token->value, name_token->span)) {
+        return NULL;
+    }
+
+    return (sf_ast_node *)assign;
 }
 
 static sf_ast_node *parse_if(sf_parser *p) {
@@ -546,9 +552,7 @@ static sf_ast_node *parse_namespace(sf_parser *p) {
         return NULL;
     }
 
-    sf_namespace_add_segment(
-        p->arena, ns, token_seg->value, token_seg->span
-    );
+    sf_path_add_segment(p->arena, &ns->path, token_seg->value, token_seg->span);
 
     while (sf_parser_match(p, SF_TOKEN_TYPE_COLON_COLON)) {
         const sf_token *token = sf_parser_expect_identifier(
@@ -559,8 +563,8 @@ static sf_ast_node *parse_namespace(sf_parser *p) {
             return NULL;
         }
 
-        sf_namespace_add_segment(
-            p->arena, ns, token->value, token->span
+        sf_path_add_segment(
+            p->arena, &ns->path, token->value, token->span
         );
     }
 
@@ -757,4 +761,12 @@ static void skip_invalid_import(sf_parser *p) {
     if (sf_parser_peek(p)->type == SF_TOKEN_TYPE_SEMICOLON) {
         sf_parser_advance(p);
     }
+}
+
+const char *sf_path_simple_name(const sf_path *path) {
+    if (path->is_global || path->segment_count != 1) {
+        return NULL;
+    }
+
+    return path->segments[0].name;
 }

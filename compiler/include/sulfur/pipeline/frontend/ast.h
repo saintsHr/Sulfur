@@ -87,6 +87,18 @@ typedef struct {
 } sf_ast_node;
 
 typedef struct {
+    sf_span span;
+    const char *name;
+} sf_path_segment;
+
+typedef struct {
+    sf_path_segment *segments;
+    size_t segment_count;
+    size_t segment_capacity;
+    bool is_global;
+} sf_path;
+
+typedef struct {
     sf_ast_node base;
     sf_token_type token_type;
     char *value;
@@ -94,7 +106,7 @@ typedef struct {
 
 typedef struct {
     sf_ast_node base;
-    char *name;
+    sf_path path;
     size_t depth;
     size_t id;
     sf_var_symbol *symbol;
@@ -130,7 +142,7 @@ typedef struct {
 
 typedef struct {
     sf_ast_node base;
-    char *name;
+    sf_path path;
     sf_ast_node *value;
     size_t id;
 } sf_var_assign_node;
@@ -205,17 +217,8 @@ typedef struct {
 } sf_import_node;
 
 typedef struct {
-    sf_span span;
-    const char *name;
-} sf_path_segment;
-
-typedef struct {
     sf_ast_node base;
-
-    sf_path_segment *segments;
-    size_t segment_count;
-    size_t segment_capacity;
-
+    sf_path path;
     sf_ast_node **items;
     size_t item_count;
     size_t item_capacity;
@@ -231,6 +234,9 @@ typedef struct {
     size_t import_count;
     size_t import_capacity;
 } sf_program_node;
+
+const char *sf_path_simple_name(const sf_path *path);
+
 void sf_print_ast(const sf_ast_node *root);
 
 void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt);
@@ -238,11 +244,8 @@ void sf_program_add_import(sf_arena *arena, sf_program_node *program, sf_import_
 void sf_block_add_statement(sf_arena *arena, sf_block_node *block, sf_ast_node *stmt);
 void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function, sf_parameter param);
 void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node *argument);
-void sf_namespace_add_segment(
-    sf_arena *arena, sf_namespace_node *namespace,
-    const char *name, sf_span span
-);
 void sf_namespace_add_item(sf_arena *arena, sf_namespace_node *namespace, sf_ast_node *item);
+bool sf_path_add_segment(sf_arena *arena, sf_path *path, const char *name, sf_span span);
 
 sf_program_node *sf_new_program_node(sf_arena *arena);
 sf_block_node *sf_new_block_node(sf_arena *arena, sf_span span);
@@ -250,7 +253,7 @@ sf_literal_node *sf_new_literal_node(
     sf_arena *arena, const char *value,
     sf_token_type tokenType, sf_span span
 );
-sf_identifier_node *sf_new_identifier_node(sf_arena *arena, const char *name, sf_span span);
+sf_identifier_node *sf_new_identifier_node(sf_arena *arena, sf_span span);
 sf_binary_node *sf_new_binary_node(
     sf_arena *arena, sf_ast_node *left, sf_ast_node *right,
     sf_ir_operation_type op, sf_span span
@@ -260,8 +263,7 @@ sf_var_decl_node *sf_new_var_decl_node(
     sf_ast_node *value, sf_qualifiers qualifiers, sf_span span
 );
 sf_var_assign_node *sf_new_var_assign_node(
-    sf_arena *arena, const char *name,
-    sf_ast_node *value, sf_span span
+    sf_arena *arena, sf_ast_node *value, sf_span span
 );
 sf_unary_node *sf_new_unary_node(
     sf_arena *arena, sf_ast_node *operand,

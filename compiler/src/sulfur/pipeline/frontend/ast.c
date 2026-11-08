@@ -20,6 +20,7 @@ static void *new_node(
 
 static void print_indent(size_t indent);
 static void print_node(const sf_ast_node *node, size_t indent);
+static void print_path(const sf_path *path);
 
 static void print_program_node(const sf_program_node *node, size_t indent);
 static void print_block_node(const sf_block_node *node, size_t indent);
@@ -112,32 +113,6 @@ void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node 
     call->arguments[call->argument_count++] = argument;
 }
 
-void sf_namespace_add_segment(
-    sf_arena *arena, sf_namespace_node *namespace,
-    const char *name, sf_span span
-) {
-    char *name_copy = copy_string(arena, name);
-
-    if (name_copy == NULL) {
-        return;
-    }
-
-    sf_path_segment *segments = sf_arena_grow_one(
-        arena, namespace->segments, namespace->segment_count,
-        &namespace->segment_capacity, sizeof(sf_path_segment)
-    );
-
-    if (segments == NULL) {
-        return;
-    }
-
-    namespace->segments = segments;
-    namespace->segments[namespace->segment_count++] = (sf_path_segment){
-        .name = name_copy,
-        .span = span
-    };
-}
-
 void sf_namespace_add_item(sf_arena *arena, sf_namespace_node *namespace, sf_ast_node *item) {
     sf_ast_node **items = sf_arena_grow_one(
         arena, namespace->items, namespace->item_count,
@@ -150,6 +125,34 @@ void sf_namespace_add_item(sf_arena *arena, sf_namespace_node *namespace, sf_ast
 
     namespace->items = items;
     namespace->items[namespace->item_count++] = item;
+}
+
+bool sf_path_add_segment(
+    sf_arena *arena, sf_path *path,
+    const char *name, sf_span span
+) {
+    char *name_copy = copy_string(arena, name);
+
+    if (name_copy == NULL) {
+        return false;
+    }
+
+    sf_path_segment *segments = sf_arena_grow_one(
+        arena, path->segments, path->segment_count,
+        &path->segment_capacity, sizeof(sf_path_segment)
+    );
+
+    if (segments == NULL) {
+        return false;
+    }
+
+    path->segments = segments;
+    path->segments[path->segment_count++] = (sf_path_segment){
+        .name = name_copy,
+        .span = span
+    };
+
+    return true;
 }
 
 sf_program_node *sf_new_program_node(sf_arena *arena) {
@@ -176,19 +179,11 @@ sf_literal_node *sf_new_literal_node(
     return node->value != NULL ? node : NULL;
 }
 
-sf_identifier_node *sf_new_identifier_node(sf_arena *arena, const char *name, sf_span span) {
-    sf_identifier_node *node = new_node(
+sf_identifier_node *sf_new_identifier_node(sf_arena *arena, sf_span span) {
+    return new_node(
         arena, sizeof(sf_identifier_node),
         SF_NODE_IDENTIFIER, span
     );
-
-    if (node == NULL) {
-        return NULL;
-    }
-
-    node->name = copy_string(arena, name);
-
-    return node->name != NULL ? node : NULL;
 }
 
 sf_binary_node *sf_new_binary_node(
@@ -273,8 +268,7 @@ sf_var_decl_node *sf_new_var_decl_node(
 }
 
 sf_var_assign_node *sf_new_var_assign_node(
-    sf_arena *arena, const char *name,
-    sf_ast_node *value, sf_span span
+    sf_arena *arena, sf_ast_node *value, sf_span span
 ) {
     sf_var_assign_node *node = new_node(
         arena, sizeof(sf_var_assign_node),
@@ -285,10 +279,9 @@ sf_var_assign_node *sf_new_var_assign_node(
         return NULL;
     }
 
-    node->name = copy_string(arena, name);
     node->value = value;
 
-    return node->name != NULL ? node : NULL;
+    return node;
 }
 
 sf_if_node *sf_new_if_node(
@@ -537,7 +530,9 @@ static void print_var_decl_node(const sf_var_decl_node *node, size_t indent) {
 
 static void print_var_assign_node(const sf_var_assign_node *node, size_t indent) {
     print_indent(indent);
-    printf("Assign %s\n", node->name);
+    printf("Assign ");
+    print_path(&node->path);
+    printf("\n");
 
     print_node(node->value, indent + 1);
 }
@@ -549,7 +544,9 @@ static void print_literal_node(const sf_literal_node *node, size_t indent) {
 
 static void print_identifier_node(const sf_identifier_node *node, size_t indent) {
     print_indent(indent);
-    printf("Identifier %s\n", node->name);
+    printf("Identifier ");
+    print_path(&node->path);
+    printf("\n");
 }
 
 static void print_binary_node(const sf_binary_node *node, size_t indent) {
@@ -658,22 +655,14 @@ static void print_import_node(const sf_import_node *node, size_t indent) {
     printf("Import %s\n", node->path);
 }
 
-static void print_namespace_node(const sf_namespace_node *node, size_t indent) {
+static void print_namespace_node(const sf_namespace_node *ns, size_t indent) {
     print_indent(indent);
     printf("Namespace ");
-
-    for (size_t i = 0; i < node->segment_count; i++) {
-        if (i > 0) {
-            printf("::");
-        }
-
-        printf("%s", node->segments[i].name);
-    }
-
+    print_path(&ns->path);
     printf("\n");
 
-    for (size_t i = 0; i < node->item_count; i++) {
-        print_node(node->items[i], indent + 1);
+    for (size_t i = 0; i < ns->item_count; i++) {
+        print_node(ns->items[i], indent + 1);
     }
 }
 
@@ -713,4 +702,18 @@ static char *copy_string(sf_arena *arena, const char *str) {
     }
 
     return copy;
+}
+
+static void print_path(const sf_path *path) {
+    if (path->is_global) {
+        printf("::");
+    }
+
+    for (size_t i = 0; i < path->segment_count; i++) {
+        if (i > 0) {
+            printf("::");
+        }
+
+        printf("%s", path->segments[i].name);
+    }
 }

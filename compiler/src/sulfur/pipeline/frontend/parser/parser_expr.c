@@ -184,11 +184,7 @@ static sf_ast_node *parse_postfix(sf_parser *p) {
 static sf_ast_node *parse_call(sf_parser *p, const sf_token *name_token) {
     sf_parser_advance(p);
 
-    sf_identifier_node *callee_node = sf_new_identifier_node(
-        p->arena,
-        name_token->value,
-        name_token->span
-    );
+    sf_identifier_node *callee_node = sf_parser_make_identifier(p, name_token);
     if (callee_node == NULL) {
         return NULL;
     }
@@ -264,7 +260,7 @@ static sf_ast_node *parse_primary(sf_parser *p) {
         if (next_token->type == SF_TOKEN_TYPE_LPAREN) {
             ret = parse_call(p, token);
         } else {
-            ret = (sf_ast_node *)sf_new_identifier_node(p->arena, token->value, token->span);
+            ret = (sf_ast_node *)sf_parser_make_identifier(p, token);
         }
 
         return ret;

@@ -40,3 +40,5 @@ void sf_parser_recover_top_level(sf_parser *p);
 sf_ast_node *sf_parse_statement(sf_parser *p);
 sf_ast_node *sf_parse_expression(sf_parser *p);
 sf_ast_node *sf_parse_top_level(sf_parser *p);
+
+sf_identifier_node *sf_parser_make_identifier(sf_parser *p, const sf_token *token);

@@ -84,6 +84,15 @@ bool sf_analyze(
     return ok;
 }
 
+void sf_semantic_report_qualified_unsupported(sf_semantic *s, sf_span span) {
+    sf_log(
+        "unsupported", "qualified names are not supported yet",
+        "use a simple name for now", s->filename,
+        SF_LOG_PARSER_UNEXPECTED_TOKEN, span,
+        SF_LOG_SEVERITY_ERROR
+    );
+}
+
 static bool analyze_program(
     sf_arena *arena, sf_module_list *modules, sf_program_node *program,
     const char *filename, sf_func_symbol_table *funcs,
@@ -324,10 +333,17 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
 }
 
 static void analyze_var_assign(sf_semantic *semantic, sf_var_assign_node *asg) {
-    sf_var_symbol *sym = scope_lookup(semantic->scope, asg->name);
+    const char *name = sf_path_simple_name(&asg->path);
+
+    if (name == NULL) {
+        sf_semantic_report_qualified_unsupported(semantic, asg->base.span);
+        return;
+    }
+
+    sf_var_symbol *sym = scope_lookup(semantic->scope, name);
 
     if (sym == NULL) {
-        sf_semantic_report_undeclared(semantic, asg->name, asg->base.span);
+        sf_semantic_report_undeclared(semantic, name, asg->base.span);
         return;
     }
 
@@ -350,8 +366,7 @@ static void analyze_var_assign(sf_semantic *semantic, sf_var_assign_node *asg) {
             "invalid assign", "variable '%s' is not mutable",
             "make the variable mutable or dont assign values to it",
             semantic->filename, SF_LOG_SEMANTIC_INVALID_ASSIGN,
-            asg->base.span, SF_LOG_SEVERITY_ERROR,
-            asg->name
+            asg->base.span, SF_LOG_SEVERITY_ERROR, name
         );
     }
 

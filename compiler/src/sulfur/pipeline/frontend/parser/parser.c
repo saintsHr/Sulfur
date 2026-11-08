@@ -217,3 +217,17 @@ static void describe_token(const sf_token *token, char *buf, size_t size) {
 
     snprintf(buf, size, "'%s'", token->value);
 }
+
+sf_identifier_node *sf_parser_make_identifier(sf_parser *p, const sf_token *token) {
+    sf_identifier_node *id = sf_new_identifier_node(p->arena, token->span);
+
+    if (id == NULL) {
+        return NULL;
+    }
+
+    if (!sf_path_add_segment(p->arena, &id->path, token->value, token->span)) {
+        return NULL;
+    }
+
+    return id;
+}

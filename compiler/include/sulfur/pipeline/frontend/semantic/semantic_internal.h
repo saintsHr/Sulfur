@@ -35,6 +35,8 @@ bool sf_const_check_overflow(
 bool sf_const_is_zero(sf_ast_node *node, bool is_signed);
 void sf_const_warn(sf_semantic *s, sf_ast_node *node, const char *desc);
 
+void sf_semantic_report_qualified_unsupported(sf_semantic *s, sf_span span);
+
 static inline bool sf_op_is_logical(sf_ir_operation_type op) {
     return op == SF_OP_TYPE_LOGICAL_AND || op == SF_OP_TYPE_LOGICAL_OR;
 }
