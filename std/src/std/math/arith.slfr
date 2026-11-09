@@ -1,3 +1,5 @@
+namespace std::math {
+
 pub fn pow(mut i64 base, mut u64 exp) i64 {
     mut i64 result = 1;
 
@@ -13,6 +15,22 @@ pub fn pow(mut i64 base, mut u64 exp) i64 {
     }
 
     return result;
+}
+
+pub fn sqrt(u64 n) u64 {
+    if (n <= 0) {
+        return 0;
+    }
+
+    mut u64 x = n;
+    mut u64 y = (x + 1) / 2;
+
+    while (y < x) {
+        x = y;
+        y = (x + n / x) / 2;
+    }
+
+    return x;
 }
 
 pub fn abs(i64 n) u64 {
@@ -69,4 +87,6 @@ pub fn lcm(i64 a, i64 b) i64 {
     }
 
     return abs((a / gcd(a, b)) * b) as i64;
+}
+
 }
