@@ -112,8 +112,6 @@ static bool analyze_program(
         .current_func = NULL,
         .filename = filename,
         .arena = arena,
-        .module_prefix = module_name != NULL
-            ? sf_mangle_module_prefix(arena, module_name) : NULL,
     };
 
     bool ok = true;
@@ -467,7 +465,10 @@ static void analyze_while(sf_semantic *semantic, sf_while_node *while_stmt) {
 
 static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
     char qname[SF_QNAME_MAX];
-    sf_path_segment self = { .span = func->base.span, .name = func->name };
+    sf_path_segment self = {
+        .span = func->base.span,
+        .name = func->name
+    };
 
     if (
         !sf_namespace_format(
@@ -498,9 +499,7 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
     };
 
     sym.link_name = sf_mangle_function(
-        semantic->arena, semantic->module_prefix,
-        func->qualifiers.is_extern ? func->name : qualified,
-        func->qualifiers.is_extern
+        semantic->arena, qualified, func->qualifiers.is_extern
     );
     func->link_name = sym.link_name;
 

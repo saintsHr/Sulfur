@@ -34,19 +34,17 @@ const char *sf_mangle_variable(sf_arena *arena, const char *name, size_t id) {
 }
 
 const char *sf_mangle_function(
-    sf_arena *arena, const char *prefix, const char *name, bool keep_name
+    sf_arena *arena, const char *name, bool keep_name
 ) {
     if (keep_name) {
         return name;
     }
 
-    bool qualified = strstr(name, "::") != NULL;
-
-    if (prefix == NULL && !qualified) {
+    if (strcmp(name, "main") == 0) {
         return name;
     }
 
-    const char *head = prefix != NULL ? prefix : "_SF_";
+    const char *head = "_SF_";
 
     size_t capacity = strlen(head) + strlen(name) + count_segments(name) * 21 + 1;
     char *result = sf_arena_alloc(arena, capacity);
@@ -82,52 +80,6 @@ const char *sf_mangle_function(
 
     result[n] = '\0';
     return result;
-}
-
-const char *sf_mangle_module_prefix(sf_arena *arena, const char *module_path) {
-    size_t len = strlen(module_path);
-
-    const char *dot = strrchr(module_path, '.');
-    const char *slash = strrchr(module_path, '/');
-
-    size_t end =
-        (dot != NULL && (slash == NULL || dot > slash))
-        ? (size_t)(dot - module_path) : len;
-
-    char *out = sf_arena_alloc(arena, 3 + end * 2 + 1);
-
-    if (out == NULL) {
-        sf_log(
-            "insufficient memory", "cannot allocate memory for compiling",
-            "free some memory and try again", NULL,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
-        );
-        return NULL;
-    }
-
-    size_t n = 0;
-    out[n++] = '_';
-    out[n++] = 'S';
-    out[n++] = 'F';
-
-    size_t start = 0;
-
-    for (size_t i = 0; i <= end; i++) {
-        if (i != end && module_path[i] != '/') continue;
-
-        size_t part = i - start;
-
-        if (part > 0) {
-            n += (size_t)sprintf(out + n, "%zu", part);
-            memcpy(out + n, module_path + start, part);
-            n += part;
-        }
-
-        start = i + 1;
-    }
-
-    out[n] = '\0';
-    return out;
 }
 
 static size_t count_segments(const char *name) {

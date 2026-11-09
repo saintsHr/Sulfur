@@ -17,7 +17,6 @@ typedef struct {
     sf_func_decl_node *current_func;
     const char *filename;
     sf_arena *arena;
-    const char *module_prefix;
 } sf_semantic;
 
 bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_value_type expected);
