@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/semantic/namespace.h"
 #include "sulfur/pipeline/frontend/semantic/scope.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
 #include "sulfur/utils/arena.h"
@@ -11,6 +12,7 @@
 
 typedef struct {
     sf_scope *scope;
+    sf_namespace_stack ns;
     sf_func_symbol_table *funcs;
     sf_func_decl_node *current_func;
     const char *filename;
@@ -19,23 +21,20 @@ typedef struct {
 } sf_semantic;
 
 bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_value_type expected);
-
+const sf_func_symbol *sf_semantic_resolve_func(sf_semantic *s, const sf_path *path);
 void sf_semantic_report_undeclared(
     const sf_semantic *s, const char *name, sf_span span
 );
-
 bool sf_const_eval_uint(sf_ast_node *node, uint64_t *out_value);
 bool sf_const_eval_int(sf_ast_node *node, int64_t *out_value);
 bool sf_const_eval_bool(sf_ast_node *node, bool *out_value);
-
 bool sf_const_check_overflow(
     sf_ast_node *node, sf_value_type resolved, const char *filename
 );
-
 bool sf_const_is_zero(sf_ast_node *node, bool is_signed);
 void sf_const_warn(sf_semantic *s, sf_ast_node *node, const char *desc);
-
 void sf_semantic_report_qualified_unsupported(sf_semantic *s, sf_span span);
+const char *sf_semantic_suggest_func(sf_semantic *s, const sf_path *path);
 
 static inline bool sf_op_is_logical(sf_ir_operation_type op) {
     return op == SF_OP_TYPE_LOGICAL_AND || op == SF_OP_TYPE_LOGICAL_OR;

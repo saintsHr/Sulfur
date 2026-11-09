@@ -653,29 +653,34 @@ static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
 static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
     sf_identifier_node *callee = (sf_identifier_node *)call->callee;
 
-    const char *name = sf_path_simple_name(&callee->path);
-
-    if (name == NULL) {
-        sf_semantic_report_qualified_unsupported(s, callee->base.span);
-        return false;
-    }
-
-    const sf_func_symbol *sym = sf_func_symbol_table_lookup(s->funcs, name);
+    const sf_func_symbol *sym = sf_semantic_resolve_func(s, &callee->path);
 
     if (sym == NULL) {
-        const char* closest = sf_func_symbol_table_find_closest(s->funcs, name);
+        char shown[SF_QNAME_MAX];
+
+        if (
+            !sf_namespace_format(
+                shown, sizeof shown, &s->ns, 0,
+                callee->path.segments, callee->path.segment_count
+            )
+        ) {
+            shown[0] = '\0';
+        }
+
+        const char *closest = sf_semantic_suggest_func(s, &callee->path);
 
         if (closest != NULL) {
             sf_log(
                 "undeclared function", "function '%s' is not declared until this call",
                 "did you mean '%s'?", s->filename, SF_LOG_SEMANTIC_UNDECLARED,
-                callee->base.span, SF_LOG_SEVERITY_ERROR, name, closest
+                callee->base.span, SF_LOG_SEVERITY_ERROR, shown, closest
             );
         } else {
             sf_log(
                 "undeclared function", "function '%s' is not declared until this call",
-                "declare the function before calling", s->filename, SF_LOG_SEMANTIC_UNDECLARED,
-                callee->base.span, SF_LOG_SEVERITY_ERROR, name
+                "declare the function before calling", s->filename,
+                SF_LOG_SEMANTIC_UNDECLARED, callee->base.span,
+                SF_LOG_SEVERITY_ERROR, shown
             );
         }
 

@@ -7,6 +7,8 @@
 
 static const char k_empty_name[] = "";
 
+static size_t count_segments(const char *name);
+
 const char *sf_mangle_variable(sf_arena *arena, const char *name, size_t id) {
     int needed = snprintf(NULL, 0, "%s@%zu", name, id);
 
@@ -34,20 +36,20 @@ const char *sf_mangle_variable(sf_arena *arena, const char *name, size_t id) {
 const char *sf_mangle_function(
     sf_arena *arena, const char *prefix, const char *name, bool keep_name
 ) {
-    if (prefix == NULL || keep_name) {
+    if (keep_name) {
         return name;
     }
 
-    size_t name_len = strlen(name);
+    bool qualified = strstr(name, "::") != NULL;
 
-    int needed = snprintf(NULL, 0, "%s%zu%s", prefix, name_len, name);
-
-    if (needed < 0) {
+    if (prefix == NULL && !qualified) {
         return name;
     }
 
-    size_t length = (size_t)needed + 1;
-    char *result = sf_arena_alloc(arena, length);
+    const char *head = prefix != NULL ? prefix : "_SF_";
+
+    size_t capacity = strlen(head) + strlen(name) + count_segments(name) * 21 + 1;
+    char *result = sf_arena_alloc(arena, capacity);
 
     if (result == NULL) {
         sf_log(
@@ -58,7 +60,27 @@ const char *sf_mangle_function(
         return name;
     }
 
-    snprintf(result, length, "%s%zu%s", prefix, name_len, name);
+    size_t n = strlen(head);
+    memcpy(result, head, n);
+
+    const char *segment = name;
+
+    for (;;) {
+        const char *sep = strstr(segment, "::");
+        size_t length = sep != NULL ? (size_t)(sep - segment) : strlen(segment);
+
+        n += (size_t)sprintf(result + n, "%zu", length);
+        memcpy(result + n, segment, length);
+        n += length;
+
+        if (sep == NULL) {
+            break;
+        }
+
+        segment = sep + 2;
+    }
+
+    result[n] = '\0';
     return result;
 }
 
@@ -106,4 +128,14 @@ const char *sf_mangle_module_prefix(sf_arena *arena, const char *module_path) {
 
     out[n] = '\0';
     return out;
+}
+
+static size_t count_segments(const char *name) {
+    size_t count = 1;
+
+    for (const char *p = strstr(name, "::"); p != NULL; p = strstr(p + 2, "::")) {
+        count++;
+    }
+
+    return count;
 }

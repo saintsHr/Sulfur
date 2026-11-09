@@ -29,6 +29,7 @@ set(SOURCES
 	src/sulfur/pipeline/frontend/semantic/semantic_const.c
 	src/sulfur/pipeline/frontend/semantic/scope.c
 	src/sulfur/pipeline/frontend/semantic/symbol.c
+	src/sulfur/pipeline/frontend/semantic/namespace.c
 
 	src/sulfur/pipeline/backend/ir/ir.c
 	src/sulfur/pipeline/backend/optimization/optimization.c

@@ -92,6 +92,9 @@ static sf_ir_operand generate_call(
     sf_arena *arena, sf_ir_context *context,
     sf_func_call_node *call, sf_ir_operand *hint
 );
+static void generate_namespace(
+    sf_arena *arena, sf_ir_program *program, sf_namespace_node *ns
+);
 
 static bool ends_with_return(const sf_ir_function *func);
 
@@ -298,6 +301,10 @@ static void generate_statement(
         }
         case SF_NODE_RETURN: {
             generate_return(arena, context, (sf_return_node *)node);
+            break;
+        }
+        case SF_NODE_NAMESPACE: {
+            generate_namespace(arena, program, (sf_namespace_node *)node);
             break;
         }
 
@@ -811,14 +818,11 @@ static sf_ir_operand generate_call(
     sf_arena *arena, sf_ir_context *context,
     sf_func_call_node *call, sf_ir_operand *hint
 ) {
-    sf_identifier_node *callee = (sf_identifier_node *)call->callee;
-
-    const char *callee_name = sf_path_simple_name(&callee->path);
-    assert(callee_name != NULL);
+    assert(call->link_name != NULL);
 
     sf_ir_operand func_operand = {
         .type = SF_IR_OPERAND_TYPE_FUNCTION,
-        .function_name = (char *)(call->link_name != NULL ? call->link_name : callee_name),
+        .function_name = (char *)call->link_name,
         .value_type = call->base.resolved
     };
 
@@ -881,6 +885,19 @@ static sf_ir_operand generate_call(
     );
 
     return dst_operand;
+}
+
+static void generate_namespace(
+    sf_arena *arena, sf_ir_program *program, sf_namespace_node *ns
+) {
+    for (size_t i = 0; i < ns->item_count; i++) {
+        sf_ast_node *item = ns->items[i];
+
+        if (item->type == SF_NODE_FUNC_DECL || item->type == SF_NODE_NAMESPACE) {
+            sf_ir_context unused = {0};
+            generate_statement(arena, &unused, program, item);
+        }
+    }
 }
 
 static bool ends_with_return(const sf_ir_function *func) {

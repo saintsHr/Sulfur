@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "sulfur/pipeline/frontend/semantic/namespace.h"
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
 #include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/frontend/semantic/scope.h"
@@ -13,6 +14,7 @@
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/mangle.h"
 #include "sulfur/utils/span.h"
+#include "sulfur/utils/string.h"
 #include "sulfur/utils/type_utils.h"
 
 static void analyze_statement(sf_semantic *semantic, sf_ast_node *node);
@@ -23,6 +25,7 @@ static void analyze_if(sf_semantic *semantic, sf_if_node *if_stmt);
 static void analyze_while(sf_semantic *semantic, sf_while_node *while_stmt);
 static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func);
 static void analyze_return(sf_semantic *semantic, sf_return_node *ret);
+static void analyze_namespace(sf_semantic *semantic, sf_namespace_node *ns);
 
 static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym);
 static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym);
@@ -257,6 +260,10 @@ static void analyze_statement(sf_semantic *semantic, sf_ast_node *node) {
             analyze_return(semantic, (sf_return_node *)node);
             break;
         }
+        case SF_NODE_NAMESPACE: {
+            analyze_namespace(semantic, (sf_namespace_node *)node);
+            break;
+        }
         default: {
             sf_semantic_expr(semantic, node, SF_VAL_TYPE_UNRESOLVED);
 
@@ -459,8 +466,29 @@ static void analyze_while(sf_semantic *semantic, sf_while_node *while_stmt) {
 }
 
 static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
+    char qname[SF_QNAME_MAX];
+    sf_path_segment self = { .span = func->base.span, .name = func->name };
+
+    if (
+        !sf_namespace_format(
+            qname, sizeof qname, &semantic->ns,
+            semantic->ns.depth, &self, 1
+        )
+    ) {
+        sf_log(
+            "name too long", "the qualified name of function '%s' is too long",
+            "shorten the function or namespace names", semantic->filename,
+            SF_LOG_SEMANTIC_NAME_TOO_LONG, func->base.span,
+            SF_LOG_SEVERITY_ERROR, func->name
+        );
+
+        return;
+    }
+
+    char *qualified = sf_string_dup_arena(semantic->arena, qname);
+
     sf_func_symbol sym = {
-        .name = func->name,
+        .name = qualified,
         .return_type = func->return_type,
         .parameter_count = func->parameter_count,
         .defined = func->body != NULL,
@@ -471,7 +499,8 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
 
     sym.link_name = sf_mangle_function(
         semantic->arena, semantic->module_prefix,
-        func->name, func->qualifiers.is_extern
+        func->qualifiers.is_extern ? func->name : qualified,
+        func->qualifiers.is_extern
     );
     func->link_name = sym.link_name;
 
@@ -656,6 +685,17 @@ static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym) {
             "remove one of the qualifiers", semantic->filename,
             SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span,
             SF_LOG_SEVERITY_ERROR, sym.name
+        );
+
+        return false;
+    }
+
+    if (sym.qualifiers.is_extern && semantic->ns.depth > 0) {
+        sf_log(
+            "invalid qualifier", "extern function '%s' cannot be declared inside a namespace",
+            "declare the extern function at the top level",
+            semantic->filename, SF_LOG_SEMANTIC_INVALID_QUALIFIER,
+            sym.span, SF_LOG_SEVERITY_ERROR, sym.name
         );
 
         return false;
@@ -886,4 +926,68 @@ static bool shadows_parameter(sf_semantic *semantic, const char *name) {
     }
 
     return false;
+}
+
+static void analyze_namespace(sf_semantic *semantic, sf_namespace_node *ns) {
+    if (semantic->scope->depth > 1) {
+        sf_log(
+            "invalid namespace",
+            "namespaces can only be declared at the top level or inside another namespace",
+            "move the namespace out of the function or block",
+            semantic->filename, SF_LOG_SEMANTIC_INVALID_NAMESPACE,
+            ns->base.span, SF_LOG_SEVERITY_ERROR
+        );
+
+        return;
+    }
+
+    if (ns->path.segment_count == 0) {
+        return;
+    }
+
+    size_t saved_depth = semantic->ns.depth;
+
+    if (!sf_namespace_push_path(&semantic->ns, &ns->path)) {
+        sf_log(
+            "namespace too deep", "namespace nesting exceeds the maximum depth",
+            "flatten the namespace hierarchy", semantic->filename,
+            SF_LOG_SEMANTIC_INVALID_NAMESPACE, ns->base.span,
+            SF_LOG_SEVERITY_ERROR
+        );
+
+        return;
+    }
+
+    for (size_t i = 0; i < ns->item_count; i++) {
+        sf_ast_node *item = ns->items[i];
+
+        switch (item->type) {
+            case SF_NODE_FUNC_DECL:
+            case SF_NODE_NAMESPACE: {
+                analyze_statement(semantic, item);
+                break;
+            }
+            case SF_NODE_VAR_DECL: {
+                sf_log(
+                    "unsupported", "variables inside namespaces are not supported yet",
+                    "declare the variable outside the namespace",
+                    semantic->filename, SF_LOG_SEMANTIC_INVALID_NAMESPACE,
+                    item->span, SF_LOG_SEVERITY_ERROR
+                );
+                break;
+            }
+            default: {
+                sf_log(
+                    "invalid namespace item",
+                    "only top-level statements can be inside a namespace",
+                    "move this statement out of the namespace",
+                    semantic->filename, SF_LOG_SEMANTIC_INVALID_NAMESPACE,
+                    item->span, SF_LOG_SEVERITY_ERROR
+                );
+                break;
+            }
+        }
+    }
+
+    semantic->ns.depth = saved_depth;
 }
