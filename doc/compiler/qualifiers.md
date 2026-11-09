@@ -60,9 +60,11 @@ in a C library or another object file. It tells the compiler that the function
 exists and what its signature is, but does not define it. The linker resolves
 it later.
 
-```extern fn abs(i32 x) i64;```
+```
+extern fn abs(i32 x) i64;
+```
 
-Since the compiler cannot see the definition, an ```extern``` function cannot
+Since the compiler cannot see the definition, an `extern` function cannot
 have a body.
 
 # Summary

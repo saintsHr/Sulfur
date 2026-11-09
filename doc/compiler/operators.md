@@ -55,7 +55,7 @@ Bitwise operators perform operations on the individual bits of integer operands.
 | Operator | Description                |
 | -------- | -------------------------- |
 | `&`      | Bitwise AND                |
-| `\|`      | Bitwise OR                 |
+| `\|`     | Bitwise OR                 |
 | `^`      | Bitwise XOR                |
 | `>>`     | Right shift                |
 | `<<`     | Left shift                 |

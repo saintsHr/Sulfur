@@ -1,6 +1,6 @@
 # CLI Commands
 
-The Sulfur CLI provides commands for creating projects, compiling source files, cleaning build artifacts, and retrieving compiler information.
+The Sulfur CLI provides commands for creating projects, compiling and running source files, cleaning build artifacts, and retrieving compiler information.
 
 ## `sulfur new <name>`
 
@@ -16,6 +16,12 @@ The generated project includes:
 Compiles all `.slfr` source files found recursively inside the `src/` directory.
 
 Generated assembly files are written to the `build/` directory, preserving the source directory structure.
+
+## `sulfur run`
+
+Runs the executable binary produced by a previous build. It does not compile the project, so `sulfur build` must be run first.
+
+The command fails with an error if no build is found, or if the result of the compilation is not an executable binary.
 
 ## `sulfur clean`
 
