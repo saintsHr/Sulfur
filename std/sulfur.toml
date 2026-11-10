@@ -3,6 +3,12 @@ name = "sulfurstd"
 
 [build]
 emit = "lib"
-slfr_flags = ["-m src"]
-asm_flags = []
-link_flags = []
+slfr_flags = [
+    "-m src"
+]
+asm_flags = [
+
+]
+link_flags = [
+    "/usr/local/lib/sulfur/libsulfurrt.a"
+]

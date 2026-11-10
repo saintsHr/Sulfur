@@ -19,6 +19,8 @@ typedef struct {
     sf_arena *arena;
 } sf_semantic;
 
+#define SF_SEMANTIC_ENTRY_NAME "main"
+
 bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_value_type expected);
 const sf_func_symbol *sf_semantic_resolve_func(sf_semantic *s, const sf_path *path);
 void sf_semantic_report_undeclared(

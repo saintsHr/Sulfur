@@ -1,59 +1,62 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 jobs:
-  build:
-    name: Build ${{ matrix.build_type }} (${{ matrix.compiler }})
-    runs-on: ubuntu-latest
+    build:
+        name: Build ${{ matrix.build_type }} (${{ matrix.compiler }})
+        runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        compiler: [gcc, clang]
-        build_type: [debug, release]
+        strategy:
+            fail-fast: false
+            matrix:
+                compiler: [gcc, clang]
+                build_type: [debug, release]
 
-    env:
-      CC: ${{ matrix.compiler }}
-      CCACHE_DIR: ${{ github.workspace }}/.ccache
+        env:
+            CC: ${{ matrix.compiler }}
+            CCACHE_DIR: ${{ github.workspace }}/.ccache
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            cmake \
-            make \
-            ccache \
-            git \
-            ${{ matrix.compiler }}
-          git clone --depth 1 https://github.com/cktan/tomlc17.git /tmp/tomlc17
-          make -C /tmp/tomlc17
-          sudo make -C /tmp/tomlc17 install prefix=/usr/local
-          sudo ldconfig
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update
 
-      - name: Configure ccache
-        run: |
-          echo "CCACHE_COMPILERCHECK=content" >> "$GITHUB_ENV"
-          ccache --version
-          ccache --zero-stats
+                  sudo apt-get install -y \
+                      cmake \
+                      make \
+                      ccache \
+                      git \
+                      nasm \
+                      ${{ matrix.compiler }}
 
-      - name: Restore ccache
-        uses: actions/cache@v4
-        with:
-          path: .ccache
-          key: ccache-${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-
+                  git clone --depth 1 https://github.com/cktan/tomlc17.git /tmp/tomlc17
+                  make -C /tmp/tomlc17
+                  sudo make -C /tmp/tomlc17 install prefix=/usr/local
+                  sudo ldconfig
 
-      - name: Build
-        run: |
-          chmod +x scripts/build.sh
-          ./scripts/build.sh "${{ matrix.build_type }}" all
+            - name: Configure ccache
+              run: |
+                  echo "CCACHE_COMPILERCHECK=content" >> "$GITHUB_ENV"
+                  ccache --version
+                  ccache --zero-stats
+
+            - name: Restore ccache
+              uses: actions/cache@v4
+              with:
+                  path: .ccache
+                  key: ccache-${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ github.sha }}
+                  restore-keys: |
+                      ccache-${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-
+
+            - name: Build
+              run: |
+                  chmod +x scripts/build.sh
+                  ./scripts/build.sh "${{ matrix.build_type }}" all

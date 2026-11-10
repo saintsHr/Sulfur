@@ -50,7 +50,10 @@ static bool check_return_type(
     sf_value_type resolved, sf_value_type target,
     const char *func_name, sf_span span, const char *filename
 );
-static void check_main_function(sf_semantic *semantic);
+static void check_entry(sf_semantic *semantic);
+static void check_entry_qualifiers(sf_semantic *semantic, const sf_func_symbol *entry);
+static void check_entry_parameters(sf_semantic *semantic, const sf_func_symbol *entry);
+static void check_entry_return(sf_semantic *semantic, const sf_func_symbol *entry);
 
 static bool stmt_always_returns(sf_ast_node *node);
 static bool has_no_effect(sf_ast_node *node);
@@ -134,7 +137,7 @@ static bool analyze_program(
     }
 
     if (is_root) {
-        check_main_function(&semantic);
+        check_entry(&semantic);
     }
 
     scope_pop(&scope);
@@ -779,53 +782,71 @@ static bool check_return_type(
     return true;
 }
 
-static void check_main_function(sf_semantic *semantic) {
-    const char * main_func_name = "main";
-
-    const sf_func_symbol *main_func = sf_func_symbol_table_lookup(
-        semantic->funcs, main_func_name
+static void check_entry(sf_semantic *semantic) {
+    const sf_func_symbol *entry = sf_func_symbol_table_lookup(
+        semantic->funcs, SF_SEMANTIC_ENTRY_NAME
     );
 
-    if (main_func == NULL) {
+    if (entry == NULL) {
         sf_log(
             "missing entry point function",
             "the program does not define a '%s' function",
             "define a valid function as the program entry point",
             semantic->filename, SF_LOG_SEMANTIC_NO_MAIN_FUNCTION,
-            (sf_span){0}, SF_LOG_SEVERITY_ERROR, main_func_name
+            (sf_span){0}, SF_LOG_SEVERITY_ERROR, SF_SEMANTIC_ENTRY_NAME
         );
 
         return;
     }
 
-    if (main_func->return_type != SF_VAL_TYPE_I32) {
+    check_entry_return(semantic, entry);
+    check_entry_parameters(semantic, entry);
+    check_entry_qualifiers(semantic, entry);
+}
+
+static void check_entry_qualifiers(sf_semantic *semantic, const sf_func_symbol *entry) {
+    if (!entry->qualifiers.is_public) {
         sf_log(
-            "invalid return type",
-            "the '%s' function must return '%s'",
-            "change the funtion return type",
+            "invalid qualifiers",
+            "the entry function '%s' must be public",
+            "make the '%s' function public",
             semantic->filename, SF_LOG_SEMANTIC_INVALID_RETURN_TYPE,
-            main_func->span, SF_LOG_SEVERITY_ERROR,
-            main_func_name, sf_type_value_name(SF_VAL_TYPE_I32)
+            entry->span, SF_LOG_SEVERITY_ERROR, entry->name, entry->name
         );
     }
 
-    if (main_func->parameter_count > 0) {
+    if (entry->qualifiers.is_extern) {
+        sf_log(
+            "invalid qualifiers",
+            "the entry function '%s' must not be extern",
+            "remove the extern qualifier",
+            semantic->filename, SF_LOG_SEMANTIC_INVALID_RETURN_TYPE,
+            entry->span, SF_LOG_SEVERITY_ERROR, entry->name
+        );
+    }
+}
+
+static void check_entry_parameters(sf_semantic *semantic, const sf_func_symbol *entry) {
+    if (entry->parameter_count > 0) {
         sf_log(
             "invalid parameters",
             "the '%s' function must not have any parameters",
             "remove all parameters from the function",
             semantic->filename, SF_LOG_SEMANTIC_INVALID_PARAMETERS,
-            main_func->span, SF_LOG_SEVERITY_ERROR, main_func_name
+            entry->span, SF_LOG_SEVERITY_ERROR, entry->name
         );
     }
+}
 
-    if (has_qualifiers(*main_func)) {
+static void check_entry_return(sf_semantic *semantic, const sf_func_symbol *entry) {
+    if (entry->return_type != SF_VAL_TYPE_I32) {
         sf_log(
-            "invalid qualifiers",
-            "the '%s' function must not have any qualifiers",
-            "remove all qualifiers from the function",
-            semantic->filename, SF_LOG_SEMANTIC_INVALID_QUALIFIER,
-            main_func->span, SF_LOG_SEVERITY_ERROR, main_func_name
+            "invalid return type",
+            "the '%s' function must return '%s'",
+            "change the funtion return type",
+            semantic->filename, SF_LOG_SEMANTIC_INVALID_RETURN_TYPE,
+            entry->span, SF_LOG_SEVERITY_ERROR,
+            entry->name, sf_type_value_name(SF_VAL_TYPE_I32)
         );
     }
 }

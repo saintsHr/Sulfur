@@ -4,6 +4,8 @@ project(sulfur-cli
     LANGUAGES C
 )
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
 find_program(CCACHE_PROGRAM ccache)
 
 find_path(TOMLC17_INCLUDE_DIR

@@ -94,8 +94,8 @@ fi
 
 echo "==> Configuring module: $TARGET ($MODE)"
 
-cmake -S "$MODULE_DIR" -B "$MODULE_BUILD_DIR"
-    -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+cmake -S "$MODULE_DIR" -B "$MODULE_BUILD_DIR" \
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
     -DENABLE_SANITIZERS="$SANITIZERS"
 
 echo "==> Building module: $TARGET"

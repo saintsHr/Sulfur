@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
@@ -692,6 +693,18 @@ static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
     }
 
     bool ok = true;
+
+    if (strcmp(sym->link_name, SF_SEMANTIC_ENTRY_NAME) == 0) {
+        sf_log(
+            "invalid call", "function '%s' must not be called",
+            "the entry point cannot be called directly",
+            s->filename, SF_LOG_SEMANTIC_INVALID_CALL,
+            callee->base.span, SF_LOG_SEVERITY_ERROR,
+            sym->name
+        );
+
+        ok = false;
+    }
 
     for (size_t i = 0; i < call->argument_count; i++) {
         sf_value_type expected = SF_VAL_TYPE_UNRESOLVED;

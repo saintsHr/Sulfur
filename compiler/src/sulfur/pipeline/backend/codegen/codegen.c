@@ -153,7 +153,7 @@ static const char *register_to_string(sf_register reg);
 static const char *prefix_to_string(sf_size_prefix prefix);
 
 char *sf_generate_assembly(
-    const sf_ir_program *program, const sf_compiler_options *options, bool is_root
+    const sf_ir_program *program, const sf_compiler_options *options
 ) {
     if (program == NULL || options == NULL) return NULL;
 
@@ -163,13 +163,7 @@ char *sf_generate_assembly(
     if (buff == NULL) return NULL;
     buff[0] = '\0';
 
-    bool emit_start = is_root;
-
     sf_string_push("bits 64\n\n", &buff, &len, &capacity);
-
-    if (emit_start) {
-        sf_string_push("global _start\n", &buff, &len, &capacity);
-    }
 
     for (size_t i = 0; i < program->extern_count; i++) {
         emitf(&buff, &len, &capacity, "extern %s\n", program->externs[i]);
@@ -181,14 +175,6 @@ char *sf_generate_assembly(
 
     sf_string_push("\n", &buff, &len, &capacity);
     sf_string_push("section .text\n\n", &buff, &len, &capacity);
-
-    if (emit_start) {
-        sf_string_push("_start:\n", &buff, &len, &capacity);
-        sf_string_push("\tcall main\n\n", &buff, &len, &capacity);
-        sf_string_push("\tmov edi, eax\n", &buff, &len, &capacity);
-        sf_string_push("\tmov rax, 60\n", &buff, &len, &capacity);
-        sf_string_push("\tsyscall\n", &buff, &len, &capacity);
-    }
 
     for (size_t i = 0; i < program->function_count; i++) {
         emit_function(&buff, &len, &capacity, &program->functions[i]);
@@ -267,7 +253,7 @@ static void emitf(
         va_end(args_copy);
 
         sf_log(
-            "insufficient Memory", "cannot allocate memory for compiling",
+            "insufficient memory", "cannot allocate memory for compiling",
             "free some memory and try again", NULL,
             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
         );

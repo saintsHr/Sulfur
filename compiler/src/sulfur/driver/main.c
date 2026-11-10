@@ -21,12 +21,8 @@
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/file.h"
 
-#define SF_STDLIB_DIR "/usr/local/share/sulfur"
-
 static bool compilation_run(sf_compilation *compilation, const sf_compiler_options *options);
 static void compilation_free(sf_compilation *compilation);
-
-static bool include_stdlib(sf_compiler_options *options);
 
 static void dump_stages(sf_compilation *compilation);
 
@@ -47,10 +43,6 @@ int main(int argc, char *argv[]) {
     sf_log_init();
     sf_flags_parse(argc, argv, &options);
     if (sf_log_had_fatal()) {
-        goto cleanup;
-    }
-
-    if (!include_stdlib(&options)) {
         goto cleanup;
     }
 
@@ -149,7 +141,7 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     }
 
     compilation->assembly = sf_generate_assembly(
-        &compilation->ir, options, !options->is_module
+        &compilation->ir, options
     );
     if (sf_log_had_errors()) {
         goto exit;
@@ -171,38 +163,6 @@ static void compilation_free(sf_compilation *compilation) {
     free(compilation->preprocessed);
     sf_arena_free(&compilation->arena);
     free(compilation->input_source);
-}
-
-static bool include_stdlib(sf_compiler_options *options) {
-    if (options->module_path_count == options->module_path_capacity) {
-        size_t new_capacity = options->module_path_capacity == 0
-            ? 4
-            : options->module_path_capacity * 2;
-
-        const char **module_paths = realloc(
-            options->module_paths,
-            new_capacity * sizeof(*module_paths)
-        );
-
-        if (module_paths == NULL) {
-            sf_log(
-                "insufficient memory",
-                "cannot allocate memory for module paths",
-                "free some memory and try again",
-                "N/A", SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-                (sf_span){0}, SF_LOG_SEVERITY_FATAL
-            );
-
-            return false;
-        }
-
-        options->module_paths = module_paths;
-        options->module_path_capacity = new_capacity;
-    }
-
-    options->module_paths[options->module_path_count++] = SF_STDLIB_DIR;
-
-    return true;
 }
 
 static void dump_stages(sf_compilation *compilation) {
