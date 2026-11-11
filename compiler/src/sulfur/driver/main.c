@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sulfur/driver/main.h"
 #include "sulfur/driver/flags.h"
+#include "sulfur/driver/main.h"
 
 #include "sulfur/module/module.h"
 #include "sulfur/pipeline/backend/codegen/codegen.h"
@@ -18,23 +18,22 @@
 #include "sulfur/pipeline/frontend/preprocessor.h"
 #include "sulfur/pipeline/frontend/semantic/semantic.h"
 #include "sulfur/utils/arena.h"
-#include "sulfur/utils/log.h"
 #include "sulfur/utils/file.h"
+#include "sulfur/utils/log.h"
 
 static bool compilation_run(
     sf_compilation *compilation,
     const sf_compiler_options *options
 );
 
-static void compilation_free(
-    sf_compilation *compilation
-);
+static void compilation_free(sf_compilation *compilation);
 
-static void dump_stages(
-    sf_compilation *compilation
-);
+static void dump_stages(sf_compilation *compilation);
 
-int main(int argc, char *argv[]) {
+int main(
+    int argc,
+    char *argv[]
+) {
     sf_compiler_options options = {
         .file_input = "input.slfr",
         .file_output = "output.asm",
@@ -49,18 +48,12 @@ int main(int argc, char *argv[]) {
 
     sf_log_init();
 
-    sf_flags_parse(
-        argc,
-        argv,
-        &options
-    );
+    sf_flags_parse(argc, argv, &options);
 
-    if (
-        options.is_module &&
+    if (options.is_module &&
         sf_module_name_from_path(
             options.file_input, options.module_paths, options.module_path_count
-        ) == NULL
-    ) {
+        ) == NULL) {
         sf_log(
             "Invalid Module Path.",
             "'%s' is not inside any module search directory.",
@@ -82,37 +75,26 @@ int main(int argc, char *argv[]) {
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-static bool compilation_run(sf_compilation *compilation, const sf_compiler_options *options) {
-    compilation->input_source = sf_file_read(
-        options->file_input,
-        &compilation->input_size
-    );
+static bool compilation_run(
+    sf_compilation *compilation,
+    const sf_compiler_options *options
+) {
+    compilation->input_source =
+        sf_file_read(options->file_input, &compilation->input_size);
 
-    sf_log_set_source(
-        options->file_input,
-        compilation->input_source
-    );
+    sf_log_set_source(options->file_input, compilation->input_source);
 
-    sf_arena_init(
-        &compilation->arena
-    );
+    sf_arena_init(&compilation->arena);
 
     compilation->preprocessed = sf_preprocess(
-        compilation->input_source,
-        compilation->input_size,
-        options->file_input
+        compilation->input_source, compilation->input_size, options->file_input
     );
 
-    compilation->tokens = sf_tokenize(
-        compilation->preprocessed,
-        options->file_input
-    );
+    compilation->tokens =
+        sf_tokenize(compilation->preprocessed, options->file_input);
 
-    compilation->ast = sf_parse(
-        &compilation->arena,
-        compilation->tokens,
-        options->file_input
-    );
+    compilation->ast =
+        sf_parse(&compilation->arena, compilation->tokens, options->file_input);
 
     sf_module_resolve(
         compilation->ast->imports,
@@ -132,17 +114,11 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
         &compilation->modules
     );
 
-    compilation->ir = sf_ir_generate(
-        &compilation->arena,
-        compilation->ast
-    );
+    compilation->ir = sf_ir_generate(&compilation->arena, compilation->ast);
 
     sf_optimize(&compilation->ir);
 
-    compilation->assembly = sf_generate_assembly(
-        &compilation->ir,
-        options
-    );
+    compilation->assembly = sf_generate_assembly(&compilation->ir, options);
 
     if (options->dump_stages) {
         dump_stages(compilation);
@@ -152,10 +128,7 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
         return false;
     }
 
-    sf_file_write(
-        options->file_output,
-        compilation->assembly
-    );
+    sf_file_write(options->file_output, compilation->assembly);
 
     return true;
 }
@@ -187,10 +160,8 @@ static void dump_stages(sf_compilation *compilation) {
         sf_print_ast((sf_ast_node *)compilation->ast);
     }
 
-    if (
-        compilation->ir.function_count > 0 &&
-        compilation->ir.extern_count > 0
-    ) {
+    if (compilation->ir.function_count > 0 &&
+        compilation->ir.extern_count > 0) {
         printf("\n[IR]:\n\n");
         sf_ir_print(&compilation->ir);
     }

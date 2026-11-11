@@ -2,16 +2,16 @@
 
 #include "sulfur/file.h"
 
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <dirent.h>
-#include <string.h>
-#include <limits.h>
 
 #define PERMS 0755
 #define PATH_BUFFER_SIZE 1024
@@ -107,13 +107,8 @@ bool sf_delete_folder(const char *path) {
 
         char fullpath[PATH_MAX];
 
-        int len = snprintf(
-            fullpath,
-            sizeof(fullpath),
-            "%s/%s",
-            path,
-            entry->d_name
-        );
+        int len =
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
 
         if (len < 0 || (size_t)len >= sizeof(fullpath)) {
             errno = ENAMETOOLONG;
@@ -180,7 +175,10 @@ bool sf_delete_file(const char *path) {
     return remove(path) == 0;
 }
 
-bool sf_write_file(const char *path, const char *content) {
+bool sf_write_file(
+    const char *path,
+    const char *content
+) {
     if (path == NULL || content == NULL) {
         errno = EINVAL;
         return false;
@@ -217,7 +215,10 @@ bool sf_write_file(const char *path, const char *content) {
     return close(fd) == 0;
 }
 
-bool sf_read_file(const char *path, char **content) {
+bool sf_read_file(
+    const char *path,
+    char **content
+) {
     if (path == NULL || content == NULL) {
         errno = EINVAL;
         return false;
@@ -276,7 +277,8 @@ bool sf_read_file(const char *path, char **content) {
     *content = buffer;
     return true;
 
-    fail: {
+fail:
+    {
         int saved = errno;
 
         free(buffer);
@@ -301,7 +303,10 @@ bool has_slfr_extension(const char *path) {
     return ext != NULL && strcmp(ext, ".slfr") == 0;
 }
 
-bool collect_slfr_files(const char *dir_path, sf_files *files) {
+bool collect_slfr_files(
+    const char *dir_path,
+    sf_files *files
+) {
     DIR *dir = opendir(dir_path);
 
     if (dir == NULL) {
@@ -347,8 +352,7 @@ bool collect_slfr_files(const char *dir_path, sf_files *files) {
             free(path);
         } else if (S_ISREG(st.st_mode) && has_slfr_extension(entry->d_name)) {
             char **new_paths = realloc(
-                files->paths,
-                (files->count + 1) * sizeof(*files->paths)
+                files->paths, (files->count + 1) * sizeof(*files->paths)
             );
 
             if (new_paths == NULL) {

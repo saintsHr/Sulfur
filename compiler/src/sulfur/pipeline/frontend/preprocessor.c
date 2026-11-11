@@ -9,14 +9,21 @@
 static void remove_carriage_return(char *str);
 static void remove_comments(char *str);
 
-char *sf_preprocess(const char *src, size_t src_size, const char *filename) {
+char *sf_preprocess(
+    const char *src,
+    size_t src_size,
+    const char *filename
+) {
     char *out = malloc(src_size + 1);
 
     if (out == NULL) {
         sf_log(
-            "Insufficient Memory.", "Cannot allocate memory for compiling.",
-            "Free some memory and try again.", filename,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0},
+            "Insufficient Memory.",
+            "Cannot allocate memory for compiling.",
+            "Free some memory and try again.",
+            filename,
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0},
             SF_LOG_SEVERITY_FATAL
         );
 

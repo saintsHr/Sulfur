@@ -9,7 +9,11 @@ static const char k_empty_name[] = "";
 
 static size_t count_segments(const char *name);
 
-const char *sf_mangle_variable(sf_arena *arena, const char *name, size_t id) {
+const char *sf_mangle_variable(
+    sf_arena *arena,
+    const char *name,
+    size_t id
+) {
     int needed = snprintf(NULL, 0, "%s@%zu", name, id);
 
     if (needed < 0) {
@@ -21,9 +25,13 @@ const char *sf_mangle_variable(sf_arena *arena, const char *name, size_t id) {
 
     if (mangled == NULL) {
         sf_log(
-            "insufficient memory", "cannot allocate memory for compiling",
-            "free some memory and try again", NULL,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            "insufficient memory",
+            "cannot allocate memory for compiling",
+            "free some memory and try again",
+            NULL,
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0},
+            SF_LOG_SEVERITY_FATAL
         );
 
         return k_empty_name;
@@ -35,7 +43,9 @@ const char *sf_mangle_variable(sf_arena *arena, const char *name, size_t id) {
 }
 
 const char *sf_mangle_function(
-    sf_arena *arena, const char *name, bool keep_name
+    sf_arena *arena,
+    const char *name,
+    bool keep_name
 ) {
     if (keep_name) {
         return name;
@@ -47,14 +57,19 @@ const char *sf_mangle_function(
 
     const char *head = "_SF_";
 
-    size_t capacity = strlen(head) + strlen(name) + count_segments(name) * 21 + 1;
+    size_t capacity =
+        strlen(head) + strlen(name) + count_segments(name) * 21 + 1;
     char *result = sf_arena_alloc(arena, capacity);
 
     if (result == NULL) {
         sf_log(
-            "insufficient memory", "cannot allocate memory for compiling",
-            "free some memory and try again", NULL,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            "insufficient memory",
+            "cannot allocate memory for compiling",
+            "free some memory and try again",
+            NULL,
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0},
+            SF_LOG_SEVERITY_FATAL
         );
         return name;
     }
@@ -64,7 +79,7 @@ const char *sf_mangle_function(
 
     const char *segment = name;
 
-    for (;;) {
+    while (true) {
         const char *sep = strstr(segment, "::");
         size_t length = sep != NULL ? (size_t)(sep - segment) : strlen(segment);
 
@@ -86,7 +101,8 @@ const char *sf_mangle_function(
 static size_t count_segments(const char *name) {
     size_t count = 1;
 
-    for (const char *p = strstr(name, "::"); p != NULL; p = strstr(p + 2, "::")) {
+    for (const char *p = strstr(name, "::"); p != NULL;
+         p = strstr(p + 2, "::")) {
         count++;
     }
 

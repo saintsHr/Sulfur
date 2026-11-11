@@ -12,41 +12,102 @@
 #include "sulfur/utils/type_utils.h"
 
 static void report_out_of_memory(void);
-static char *copy_string(sf_arena *arena, const char *str);
+static char *copy_string(
+    sf_arena *arena,
+    const char *str
+);
 static void *new_node(
-    sf_arena *arena, size_t size,
-    sf_node_type type, sf_span span
+    sf_arena *arena,
+    size_t size,
+    sf_node_type type,
+    sf_span span
 );
 
 static void print_indent(size_t indent);
-static void print_node(const sf_ast_node *node, size_t indent);
+static void print_node(
+    const sf_ast_node *node,
+    size_t indent
+);
 static void print_path(const sf_path *path);
 
-static void print_program_node(const sf_program_node *node, size_t indent);
-static void print_block_node(const sf_block_node *node, size_t indent);
-static void print_var_decl_node(const sf_var_decl_node *node, size_t indent);
-static void print_var_assign_node(const sf_var_assign_node *node, size_t indent);
-static void print_literal_node(const sf_literal_node *node, size_t indent);
-static void print_identifier_node(const sf_identifier_node *node, size_t indent);
-static void print_binary_node(const sf_binary_node *node, size_t indent);
-static void print_unary_node(const sf_unary_node *node, size_t indent);
-static void print_cast_node(const sf_cast_node *node, size_t indent);
-static void print_if_node(const sf_if_node *node, size_t indent);
-static void print_while_node(const sf_while_node *node, size_t indent);
-static void print_func_decl_node(const sf_func_decl_node *node, size_t indent);
-static void print_func_call_node(const sf_func_call_node *node, size_t indent);
-static void print_return_node(const sf_return_node *node, size_t indent);
-static void print_import_node(const sf_import_node *node, size_t indent);
-static void print_namespace_node(const sf_namespace_node *node, size_t indent);
+static void print_program_node(
+    const sf_program_node *node,
+    size_t indent
+);
+static void print_block_node(
+    const sf_block_node *node,
+    size_t indent
+);
+static void print_var_decl_node(
+    const sf_var_decl_node *node,
+    size_t indent
+);
+static void print_var_assign_node(
+    const sf_var_assign_node *node,
+    size_t indent
+);
+static void print_literal_node(
+    const sf_literal_node *node,
+    size_t indent
+);
+static void print_identifier_node(
+    const sf_identifier_node *node,
+    size_t indent
+);
+static void print_binary_node(
+    const sf_binary_node *node,
+    size_t indent
+);
+static void print_unary_node(
+    const sf_unary_node *node,
+    size_t indent
+);
+static void print_cast_node(
+    const sf_cast_node *node,
+    size_t indent
+);
+static void print_if_node(
+    const sf_if_node *node,
+    size_t indent
+);
+static void print_while_node(
+    const sf_while_node *node,
+    size_t indent
+);
+static void print_func_decl_node(
+    const sf_func_decl_node *node,
+    size_t indent
+);
+static void print_func_call_node(
+    const sf_func_call_node *node,
+    size_t indent
+);
+static void print_return_node(
+    const sf_return_node *node,
+    size_t indent
+);
+static void print_import_node(
+    const sf_import_node *node,
+    size_t indent
+);
+static void print_namespace_node(
+    const sf_namespace_node *node,
+    size_t indent
+);
 
-void sf_print_ast(const sf_ast_node *root) {
-    print_node(root, 0);
-}
+void sf_print_ast(const sf_ast_node *root) { print_node(root, 0); }
 
-void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_node *stmt) {
+void sf_program_add_statement(
+    sf_arena *arena,
+    sf_program_node *program,
+    sf_ast_node *stmt
+) {
     sf_ast_node **statements = sf_arena_grow_one(
-        arena, program->statements, program->statement_count,
-        &program->statement_capacity, sizeof(sf_ast_node *)
+        arena,
+        program->statements,
+        program->statement_count,
+        &program->statement_capacity,
+        sizeof(sf_ast_node *)
     );
 
     if (statements == NULL) {
@@ -57,10 +118,17 @@ void sf_program_add_statement(sf_arena *arena, sf_program_node *program, sf_ast_
     program->statements[program->statement_count++] = stmt;
 }
 
-void sf_program_add_import(sf_arena *arena, sf_program_node *program, sf_import_node *import) {
+void sf_program_add_import(
+    sf_arena *arena,
+    sf_program_node *program,
+    sf_import_node *import
+) {
     sf_import_node **imports = sf_arena_grow_one(
-        arena, program->imports, program->import_count,
-        &program->import_capacity, sizeof(sf_import_node *)
+        arena,
+        program->imports,
+        program->import_count,
+        &program->import_capacity,
+        sizeof(sf_import_node *)
     );
 
     if (imports == NULL) {
@@ -71,10 +139,17 @@ void sf_program_add_import(sf_arena *arena, sf_program_node *program, sf_import_
     program->imports[program->import_count++] = import;
 }
 
-void sf_block_add_statement(sf_arena *arena, sf_block_node *block, sf_ast_node *stmt) {
+void sf_block_add_statement(
+    sf_arena *arena,
+    sf_block_node *block,
+    sf_ast_node *stmt
+) {
     sf_ast_node **statements = sf_arena_grow_one(
-        arena, block->statements, block->statement_count,
-        &block->statement_capacity, sizeof(sf_ast_node *)
+        arena,
+        block->statements,
+        block->statement_count,
+        &block->statement_capacity,
+        sizeof(sf_ast_node *)
     );
 
     if (statements == NULL) {
@@ -85,10 +160,17 @@ void sf_block_add_statement(sf_arena *arena, sf_block_node *block, sf_ast_node *
     block->statements[block->statement_count++] = stmt;
 }
 
-void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function, sf_parameter param) {
+void sf_function_add_parameter(
+    sf_arena *arena,
+    sf_func_decl_node *function,
+    sf_parameter param
+) {
     sf_parameter *parameters = sf_arena_grow_one(
-        arena, function->parameters, function->parameter_count,
-        &function->parameter_capacity, sizeof(sf_parameter)
+        arena,
+        function->parameters,
+        function->parameter_count,
+        &function->parameter_capacity,
+        sizeof(sf_parameter)
     );
 
     if (parameters == NULL) {
@@ -99,10 +181,17 @@ void sf_function_add_parameter(sf_arena *arena, sf_func_decl_node *function, sf_
     function->parameters[function->parameter_count++] = param;
 }
 
-void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node *argument) {
+void sf_call_add_argument(
+    sf_arena *arena,
+    sf_func_call_node *call,
+    sf_ast_node *argument
+) {
     sf_ast_node **arguments = sf_arena_grow_one(
-        arena, call->arguments, call->argument_count,
-        &call->argument_capacity, sizeof(sf_ast_node *)
+        arena,
+        call->arguments,
+        call->argument_count,
+        &call->argument_capacity,
+        sizeof(sf_ast_node *)
     );
 
     if (arguments == NULL) {
@@ -113,10 +202,17 @@ void sf_call_add_argument(sf_arena *arena, sf_func_call_node *call, sf_ast_node 
     call->arguments[call->argument_count++] = argument;
 }
 
-void sf_namespace_add_item(sf_arena *arena, sf_namespace_node *namespace, sf_ast_node *item) {
+void sf_namespace_add_item(
+    sf_arena *arena,
+    sf_namespace_node *namespace,
+    sf_ast_node *item
+) {
     sf_ast_node **items = sf_arena_grow_one(
-        arena, namespace->items, namespace->item_count,
-        &namespace->item_capacity, sizeof(sf_ast_node *)
+        arena,
+        namespace->items,
+        namespace->item_count,
+        &namespace->item_capacity,
+        sizeof(sf_ast_node *)
     );
 
     if (items == NULL) {
@@ -128,8 +224,10 @@ void sf_namespace_add_item(sf_arena *arena, sf_namespace_node *namespace, sf_ast
 }
 
 bool sf_path_add_segment(
-    sf_arena *arena, sf_path *path,
-    const char *name, sf_span span
+    sf_arena *arena,
+    sf_path *path,
+    const char *name,
+    sf_span span
 ) {
     char *name_copy = copy_string(arena, name);
 
@@ -138,8 +236,11 @@ bool sf_path_add_segment(
     }
 
     sf_path_segment *segments = sf_arena_grow_one(
-        arena, path->segments, path->segment_count,
-        &path->segment_capacity, sizeof(sf_path_segment)
+        arena,
+        path->segments,
+        path->segment_count,
+        &path->segment_capacity,
+        sizeof(sf_path_segment)
     );
 
     if (segments == NULL) {
@@ -147,27 +248,33 @@ bool sf_path_add_segment(
     }
 
     path->segments = segments;
-    path->segments[path->segment_count++] = (sf_path_segment){
-        .name = name_copy,
-        .span = span
-    };
+    path->segments[path->segment_count++] =
+        (sf_path_segment){.name = name_copy, .span = span};
 
     return true;
 }
 
 sf_program_node *sf_new_program_node(sf_arena *arena) {
-    return new_node(arena, sizeof(sf_program_node), SF_NODE_PROGRAM, (sf_span){0});
+    return new_node(
+        arena, sizeof(sf_program_node), SF_NODE_PROGRAM, (sf_span){0}
+    );
 }
 
-sf_block_node *sf_new_block_node(sf_arena *arena, sf_span span) {
+sf_block_node *sf_new_block_node(
+    sf_arena *arena,
+    sf_span span
+) {
     return new_node(arena, sizeof(sf_block_node), SF_NODE_BLOCK, span);
 }
 
 sf_literal_node *sf_new_literal_node(
-    sf_arena *arena, const char *value,
-    sf_token_type token_type, sf_span span
+    sf_arena *arena,
+    const char *value,
+    sf_token_type token_type,
+    sf_span span
 ) {
-    sf_literal_node *node = new_node(arena, sizeof(sf_literal_node), SF_NODE_LITERAL, span);
+    sf_literal_node *node =
+        new_node(arena, sizeof(sf_literal_node), SF_NODE_LITERAL, span);
 
     if (node == NULL) {
         return NULL;
@@ -179,22 +286,24 @@ sf_literal_node *sf_new_literal_node(
     return node->value != NULL ? node : NULL;
 }
 
-sf_identifier_node *sf_new_identifier_node(sf_arena *arena, sf_span span) {
+sf_identifier_node *sf_new_identifier_node(
+    sf_arena *arena,
+    sf_span span
+) {
     return new_node(
-        arena, sizeof(sf_identifier_node),
-        SF_NODE_IDENTIFIER, span
+        arena, sizeof(sf_identifier_node), SF_NODE_IDENTIFIER, span
     );
 }
 
 sf_binary_node *sf_new_binary_node(
-    sf_arena *arena, sf_ast_node *left,
-    sf_ast_node *right, sf_ir_operation_type op,
+    sf_arena *arena,
+    sf_ast_node *left,
+    sf_ast_node *right,
+    sf_ir_operation_type op,
     sf_span span
 ) {
-    sf_binary_node *node = new_node(
-        arena, sizeof(sf_binary_node),
-        SF_NODE_BINARY, span
-    );
+    sf_binary_node *node =
+        new_node(arena, sizeof(sf_binary_node), SF_NODE_BINARY, span);
 
     if (node == NULL) {
         return NULL;
@@ -208,13 +317,13 @@ sf_binary_node *sf_new_binary_node(
 }
 
 sf_unary_node *sf_new_unary_node(
-    sf_arena *arena, sf_ast_node *operand,
-    sf_ir_operation_type op, sf_span span
+    sf_arena *arena,
+    sf_ast_node *operand,
+    sf_ir_operation_type op,
+    sf_span span
 ) {
-    sf_unary_node *node = new_node(
-        arena, sizeof(sf_unary_node),
-        SF_NODE_UNARY, span
-    );
+    sf_unary_node *node =
+        new_node(arena, sizeof(sf_unary_node), SF_NODE_UNARY, span);
 
     if (node == NULL) {
         return NULL;
@@ -227,13 +336,13 @@ sf_unary_node *sf_new_unary_node(
 }
 
 sf_cast_node *sf_new_cast_node(
-    sf_arena *arena, sf_ast_node *operand,
-    sf_value_type target_type, sf_span span
+    sf_arena *arena,
+    sf_ast_node *operand,
+    sf_value_type target_type,
+    sf_span span
 ) {
-    sf_cast_node *node = new_node(
-        arena, sizeof(sf_cast_node),
-        SF_NODE_CAST, span
-    );
+    sf_cast_node *node =
+        new_node(arena, sizeof(sf_cast_node), SF_NODE_CAST, span);
 
     if (node == NULL) {
         return NULL;
@@ -246,14 +355,15 @@ sf_cast_node *sf_new_cast_node(
 }
 
 sf_var_decl_node *sf_new_var_decl_node(
-    sf_arena *arena, const char *name,
-    sf_value_type type, sf_ast_node *value,
-    sf_qualifiers qualifiers, sf_span span
+    sf_arena *arena,
+    const char *name,
+    sf_value_type type,
+    sf_ast_node *value,
+    sf_qualifiers qualifiers,
+    sf_span span
 ) {
-    sf_var_decl_node *node = new_node(
-        arena, sizeof(sf_var_decl_node),
-        SF_NODE_VAR_DECL, span
-    );
+    sf_var_decl_node *node =
+        new_node(arena, sizeof(sf_var_decl_node), SF_NODE_VAR_DECL, span);
 
     if (node == NULL) {
         return NULL;
@@ -268,12 +378,12 @@ sf_var_decl_node *sf_new_var_decl_node(
 }
 
 sf_var_assign_node *sf_new_var_assign_node(
-    sf_arena *arena, sf_ast_node *value, sf_span span
+    sf_arena *arena,
+    sf_ast_node *value,
+    sf_span span
 ) {
-    sf_var_assign_node *node = new_node(
-        arena, sizeof(sf_var_assign_node),
-        SF_NODE_VAR_ASSIGN, span
-    );
+    sf_var_assign_node *node =
+        new_node(arena, sizeof(sf_var_assign_node), SF_NODE_VAR_ASSIGN, span);
 
     if (node == NULL) {
         return NULL;
@@ -285,13 +395,13 @@ sf_var_assign_node *sf_new_var_assign_node(
 }
 
 sf_if_node *sf_new_if_node(
-    sf_arena *arena, sf_ast_node *condition, sf_ast_node *branch_then,
-    sf_ast_node *branch_else, sf_span span
+    sf_arena *arena,
+    sf_ast_node *condition,
+    sf_ast_node *branch_then,
+    sf_ast_node *branch_else,
+    sf_span span
 ) {
-    sf_if_node *node = new_node(
-        arena, sizeof(sf_if_node),
-        SF_NODE_IF, span
-    );
+    sf_if_node *node = new_node(arena, sizeof(sf_if_node), SF_NODE_IF, span);
 
     if (node == NULL) {
         return NULL;
@@ -305,13 +415,13 @@ sf_if_node *sf_new_if_node(
 }
 
 sf_while_node *sf_new_while_node(
-    sf_arena *arena, sf_ast_node *condition,
-    sf_ast_node *branch_do, sf_span span
+    sf_arena *arena,
+    sf_ast_node *condition,
+    sf_ast_node *branch_do,
+    sf_span span
 ) {
-    sf_while_node *node = new_node(
-        arena, sizeof(sf_while_node),
-        SF_NODE_WHILE, span
-    );
+    sf_while_node *node =
+        new_node(arena, sizeof(sf_while_node), SF_NODE_WHILE, span);
 
     if (node == NULL) {
         return NULL;
@@ -324,14 +434,14 @@ sf_while_node *sf_new_while_node(
 }
 
 sf_func_decl_node *sf_new_func_decl_node(
-    sf_arena *arena, const char *name,
+    sf_arena *arena,
+    const char *name,
     sf_value_type return_type,
-    sf_qualifiers qualifiers, sf_span span
+    sf_qualifiers qualifiers,
+    sf_span span
 ) {
-    sf_func_decl_node *node = new_node(
-        arena, sizeof(sf_func_decl_node),
-        SF_NODE_FUNC_DECL, span
-    );
+    sf_func_decl_node *node =
+        new_node(arena, sizeof(sf_func_decl_node), SF_NODE_FUNC_DECL, span);
 
     if (node == NULL) {
         return NULL;
@@ -347,12 +457,12 @@ sf_func_decl_node *sf_new_func_decl_node(
 }
 
 sf_func_call_node *sf_new_func_call_node(
-    sf_arena *arena, sf_ast_node *callee, sf_span span
+    sf_arena *arena,
+    sf_ast_node *callee,
+    sf_span span
 ) {
-    sf_func_call_node *node = new_node(
-        arena, sizeof(sf_func_call_node),
-        SF_NODE_FUNC_CALL, span
-    );
+    sf_func_call_node *node =
+        new_node(arena, sizeof(sf_func_call_node), SF_NODE_FUNC_CALL, span);
 
     if (node == NULL) {
         return NULL;
@@ -365,12 +475,12 @@ sf_func_call_node *sf_new_func_call_node(
 }
 
 sf_return_node *sf_new_return_node(
-    sf_arena *arena, sf_ast_node *value, sf_span span
+    sf_arena *arena,
+    sf_ast_node *value,
+    sf_span span
 ) {
-    sf_return_node *node = new_node(
-        arena, sizeof(sf_return_node),
-        SF_NODE_RETURN, span
-    );
+    sf_return_node *node =
+        new_node(arena, sizeof(sf_return_node), SF_NODE_RETURN, span);
 
     if (node == NULL) {
         return NULL;
@@ -382,9 +492,12 @@ sf_return_node *sf_new_return_node(
 }
 
 sf_import_node *sf_new_import_node(
-    sf_arena *arena, const char *path, sf_span span
+    sf_arena *arena,
+    const char *path,
+    sf_span span
 ) {
-    sf_import_node *node = new_node(arena, sizeof(sf_import_node), SF_NODE_IMPORT, span);
+    sf_import_node *node =
+        new_node(arena, sizeof(sf_import_node), SF_NODE_IMPORT, span);
 
     if (node == NULL) {
         return NULL;
@@ -397,11 +510,12 @@ sf_import_node *sf_new_import_node(
     return node;
 }
 
-sf_namespace_node *sf_new_namespace_node(sf_arena *arena, sf_span span) {
-    sf_namespace_node *node = new_node(
-        arena, sizeof(sf_namespace_node),
-        SF_NODE_NAMESPACE, span
-    );
+sf_namespace_node *sf_new_namespace_node(
+    sf_arena *arena,
+    sf_span span
+) {
+    sf_namespace_node *node =
+        new_node(arena, sizeof(sf_namespace_node), SF_NODE_NAMESPACE, span);
 
     if (node == NULL) {
         return NULL;
@@ -416,80 +530,86 @@ static void print_indent(size_t indent) {
     }
 }
 
-static void print_node(const sf_ast_node *node, size_t indent) {
+static void print_node(
+    const sf_ast_node *node,
+    size_t indent
+) {
     if (node == NULL) {
         return;
     }
 
     switch (node->type) {
-        case SF_NODE_PROGRAM: {
-            print_program_node((const sf_program_node *)node, indent);
-            break;
-        }
-        case SF_NODE_VAR_DECL: {
-            print_var_decl_node((const sf_var_decl_node *)node, indent);
-            break;
-        }
-        case SF_NODE_VAR_ASSIGN: {
-            print_var_assign_node((const sf_var_assign_node *)node, indent);
-            break;
-        }
-        case SF_NODE_BINARY: {
-            print_binary_node((const sf_binary_node *)node, indent);
-            break;
-        }
-        case SF_NODE_UNARY: {
-            print_unary_node((const sf_unary_node *)node, indent);
-            break;
-        }
-        case SF_NODE_IDENTIFIER: {
-            print_identifier_node((const sf_identifier_node *)node, indent);
-            break;
-        }
-        case SF_NODE_LITERAL: {
-            print_literal_node((const sf_literal_node *)node, indent);
-            break;
-        }
-        case SF_NODE_BLOCK: {
-            print_block_node((const sf_block_node *)node, indent);
-            break;
-        }
-        case SF_NODE_CAST: {
-            print_cast_node((const sf_cast_node *)node, indent);
-            break;
-        }
-        case SF_NODE_IF: {
-            print_if_node((const sf_if_node *)node, indent);
-            break;
-        }
-        case SF_NODE_WHILE: {
-            print_while_node((const sf_while_node *)node, indent);
-            break;
-        }
-        case SF_NODE_FUNC_DECL: {
-            print_func_decl_node((const sf_func_decl_node *)node, indent);
-            break;
-        }
-        case SF_NODE_FUNC_CALL: {
-            print_func_call_node((const sf_func_call_node *)node, indent);
-            break;
-        }
-        case SF_NODE_RETURN: {
-            print_return_node((const sf_return_node *)node, indent);
-            break;
-        }
-        case SF_NODE_NAMESPACE: {
-            print_namespace_node((const sf_namespace_node *)node, indent);
-            break;
-        }
+    case SF_NODE_PROGRAM: {
+        print_program_node((const sf_program_node *)node, indent);
+        break;
+    }
+    case SF_NODE_VAR_DECL: {
+        print_var_decl_node((const sf_var_decl_node *)node, indent);
+        break;
+    }
+    case SF_NODE_VAR_ASSIGN: {
+        print_var_assign_node((const sf_var_assign_node *)node, indent);
+        break;
+    }
+    case SF_NODE_BINARY: {
+        print_binary_node((const sf_binary_node *)node, indent);
+        break;
+    }
+    case SF_NODE_UNARY: {
+        print_unary_node((const sf_unary_node *)node, indent);
+        break;
+    }
+    case SF_NODE_IDENTIFIER: {
+        print_identifier_node((const sf_identifier_node *)node, indent);
+        break;
+    }
+    case SF_NODE_LITERAL: {
+        print_literal_node((const sf_literal_node *)node, indent);
+        break;
+    }
+    case SF_NODE_BLOCK: {
+        print_block_node((const sf_block_node *)node, indent);
+        break;
+    }
+    case SF_NODE_CAST: {
+        print_cast_node((const sf_cast_node *)node, indent);
+        break;
+    }
+    case SF_NODE_IF: {
+        print_if_node((const sf_if_node *)node, indent);
+        break;
+    }
+    case SF_NODE_WHILE: {
+        print_while_node((const sf_while_node *)node, indent);
+        break;
+    }
+    case SF_NODE_FUNC_DECL: {
+        print_func_decl_node((const sf_func_decl_node *)node, indent);
+        break;
+    }
+    case SF_NODE_FUNC_CALL: {
+        print_func_call_node((const sf_func_call_node *)node, indent);
+        break;
+    }
+    case SF_NODE_RETURN: {
+        print_return_node((const sf_return_node *)node, indent);
+        break;
+    }
+    case SF_NODE_NAMESPACE: {
+        print_namespace_node((const sf_namespace_node *)node, indent);
+        break;
+    }
 
-        default: {
-            break;
-        }
+    default: {
+        break;
+    }
     }
 }
 
-static void print_program_node(const sf_program_node *node, size_t indent) {
+static void print_program_node(
+    const sf_program_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Program\n");
 
@@ -512,7 +632,10 @@ static void print_program_node(const sf_program_node *node, size_t indent) {
     }
 }
 
-static void print_block_node(const sf_block_node *node, size_t indent) {
+static void print_block_node(
+    const sf_block_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Block\n");
 
@@ -521,14 +644,20 @@ static void print_block_node(const sf_block_node *node, size_t indent) {
     }
 }
 
-static void print_var_decl_node(const sf_var_decl_node *node, size_t indent) {
+static void print_var_decl_node(
+    const sf_var_decl_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("VarDecl %s %s\n", sf_type_value_name(node->var_type), node->name);
 
     print_node(node->value, indent + 1);
 }
 
-static void print_var_assign_node(const sf_var_assign_node *node, size_t indent) {
+static void print_var_assign_node(
+    const sf_var_assign_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Assign ");
     print_path(&node->path);
@@ -537,19 +666,28 @@ static void print_var_assign_node(const sf_var_assign_node *node, size_t indent)
     print_node(node->value, indent + 1);
 }
 
-static void print_literal_node(const sf_literal_node *node, size_t indent) {
+static void print_literal_node(
+    const sf_literal_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Literal %s\n", node->value);
 }
 
-static void print_identifier_node(const sf_identifier_node *node, size_t indent) {
+static void print_identifier_node(
+    const sf_identifier_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Identifier ");
     print_path(&node->path);
     printf("\n");
 }
 
-static void print_binary_node(const sf_binary_node *node, size_t indent) {
+static void print_binary_node(
+    const sf_binary_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Binary %s\n", sf_type_operation_name(node->op));
 
@@ -557,21 +695,30 @@ static void print_binary_node(const sf_binary_node *node, size_t indent) {
     print_node(node->right, indent + 1);
 }
 
-static void print_unary_node(const sf_unary_node *node, size_t indent) {
+static void print_unary_node(
+    const sf_unary_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Unary %s\n", sf_type_operation_name(node->op));
 
     print_node(node->operand, indent + 1);
 }
 
-static void print_cast_node(const sf_cast_node *node, size_t indent) {
+static void print_cast_node(
+    const sf_cast_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Cast %s\n", sf_type_value_name(node->target_type));
 
     print_node(node->operand, indent + 1);
 }
 
-static void print_if_node(const sf_if_node *node, size_t indent) {
+static void print_if_node(
+    const sf_if_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("If\n");
 
@@ -590,7 +737,10 @@ static void print_if_node(const sf_if_node *node, size_t indent) {
     }
 }
 
-static void print_while_node(const sf_while_node *node, size_t indent) {
+static void print_while_node(
+    const sf_while_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("While\n");
 
@@ -603,16 +753,25 @@ static void print_while_node(const sf_while_node *node, size_t indent) {
     print_node(node->branch_do, indent + 2);
 }
 
-static void print_func_decl_node(const sf_func_decl_node *node, size_t indent) {
+static void print_func_decl_node(
+    const sf_func_decl_node *node,
+    size_t indent
+) {
     print_indent(indent);
-    printf("Function %s %s\n", node->name, sf_type_value_name(node->return_type));
+    printf(
+        "Function %s %s\n", node->name, sf_type_value_name(node->return_type)
+    );
 
     print_indent(indent + 1);
     printf("Parameters\n");
 
     for (size_t i = 0; i < node->parameter_count; i++) {
         print_indent(indent + 2);
-        printf("%s %s\n", sf_type_value_name(node->parameters[i].type), node->parameters[i].name);
+        printf(
+            "%s %s\n",
+            sf_type_value_name(node->parameters[i].type),
+            node->parameters[i].name
+        );
     }
 
     print_indent(indent + 1);
@@ -620,7 +779,10 @@ static void print_func_decl_node(const sf_func_decl_node *node, size_t indent) {
     print_node(node->body, indent + 2);
 }
 
-static void print_func_call_node(const sf_func_call_node *node, size_t indent) {
+static void print_func_call_node(
+    const sf_func_call_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Call\n");
 
@@ -637,7 +799,10 @@ static void print_func_call_node(const sf_func_call_node *node, size_t indent) {
     }
 }
 
-static void print_return_node(const sf_return_node *node, size_t indent) {
+static void print_return_node(
+    const sf_return_node *node,
+    size_t indent
+) {
     print_indent(indent);
     printf("Return\n");
 
@@ -646,7 +811,10 @@ static void print_return_node(const sf_return_node *node, size_t indent) {
     }
 }
 
-static void print_import_node(const sf_import_node *node, size_t indent) {
+static void print_import_node(
+    const sf_import_node *node,
+    size_t indent
+) {
     if (node == NULL) {
         return;
     }
@@ -655,7 +823,10 @@ static void print_import_node(const sf_import_node *node, size_t indent) {
     printf("Import %s\n", node->path);
 }
 
-static void print_namespace_node(const sf_namespace_node *ns, size_t indent) {
+static void print_namespace_node(
+    const sf_namespace_node *ns,
+    size_t indent
+) {
     print_indent(indent);
     printf("Namespace ");
     print_path(&ns->path);
@@ -668,15 +839,21 @@ static void print_namespace_node(const sf_namespace_node *ns, size_t indent) {
 
 static void report_out_of_memory(void) {
     sf_log(
-        "Insufficient Memory.", "Cannot allocate memory for compiling.",
-        "Free some memory and try again.", NULL,
-        SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+        "Insufficient Memory.",
+        "Cannot allocate memory for compiling.",
+        "Free some memory and try again.",
+        NULL,
+        SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+        (sf_span){0},
+        SF_LOG_SEVERITY_FATAL
     );
 }
 
 static void *new_node(
-    sf_arena *arena, size_t size,
-    sf_node_type type, sf_span span
+    sf_arena *arena,
+    size_t size,
+    sf_node_type type,
+    sf_span span
 ) {
     sf_ast_node *node = sf_arena_alloc(arena, size);
 
@@ -694,7 +871,10 @@ static void *new_node(
     return node;
 }
 
-static char *copy_string(sf_arena *arena, const char *str) {
+static char *copy_string(
+    sf_arena *arena,
+    const char *str
+) {
     char *copy = sf_string_dup_arena(arena, str);
 
     if (copy == NULL) {

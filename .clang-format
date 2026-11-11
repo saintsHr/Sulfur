@@ -1,0 +1,18 @@
+BasedOnStyle: LLVM
+
+Language: C
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+BreakBeforeBraces: Attach
+
+AlignAfterOpenBracket: BlockIndent
+BinPackArguments: false
+BinPackParameters: AlwaysOnePerLine
+
+SeparateDefinitionBlocks: Always
+InsertNewlineAtEOF: true
+
+InsertBraces: true

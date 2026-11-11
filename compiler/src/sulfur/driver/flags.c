@@ -10,7 +10,11 @@ static bool add_module_path(
     const char *path
 );
 
-void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
+void sf_flags_parse(
+    int argc,
+    char *argv[],
+    sf_compiler_options *options
+) {
     for (int i = 1; i < argc; i++) {
         bool has_next = i + 1 < argc;
 
@@ -74,7 +78,8 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
                 if (!add_module_path(options, argv[++i])) {
                     sf_log(
                         "Insufficient Memory.",
-                        "Could not allocate memory for the module search paths.",
+                        "Could not allocate memory for the module search "
+                        "paths.",
                         "Free some memory and try again.",
                         "N/A",
                         SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
@@ -136,13 +141,11 @@ static bool add_module_path(
 
     if (options->module_path_count == options->module_path_capacity) {
         size_t new_capacity = options->module_path_capacity == 0
-            ? 4
-            : options->module_path_capacity * 2;
+                                  ? 4
+                                  : options->module_path_capacity * 2;
 
-        const char **paths = realloc(
-            options->module_paths,
-            new_capacity * sizeof(char *)
-        );
+        const char **paths =
+            realloc(options->module_paths, new_capacity * sizeof(char *));
 
         if (paths == NULL) {
             return false;

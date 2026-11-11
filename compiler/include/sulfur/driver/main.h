@@ -4,10 +4,10 @@
 #include <stddef.h>
 
 #include "sulfur/module/module.h"
-#include "sulfur/utils/arena.h"
-#include "sulfur/pipeline/frontend/lexer.h"
-#include "sulfur/pipeline/frontend/ast.h"
 #include "sulfur/pipeline/backend/ir/ir.h"
+#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/utils/arena.h"
 
 typedef struct {
     const char *file_input;

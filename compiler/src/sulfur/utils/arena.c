@@ -11,18 +11,30 @@
 #define SF_ARENA_MIN_CHUNK_SIZE ((size_t)(64 * 1024))
 #define SF_ARENA_MAX_CHUNK_SIZE ((size_t)(1024 * 1024))
 
-static bool align_up_overflows(size_t n, size_t align);
-static size_t align_up(size_t n, size_t align);
+static bool align_up_overflows(
+    size_t n,
+    size_t align
+);
+static size_t align_up(
+    size_t n,
+    size_t align
+);
 
 static sf_arena_chunk *arena_chunk_new(size_t size);
-static bool arena_ensure_space(sf_arena *arena, size_t aligned);
+static bool arena_ensure_space(
+    sf_arena *arena,
+    size_t aligned
+);
 
 void sf_arena_init(sf_arena *arena) {
     arena->first = NULL;
     arena->current = NULL;
 }
 
-void *sf_arena_alloc(sf_arena *arena, size_t size) {
+void *sf_arena_alloc(
+    sf_arena *arena,
+    size_t size
+) {
     if (arena == NULL || align_up_overflows(size, SF_ARENA_ALIGNMENT)) {
         return NULL;
     }
@@ -64,9 +76,7 @@ void *sf_arena_grow_array(
     }
 
     if (old_array != NULL && old_count > 0) {
-        size_t copy_count = old_count < new_count
-            ? old_count
-            : new_count;
+        size_t copy_count = old_count < new_count ? old_count : new_count;
 
         memcpy(new_array, old_array, copy_count * elem_size);
     }
@@ -93,29 +103,24 @@ void *sf_arena_grow_one(
         return NULL;
     }
 
-    size_t new_capacity = *capacity == 0
-        ? 8
-        : *capacity * 2;
+    size_t new_capacity = *capacity == 0 ? 8 : *capacity * 2;
 
     if (new_capacity > SIZE_MAX / elem_size) {
         return NULL;
     }
 
-    void *grown = sf_arena_grow_array(
-        arena,
-        items,
-        count,
-        new_capacity,
-        elem_size
-    );
+    void *grown =
+        sf_arena_grow_array(arena, items, count, new_capacity, elem_size);
 
     if (grown == NULL) {
         sf_log(
             "Insufficient Memory",
             "Cannot allocate memory for compiling.",
             "Free some memory and try again.",
-            "N/A", SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-            (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            "N/A",
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0},
+            SF_LOG_SEVERITY_FATAL
         );
 
         return NULL;
@@ -143,11 +148,17 @@ void sf_arena_free(sf_arena *arena) {
     arena->current = NULL;
 }
 
-static bool align_up_overflows(size_t n, size_t align) {
+static bool align_up_overflows(
+    size_t n,
+    size_t align
+) {
     return n > SIZE_MAX - (align - 1);
 }
 
-static size_t align_up(size_t n, size_t align) {
+static size_t align_up(
+    size_t n,
+    size_t align
+) {
     return (n + align - 1) & ~(align - 1);
 }
 
@@ -168,14 +179,14 @@ static sf_arena_chunk *arena_chunk_new(size_t size) {
     return chunk;
 }
 
-static bool arena_ensure_space(sf_arena *arena, size_t aligned) {
+static bool arena_ensure_space(
+    sf_arena *arena,
+    size_t aligned
+) {
     sf_arena_chunk *current = arena->current;
 
-    if (
-        current != NULL &&
-        current->used <= current->size &&
-        current->size - current->used >= aligned
-    ) {
+    if (current != NULL && current->used <= current->size &&
+        current->size - current->used >= aligned) {
         return true;
     }
 
@@ -183,8 +194,8 @@ static bool arena_ensure_space(sf_arena *arena, size_t aligned) {
 
     if (current != NULL) {
         chunk_size = current->size >= SF_ARENA_MAX_CHUNK_SIZE / 2
-            ? SF_ARENA_MAX_CHUNK_SIZE
-            : current->size * 2;
+                         ? SF_ARENA_MAX_CHUNK_SIZE
+                         : current->size * 2;
     }
 
     if (aligned > chunk_size) {

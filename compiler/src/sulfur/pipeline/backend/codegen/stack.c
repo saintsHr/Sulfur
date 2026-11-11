@@ -11,26 +11,34 @@
 #include "sulfur/utils/type_utils.h"
 
 static const sf_stack_map_size_t k_initial_capacity = 8;
-enum {
-    k_temporary_name_size = 16
-};
+
+enum { k_temporary_name_size = 16 };
 
 static bool ensure_capacity(sf_stack_map *map);
 static void add_entry(
-    sf_stack_map *map, const char *name, sf_value_type type,
+    sf_stack_map *map,
+    const char *name,
+    sf_value_type type,
     sf_stack_offset_size_t *next_offset
 );
 static sf_stack_offset_size_t next_aligned_offset(
-    sf_stack_offset_size_t current, uint8_t size
+    sf_stack_offset_size_t current,
+    uint8_t size
 );
 
-sf_stack_offset_size_t sf_stack_lookup(const sf_stack_map *map, const char *name) {
+sf_stack_offset_size_t sf_stack_lookup(
+    const sf_stack_map *map,
+    const char *name
+) {
     const sf_stack_entry *entry = sf_stack_lookup_entry(map, name);
 
     return entry != NULL ? entry->offset : 0;
 }
 
-sf_stack_entry *sf_stack_lookup_entry(const sf_stack_map *map, const char *name) {
+sf_stack_entry *sf_stack_lookup_entry(
+    const sf_stack_map *map,
+    const char *name
+) {
     if (map == NULL || name == NULL) {
         return NULL;
     }
@@ -44,7 +52,10 @@ sf_stack_entry *sf_stack_lookup_entry(const sf_stack_map *map, const char *name)
     return NULL;
 }
 
-void sf_stack_push(sf_stack_map *map, sf_stack_entry entry) {
+void sf_stack_push(
+    sf_stack_map *map,
+    sf_stack_entry entry
+) {
     if (map == NULL) {
         return;
     }
@@ -57,30 +68,35 @@ void sf_stack_push(sf_stack_map *map, sf_stack_entry entry) {
 }
 
 void sf_stack_register_operand(
-    sf_stack_map *map, sf_ir_operand op, sf_stack_offset_size_t *next_offset
+    sf_stack_map *map,
+    sf_ir_operand op,
+    sf_stack_offset_size_t *next_offset
 ) {
     switch (op.type) {
-        case SF_IR_OPERAND_TYPE_VARIABLE: {
-            add_entry(map, op.variable_name, op.value_type, next_offset);
-            break;
-        }
-        case SF_IR_OPERAND_TYPE_TEMPORARY: {
-            char name[k_temporary_name_size];
-            snprintf(name, sizeof(name), "t%zu", op.temporary_id);
+    case SF_IR_OPERAND_TYPE_VARIABLE: {
+        add_entry(map, op.variable_name, op.value_type, next_offset);
+        break;
+    }
+    case SF_IR_OPERAND_TYPE_TEMPORARY: {
+        char name[k_temporary_name_size];
+        snprintf(name, sizeof(name), "t%zu", op.temporary_id);
 
-            add_entry(map, name, op.value_type, next_offset);
-            break;
-        }
+        add_entry(map, name, op.value_type, next_offset);
+        break;
+    }
 
-        default: {
-            break;
-        }
+    default: {
+        break;
+    }
     }
 }
 
 void sf_stack_populate(
-    sf_stack_map *map, const sf_parameter *params, size_t param_count,
-    const sf_ir_operation *operations, size_t operation_count
+    sf_stack_map *map,
+    const sf_parameter *params,
+    size_t param_count,
+    const sf_ir_operation *operations,
+    size_t operation_count
 ) {
     if (map == NULL) {
         return;
@@ -145,9 +161,13 @@ static bool ensure_capacity(sf_stack_map *map) {
 
     if (grown == NULL) {
         sf_log(
-            "Insufficient Memory.", "Cannot allocate memory for compiling.",
-            "Free some memory and try again.", NULL,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            "Insufficient Memory.",
+            "Cannot allocate memory for compiling.",
+            "Free some memory and try again.",
+            NULL,
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0},
+            SF_LOG_SEVERITY_FATAL
         );
 
         return false;
@@ -160,7 +180,9 @@ static bool ensure_capacity(sf_stack_map *map) {
 }
 
 static void add_entry(
-    sf_stack_map *map, const char *name, sf_value_type type,
+    sf_stack_map *map,
+    const char *name,
+    sf_value_type type,
     sf_stack_offset_size_t *next_offset
 ) {
     if (map == NULL || name == NULL) {
@@ -185,9 +207,13 @@ static void add_entry(
 
     if (owned_name == NULL) {
         sf_log(
-            "Insufficient Memory.", "Cannot allocate memory for compiling.",
-            "Free some memory and try again.", NULL,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            "Insufficient Memory.",
+            "Cannot allocate memory for compiling.",
+            "Free some memory and try again.",
+            NULL,
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0},
+            SF_LOG_SEVERITY_FATAL
         );
 
         return;
@@ -206,7 +232,8 @@ static void add_entry(
 }
 
 static sf_stack_offset_size_t next_aligned_offset(
-    sf_stack_offset_size_t current, uint8_t size
+    sf_stack_offset_size_t current,
+    uint8_t size
 ) {
     uint64_t position = (uint64_t)(-current) + size;
     position = (position + size - 1) / size * size;

@@ -1,8 +1,8 @@
 #include "sulfur/module/module.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -52,9 +52,7 @@ static char *join_path(
     const char *filename
 );
 
-static bool file_exists(
-    const char *filename
-);
+static bool file_exists(const char *filename);
 
 static char *find_module_path(
     const char *filename,
@@ -88,15 +86,21 @@ const char *sf_module_name_from_path(
     const char **module_paths,
     size_t module_path_count
 ) {
-    if (strncmp(file, "./", 2) == 0) file += 2;
+    if (strncmp(file, "./", 2) == 0) {
+        file += 2;
+    }
 
     for (size_t i = 0; i < module_path_count; i++) {
         const char *dir = module_paths[i];
 
-        if (strncmp(dir, "./", 2) == 0) dir += 2;
+        if (strncmp(dir, "./", 2) == 0) {
+            dir += 2;
+        }
 
         size_t len = strlen(dir);
-        while (len > 0 && dir[len - 1] == '/') len--;
+        while (len > 0 && dir[len - 1] == '/') {
+            len--;
+        }
 
         if (len > 0 && strncmp(file, dir, len) == 0 && file[len] == '/') {
             return file + len + 1;
@@ -185,12 +189,8 @@ static void resolve_import(
     size_t module_path_count,
     sf_arena *arena
 ) {
-    char *filename = find_module_path(
-        import->path,
-        module_paths,
-        module_path_count,
-        arena
-    );
+    char *filename =
+        find_module_path(import->path, module_paths, module_path_count, arena);
 
     if (filename == NULL) {
         sf_log(
@@ -286,12 +286,7 @@ static char *join_path(
     }
 
     snprintf(
-        path,
-        size,
-        "%s%s%s",
-        directory,
-        needs_separator ? "/" : "",
-        filename
+        path, size, "%s%s%s", directory, needs_separator ? "/" : "", filename
     );
 
     return path;

@@ -79,11 +79,20 @@ typedef struct {
 
 void sf_log_init(void);
 void sf_log_shutdown(void);
-void sf_log_set_source(const char *filename, const char *content);
+void sf_log_set_source(
+    const char *filename,
+    const char *content
+);
 
 bool sf_log_had_errors(void);
 
 void sf_log(
-    const char *title, const char *desc, const char *hint, const char *file,
-    sf_log_error_code_num code, sf_span span, sf_log_severity sev, ...
+    const char *title,
+    const char *desc,
+    const char *hint,
+    const char *file,
+    sf_log_error_code_num code,
+    sf_span span,
+    sf_log_severity sev,
+    ...
 );

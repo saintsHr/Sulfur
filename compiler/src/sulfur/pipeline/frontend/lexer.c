@@ -111,28 +111,57 @@ static bool is_ident_char(char c);
 
 static char lexer_current(const sf_lexer *lx);
 static char lexer_next(const sf_lexer *lx);
-static void lexer_advance(sf_lexer *lx, size_t count);
+static void lexer_advance(
+    sf_lexer *lx,
+    size_t count
+);
 static sf_span lexer_span_here(const sf_lexer *lx);
 
-static bool list_add(sf_token_list *list, sf_token token);
-static sf_token make_token(sf_token_type type, sf_span span);
+static bool list_add(
+    sf_token_list *list,
+    sf_token token
+);
+static sf_token make_token(
+    sf_token_type type,
+    sf_span span
+);
 
-static bool lexer_emit(sf_lexer *lx, sf_token token, size_t start_pos, uint32_t start_col);
-static bool lexer_report_undefined(sf_lexer *lx, size_t start_pos, uint32_t start_col);
-static bool undefined_run_continues(const sf_lexer *lx, bool number);
+static bool lexer_emit(
+    sf_lexer *lx,
+    sf_token token,
+    size_t start_pos,
+    uint32_t start_col
+);
+static bool lexer_report_undefined(
+    sf_lexer *lx,
+    size_t start_pos,
+    uint32_t start_col
+);
+static bool undefined_run_continues(
+    const sf_lexer *lx,
+    bool number
+);
 
 static sf_token read_number(sf_lexer *lx);
 static sf_token read_identifier(sf_lexer *lx);
 static sf_token read_symbol(sf_lexer *lx);
 
-static int digit_value(char c, int base);
+static int digit_value(
+    char c,
+    int base
+);
 static sf_token_type resolve_keyword(const char *value);
 static const sf_token_spelling *find_symbol(const char *text);
 static const char *find_spelling(
-    const sf_token_spelling *table, size_t count, sf_token_type type
+    const sf_token_spelling *table,
+    size_t count,
+    sf_token_type type
 );
 
-sf_token_list sf_tokenize(const char *input, const char *filename) {
+sf_token_list sf_tokenize(
+    const char *input,
+    const char *filename
+) {
     sf_lexer lx = {
         .input = input,
         .filename = filename,
@@ -183,14 +212,19 @@ void sf_tokens_print(const sf_token_list *list) {
     for (size_t i = 0; i < list->count; i++) {
         printf(
             "Token %zu: type= %d value= %s (%zu:%zu)\n",
-            i, list->tokens[i].type, list->tokens[i].value,
-            list->tokens[i].span.line, list->tokens[i].span.col
+            i,
+            list->tokens[i].type,
+            list->tokens[i].value,
+            list->tokens[i].span.line,
+            list->tokens[i].span.col
         );
     }
 }
 
 void sf_tokens_free(sf_token_list *list) {
-    if (list == NULL) return;
+    if (list == NULL) {
+        return;
+    }
 
     free(list->tokens);
 
@@ -201,22 +235,22 @@ void sf_tokens_free(sf_token_list *list) {
 
 const char *sf_token_type_name(sf_token_type type) {
     switch (type) {
-        case SF_TOKEN_TYPE_IDENTIFIER: {
-            return "an identifier";
-        }
-        case SF_TOKEN_TYPE_INTEGER: {
-            return "an integer";
-        }
-        case SF_TOKEN_TYPE_EOF: {
-            return "end of file";
-        }
-        case SF_TOKEN_TYPE_UNDEFINED: {
-            return "an invalid token";
-        }
+    case SF_TOKEN_TYPE_IDENTIFIER: {
+        return "an identifier";
+    }
+    case SF_TOKEN_TYPE_INTEGER: {
+        return "an integer";
+    }
+    case SF_TOKEN_TYPE_EOF: {
+        return "end of file";
+    }
+    case SF_TOKEN_TYPE_UNDEFINED: {
+        return "an invalid token";
+    }
 
-        default: {
-            break;
-        }
+    default: {
+        break;
+    }
     }
 
     const char *name = find_spelling(k_symbols, ARRAY_LEN(k_symbols), type);
@@ -234,31 +268,29 @@ const char *sf_token_type_name(sf_token_type type) {
     return "a token";
 }
 
-static bool is_digit(char c) {
-    return c >= '0' && c <= '9';
-}
+static bool is_digit(char c) { return c >= '0' && c <= '9'; }
 
 static bool is_space(char c) {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
+    return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' ||
+           c == '\r';
 }
 
 static bool is_ident_start(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
-static bool is_ident_char(char c) {
-    return is_ident_start(c) || is_digit(c);
-}
+static bool is_ident_char(char c) { return is_ident_start(c) || is_digit(c); }
 
-static char lexer_current(const sf_lexer *lx) {
-    return lx->input[lx->pos];
-}
+static char lexer_current(const sf_lexer *lx) { return lx->input[lx->pos]; }
 
 static char lexer_next(const sf_lexer *lx) {
     return lx->input[lx->pos] == '\0' ? '\0' : lx->input[lx->pos + 1];
 }
 
-static void lexer_advance(sf_lexer *lx, size_t count) {
+static void lexer_advance(
+    sf_lexer *lx,
+    size_t count
+) {
     lx->pos += count;
     lx->col += (uint32_t)count;
 }
@@ -267,7 +299,10 @@ static sf_span lexer_span_here(const sf_lexer *lx) {
     return (sf_span){.line = lx->line, .col = lx->col, .len = 0};
 }
 
-static sf_token make_token(sf_token_type type, sf_span span) {
+static sf_token make_token(
+    sf_token_type type,
+    sf_span span
+) {
     sf_token tk = {0};
     tk.type = type;
     tk.span = span;
@@ -275,7 +310,10 @@ static sf_token make_token(sf_token_type type, sf_span span) {
     return tk;
 }
 
-static bool list_add(sf_token_list *list, sf_token token) {
+static bool list_add(
+    sf_token_list *list,
+    sf_token token
+) {
     if (list->count >= list->capacity) {
         size_t new_capacity = list->capacity == 0 ? 16 : list->capacity * 2;
 
@@ -287,9 +325,12 @@ static bool list_add(sf_token_list *list, sf_token token) {
 
         if (new_tokens == NULL) {
             sf_log(
-                "Insufficient Memory.", "Cannot allocate memory for compiling.",
-                "Free some memory and try again.", NULL,
-                SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0},
+                "Insufficient Memory.",
+                "Cannot allocate memory for compiling.",
+                "Free some memory and try again.",
+                NULL,
+                SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                (sf_span){0},
                 SF_LOG_SEVERITY_FATAL
             );
             return false;
@@ -304,7 +345,12 @@ static bool list_add(sf_token_list *list, sf_token token) {
     return true;
 }
 
-static bool lexer_emit(sf_lexer *lx, sf_token token, size_t start_pos, uint32_t start_col) {
+static bool lexer_emit(
+    sf_lexer *lx,
+    sf_token token,
+    size_t start_pos,
+    uint32_t start_col
+) {
     if (token.type == SF_TOKEN_TYPE_UNDEFINED) {
         return lexer_report_undefined(lx, start_pos, start_col);
     }
@@ -312,7 +358,10 @@ static bool lexer_emit(sf_lexer *lx, sf_token token, size_t start_pos, uint32_t 
     return list_add(&lx->list, token);
 }
 
-static bool undefined_run_continues(const sf_lexer *lx, bool number) {
+static bool undefined_run_continues(
+    const sf_lexer *lx,
+    bool number
+) {
     char c = lexer_current(lx);
 
     if (c == '\0' || is_space(c)) {
@@ -326,7 +375,11 @@ static bool undefined_run_continues(const sf_lexer *lx, bool number) {
     return !is_ident_char(c) && find_symbol(lx->input + lx->pos) == NULL;
 }
 
-static bool lexer_report_undefined(sf_lexer *lx, size_t start_pos, uint32_t start_col) {
+static bool lexer_report_undefined(
+    sf_lexer *lx,
+    size_t start_pos,
+    uint32_t start_col
+) {
     lx->pos = start_pos;
     lx->col = start_col;
 
@@ -351,17 +404,24 @@ static bool lexer_report_undefined(sf_lexer *lx, size_t start_pos, uint32_t star
     }
 
     sf_log(
-        "undefined token", "unrecognized token '%s' in source file",
+        "undefined token",
+        "unrecognized token '%s' in source file",
         "check for typos or invalid characters, and follow the language "
         "grammar",
-        lx->filename, SF_LOG_LEXER_UNDEFINED_TOKEN, tk.span,
-        SF_LOG_SEVERITY_ERROR, tk.value
+        lx->filename,
+        SF_LOG_LEXER_UNDEFINED_TOKEN,
+        tk.span,
+        SF_LOG_SEVERITY_ERROR,
+        tk.value
     );
 
     return true;
 }
 
-static int digit_value(char c, int base) {
+static int digit_value(
+    char c,
+    int base
+) {
     int digit;
 
     if (c >= '0' && c <= '9') {
@@ -493,7 +553,9 @@ static const sf_token_spelling *find_symbol(const char *text) {
 }
 
 static const char *find_spelling(
-    const sf_token_spelling *table, size_t count, sf_token_type type
+    const sf_token_spelling *table,
+    size_t count,
+    sf_token_type type
 ) {
     for (size_t i = 0; i < count; i++) {
         if (table[i].type == type) {

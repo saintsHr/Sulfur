@@ -19,15 +19,17 @@ void scope_push(sf_scope *scope) {
     if (scope->depth >= scope->capacity) {
         size_t new_capacity = scope->capacity == 0 ? 8 : scope->capacity * 2;
 
-        sf_var_symbol_table *new_stack = realloc(
-            scope->stack, new_capacity * sizeof(sf_var_symbol_table)
-        );
+        sf_var_symbol_table *new_stack =
+            realloc(scope->stack, new_capacity * sizeof(sf_var_symbol_table));
 
         if (new_stack == NULL) {
             sf_log(
-                "Insufficient Memory.", "Cannot allocate memory for compiling.",
-                "Free some memory and try again.", NULL,
-                SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0},
+                "Insufficient Memory.",
+                "Cannot allocate memory for compiling.",
+                "Free some memory and try again.",
+                NULL,
+                SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                (sf_span){0},
                 SF_LOG_SEVERITY_FATAL
             );
 
@@ -61,9 +63,13 @@ void scope_pop(sf_scope *scope) {
     scope->depth--;
 }
 
-sf_var_symbol *scope_lookup(sf_scope *scope, const char *name) {
+sf_var_symbol *scope_lookup(
+    sf_scope *scope,
+    const char *name
+) {
     for (size_t i = scope->depth; i > 0; i--) {
-        sf_var_symbol *symbol = sf_var_symbol_table_lookup(&scope->stack[i - 1], name);
+        sf_var_symbol *symbol =
+            sf_var_symbol_table_lookup(&scope->stack[i - 1], name);
 
         if (symbol != NULL) {
             return symbol;
@@ -73,7 +79,11 @@ sf_var_symbol *scope_lookup(sf_scope *scope, const char *name) {
     return NULL;
 }
 
-void scope_insert(sf_scope *scope, sf_var_symbol symbol, const char *filename) {
+void scope_insert(
+    sf_scope *scope,
+    sf_var_symbol symbol,
+    const char *filename
+) {
     if (scope->depth == 0) {
         return;
     }
@@ -84,10 +94,14 @@ void scope_insert(sf_scope *scope, sf_var_symbol symbol, const char *filename) {
 
     if (sym != NULL) {
         sf_log(
-            "symbol redefinition", "'%s' is already declared in this scope",
+            "symbol redefinition",
+            "'%s' is already declared in this scope",
             "rename the new variable, or remove the duplicate declaration",
-            filename, SF_LOG_SEMANTIC_REDECLARATION, symbol.span,
-            SF_LOG_SEVERITY_ERROR, symbol.name
+            filename,
+            SF_LOG_SEMANTIC_REDECLARATION,
+            symbol.span,
+            SF_LOG_SEVERITY_ERROR,
+            symbol.name
         );
 
         return;
@@ -114,7 +128,10 @@ void scope_free(sf_scope *scope) {
     scope->stack = NULL;
 }
 
-const char *scope_find_closest(sf_scope *scope, const char *name) {
+const char *scope_find_closest(
+    sf_scope *scope,
+    const char *name
+) {
     const char *best_candidate = NULL;
     size_t minimal_distance = UINT32_MAX;
 
@@ -170,7 +187,10 @@ sf_flow_state scope_flow_save(const sf_scope *scope) {
     return state;
 }
 
-void scope_flow_restore(sf_scope *scope, const sf_flow_state *state) {
+void scope_flow_restore(
+    sf_scope *scope,
+    const sf_flow_state *state
+) {
     size_t k = 0;
 
     for (size_t i = 0; i < scope->depth; i++) {
@@ -184,13 +204,19 @@ void scope_flow_restore(sf_scope *scope, const sf_flow_state *state) {
     }
 }
 
-void scope_flow_fill(sf_flow_state *state, bool value) {
+void scope_flow_fill(
+    sf_flow_state *state,
+    bool value
+) {
     for (size_t i = 0; i < state->count; i++) {
         state->flags[i] = value;
     }
 }
 
-void scope_flow_and(sf_flow_state *dst, const sf_flow_state *other) {
+void scope_flow_and(
+    sf_flow_state *dst,
+    const sf_flow_state *other
+) {
     size_t n = dst->count < other->count ? dst->count : other->count;
 
     for (size_t i = 0; i < n; i++) {
