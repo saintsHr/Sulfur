@@ -25,6 +25,7 @@ const char *sf_mangle_variable(sf_arena *arena, const char *name, size_t id) {
             "free some memory and try again", NULL,
             SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
         );
+
         return k_empty_name;
     }
 

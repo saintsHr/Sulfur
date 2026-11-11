@@ -40,7 +40,10 @@ char *sf_file_read(const char *filename, size_t *size) {
         return NULL;
     }
 
-    fread(content, sizeof(char), read_size, file);
+    size_t read_result = fread(content, sizeof(char), read_size, file);
+    if (read_result < read_size || read_result == 0) {
+        return NULL;
+    }
 
     if (read_size == 0 || content[read_size - 1] != '\n') {
         content[read_size++] = '\n';
@@ -48,7 +51,6 @@ char *sf_file_read(const char *filename, size_t *size) {
     content[read_size] = '\0';
 
     fclose(file);
-
     return content;
 }
 

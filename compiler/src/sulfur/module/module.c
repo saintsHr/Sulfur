@@ -162,10 +162,6 @@ static void resolve_imports(
             module_path_count,
             arena
         );
-
-        if (sf_log_had_fatal()) {
-            return;
-        }
     }
 }
 
@@ -214,9 +210,7 @@ static void resolve_import(
         .name = import->path
     };
 
-    if (!add_module(arena, modules, module, &module_index)) {
-        return;
-    }
+    add_module(arena, modules, module, &module_index);
 
     import->module_index = module_index;
     import->resolved = true;
@@ -224,36 +218,13 @@ static void resolve_import(
     char *input = NULL;
     char *preprocessed = NULL;
     sf_token_list tokens = {0};
-    bool has_tokens = false;
-    bool ok = false;
     sf_program_node *ast = NULL;
-
     size_t input_size = 0;
+
     input = sf_file_read(filename, &input_size);
-
-    if (input == NULL) {
-        goto cleanup;
-    }
-
     preprocessed = sf_preprocess(input, input_size, filename);
-
-    if (preprocessed == NULL || sf_log_had_errors()) {
-        goto cleanup;
-    }
-
     tokens = sf_tokenize(preprocessed, filename);
-    has_tokens = true;
-
-    if (sf_log_had_errors()) {
-        goto cleanup;
-    }
-
     ast = sf_parse(arena, tokens, filename);
-
-    if (ast == NULL || sf_log_had_errors()) {
-        goto cleanup;
-    }
-
     modules->modules[module_index].ast = ast;
 
     resolve_imports(
@@ -266,20 +237,9 @@ static void resolve_import(
         arena
     );
 
-    if (sf_log_had_fatal()) {
-        goto cleanup;
-    }
+    modules->modules[module_index].state = SF_MODULE_STATE_LOADED;
 
-    ok = true;
-
-cleanup:
-    modules->modules[module_index].state =
-        ok ? SF_MODULE_STATE_LOADED : SF_MODULE_STATE_FAILED;
-
-    if (has_tokens) {
-        sf_tokens_free(&tokens);
-    }
-
+    sf_tokens_free(&tokens);
     free(preprocessed);
     free(input);
 }

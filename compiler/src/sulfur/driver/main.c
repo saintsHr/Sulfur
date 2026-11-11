@@ -38,13 +38,9 @@ int main(int argc, char *argv[]) {
     };
 
     sf_compilation compilation = {0};
-    bool ok = false;
 
     sf_log_init();
     sf_flags_parse(argc, argv, &options);
-    if (sf_log_had_fatal()) {
-        goto cleanup;
-    }
 
     if (
         options.is_module &&
@@ -58,16 +54,13 @@ int main(int argc, char *argv[]) {
             "N/A", SF_LOG_DRIVER_UNKNOWN_FLAG, (sf_span){0},
             SF_LOG_SEVERITY_FATAL, options.file_input
         );
-        goto cleanup;
     }
 
-    ok = compilation_run(&compilation, &options);
+    bool ok = compilation_run(&compilation, &options);
 
-    cleanup: {
-        compilation_free(&compilation);
-        free(options.module_paths);
-        sf_log_shutdown();
-    }
+    compilation_free(&compilation);
+    free(options.module_paths);
+    sf_log_shutdown();
 
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
@@ -76,33 +69,21 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     compilation->input_source = sf_file_read(
         options->file_input, &compilation->input_size
     );
-    if (compilation->input_source == NULL) {
-        goto exit;
-    }
 
     sf_log_set_source(options->file_input, compilation->input_source);
-    sf_arena_init(&compilation->arena, 32);
+    sf_arena_init(&compilation->arena);
 
     compilation->preprocessed = sf_preprocess(
         compilation->input_source, compilation->input_size, options->file_input
     );
-    if (sf_log_had_errors()) {
-        goto exit;
-    }
 
     compilation->tokens = sf_tokenize(
         compilation->preprocessed, options->file_input
     );
-    if (sf_log_had_errors()) {
-        goto exit;
-    }
 
     compilation->ast = sf_parse(
         &compilation->arena, compilation->tokens, options->file_input
     );
-    if (sf_log_had_errors()) {
-        goto exit;
-    }
 
     sf_module_resolve(
         compilation->ast->imports,
@@ -114,47 +95,26 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
         &compilation->arena
     );
 
-    if (sf_log_had_errors()) {
-        goto exit;
-    }
-
     sf_analyze(
         &compilation->arena, compilation->ast, options->file_input,
         options, &compilation->modules
     );
-    if (sf_log_had_errors()) {
-        goto exit;
-    }
 
     compilation->ir = sf_ir_generate(
         &compilation->arena, compilation->ast
     );
-    if (sf_log_had_errors()) {
-        goto exit;
-    }
 
     sf_optimize(
         &compilation->ir
     );
-    if (sf_log_had_errors()) {
-        goto exit;
-    }
 
     compilation->assembly = sf_generate_assembly(
         &compilation->ir, options
     );
-    if (sf_log_had_errors()) {
-        goto exit;
-    }
 
     if (options->dump_stages) dump_stages(compilation);
 
     return sf_file_write(options->file_output, compilation->assembly);
-
-    exit: {
-        if (options->dump_stages) dump_stages(compilation);
-        return false;
-    }
 }
 
 static void compilation_free(sf_compilation *compilation) {

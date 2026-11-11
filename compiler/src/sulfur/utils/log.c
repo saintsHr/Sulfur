@@ -8,6 +8,15 @@
 #include <stdio.h>
 #include <string.h>
 
+#define SF_LOG_COLOR_RED "\x1b[31m"
+#define SF_LOG_COLOR_BRIGHT_BLACK "\x1b[90m"
+#define SF_LOG_COLOR_BRIGHT_RED "\x1b[91m"
+#define SF_LOG_COLOR_BRIGHT_GREEN "\x1b[92m"
+#define SF_LOG_COLOR_BRIGHT_BLUE "\x1b[94m"
+#define SF_LOG_COLOR_BRIGHT_MAGENTA "\x1b[95m"
+#define SF_LOG_COLOR_BRIGHT_CYAN "\x1b[96m"
+#define SF_LOG_COLOR_RESET "\x1b[0m"
+
 #define SF_LOG_BUFFER_SIZE (1024 * 4)
 
 static const char *g_source_filename = NULL;
@@ -16,7 +25,6 @@ static const char *g_source_content = NULL;
 static char *g_cache_filename = NULL;
 static char *g_cache_content = NULL;
 
-static bool g_had_fatal = false;
 static size_t g_error_count = 0;
 
 static void emit_log(sf_log_info info, va_list *args);
@@ -63,7 +71,6 @@ void sf_log(
 }
 
 void sf_log_init(void) {
-    g_had_fatal = false;
     g_error_count = 0;
 }
 
@@ -72,10 +79,6 @@ void sf_log_shutdown(void) {
     free(g_cache_content);
     g_cache_filename = NULL;
     g_cache_content = NULL;
-}
-
-bool sf_log_had_fatal(void) {
-    return g_had_fatal;
 }
 
 bool sf_log_had_errors(void) {
@@ -123,7 +126,7 @@ static void emit_log(sf_log_info info, va_list *args) {
     }
 
     if (info.sev == SF_LOG_SEVERITY_FATAL) {
-        g_had_fatal = true;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -192,7 +195,7 @@ static void print_source_snippet(sf_span span, const char *content, const char *
         return;
     }
 
-    char line_num[16];
+    char line_num[sizeof(size_t) * 3 + 1];
     snprintf(line_num, sizeof(line_num), "%zu", span.line);
     int gutter = (int)strlen(line_num);
 

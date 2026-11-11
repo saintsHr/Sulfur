@@ -5,26 +5,6 @@
 
 #include "sulfur/utils/span.h"
 
-#define SF_LOG_COLOR_BLACK "\x1b[30m"
-#define SF_LOG_COLOR_RED "\x1b[31m"
-#define SF_LOG_COLOR_GREEN "\x1b[32m"
-#define SF_LOG_COLOR_YELLOW "\x1b[33m"
-#define SF_LOG_COLOR_BLUE "\x1b[34m"
-#define SF_LOG_COLOR_MAGENTA "\x1b[35m"
-#define SF_LOG_COLOR_CYAN "\x1b[36m"
-#define SF_LOG_COLOR_WHITE "\x1b[37m"
-#define SF_LOG_COLOR_BRIGHT_BLACK "\x1b[90m"
-#define SF_LOG_COLOR_BRIGHT_RED "\x1b[91m"
-#define SF_LOG_COLOR_BRIGHT_GREEN "\x1b[92m"
-#define SF_LOG_COLOR_BRIGHT_YELLOW "\x1b[93m"
-#define SF_LOG_COLOR_BRIGHT_BLUE "\x1b[94m"
-#define SF_LOG_COLOR_BRIGHT_MAGENTA "\x1b[95m"
-#define SF_LOG_COLOR_BRIGHT_CYAN "\x1b[96m"
-#define SF_LOG_COLOR_BRIGHT_WHITE "\x1b[97m"
-#define SF_LOG_COLOR_RESET "\x1b[0m"
-
-#define SF_LOG_INDENT "   "
-
 typedef uint16_t sf_log_error_code_num;
 
 typedef enum {
@@ -100,10 +80,9 @@ void sf_log_init(void);
 void sf_log_shutdown(void);
 void sf_log_set_source(const char *filename, const char *content);
 
+bool sf_log_had_errors(void);
+
 void sf_log(
     const char *title, const char *desc, const char *hint, const char *file,
     sf_log_error_code_num code, sf_span span, sf_log_severity sev, ...
 );
-
-bool sf_log_had_fatal(void);
-bool sf_log_had_errors(void);
