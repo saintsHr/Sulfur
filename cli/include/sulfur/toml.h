@@ -4,7 +4,10 @@
 
 typedef enum {
     SF_TOML_PARSE_RESULT_OK,
+    SF_TOML_PARSE_RESULT_INVALID_ARGUMENT,
     SF_TOML_PARSE_RESULT_FAILED_TO_OPEN,
+    SF_TOML_PARSE_RESULT_SYNTAX_ERROR,
+    SF_TOML_PARSE_RESULT_NAME_MISSING,
     SF_TOML_PARSE_RESULT_NAME_INVALID,
     SF_TOML_PARSE_RESULT_EMIT_INVALID,
     SF_TOML_PARSE_RESULT_SLFR_FLAGS_INVALID,
@@ -36,3 +39,4 @@ typedef struct {
 
 sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg *output);
 void sf_toml_free_project(sf_project_cfg *cfg);
+const char *sf_toml_error_detail(void);
