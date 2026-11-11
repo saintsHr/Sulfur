@@ -2,7 +2,6 @@
 
 #include "sulfur/cmd.h"
 
-#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -133,7 +132,12 @@ bool cmd_parse(int argc, char **argv) {
         return command_run(argc, argv);
     }
 
-    log_failure("Unknown command", "'%s' (try 'sulfur --help')", cmd);
+    log_failure(
+        "Unknown Command.",
+        "Unknown command '%s'. Try 'sulfur --help'.",
+        cmd
+    );
+
     return false;
 }
 
@@ -152,8 +156,8 @@ void cmd_print_usage(void) {
         "   %sbuild%s      - Builds the project.\n"
         "   %srun%s        - Runs the built project.\n"
         "   %sclean%s      - Cleans build artifacts.\n"
-        "   %s--version%s  - Display compiler information.\n"
-        "   %s--help%s     - Display this help message.\n",
+        "   %s--version%s  - Displays compiler information.\n"
+        "   %s--help%s     - Displays this help message.\n",
         title, reset,
         title, reset,
         green, reset,
@@ -168,22 +172,27 @@ void cmd_print_usage(void) {
 static bool command_help(int argc, char **argv) {
     if (argc != 2) {
         log_failure(
-            "Help failed", "Unexpected argument '%s' (usage: sulfur --help)",
+            "Help Failed.",
+            "Unexpected argument '%s'. Usage: sulfur --help.",
             argv[2]
         );
+
         return false;
     }
 
     cmd_print_usage();
+
     return true;
 }
 
 static bool command_version(int argc, char **argv) {
     if (argc != 2) {
         log_failure(
-            "Version failed", "Unexpected argument '%s' (usage: sulfur --version)",
+            "Version Failed.",
+            "Unexpected argument '%s'. Usage: sulfur --version.",
             argv[2]
         );
+
         return false;
     }
 
@@ -206,15 +215,21 @@ static bool command_version(int argc, char **argv) {
 
 static bool command_new(int argc, char **argv) {
     if (argc < 3) {
-        log_failure("New failed", "Missing project name (usage: sulfur new <name>)");
+        log_failure(
+            "New Failed.",
+            "Missing project name. Usage: sulfur new <name>."
+        );
+
         return false;
     }
 
     if (argc > 3) {
         log_failure(
-            "New failed", "Unexpected argument '%s' (usage: sulfur new <name>)",
+            "New Failed.",
+            "Unexpected argument '%s'. Usage: sulfur new <name>.",
             argv[3]
         );
+
         return false;
     }
 
@@ -234,10 +249,11 @@ static bool command_new(int argc, char **argv) {
 
     if (project_name[0] == '\0' || project_name[0] == '.' || strchr(project_name, '/')) {
         log_failure(
-            "New failed",
-            "Invalid project name '%s' (must be non-empty, not start with '.', no '/')",
+            "New Failed.",
+            "Invalid project name '%s'. The name must be non-empty, must not start with '.', and must not contain '/'.",
             project_name
         );
+
         return false;
     }
 
@@ -265,7 +281,12 @@ static bool command_new(int argc, char **argv) {
     );
 
     if (written < 0 || (size_t)written >= sizeof(toml_file_content)) {
-        log_failure("New failed", "Project name too long: '%s'", project_name);
+        log_failure(
+            "New Failed.",
+            "Project name '%s' is too long to generate the configuration file.",
+            project_name
+        );
+
         return false;
     }
 
@@ -279,7 +300,12 @@ static bool command_new(int argc, char **argv) {
     );
 
     if (written < 0 || (size_t)written >= sizeof(main_file_content)) {
-        log_failure("New failed", "Failed to prepare '%s'", main_file_name);
+        log_failure(
+            "New Failed.",
+            "Failed to prepare the contents of '%s'.",
+            main_file_name
+        );
+
         return false;
     }
 
@@ -290,76 +316,102 @@ static bool command_new(int argc, char **argv) {
         !format_path(main_file_path, sizeof(main_file_path), src_folder_path, main_file_name, "") ||
         !format_path(toml_file_path, sizeof(toml_file_path), project_folder_path, toml_file_name, "")
     ) {
-        log_failure("New failed", "Path too long for project '%s'", project_name);
+        log_failure(
+            "New Failed.",
+            "The path for project '%s' exceeds the maximum supported length.",
+            project_name
+        );
+
         return false;
     }
 
     if (access(project_folder_path, F_OK) == 0) {
-        log_failure("New failed", "'%s' already exists", project_folder_path);
+        log_failure(
+            "New Failed.",
+            "Project folder '%s' already exists.",
+            project_folder_path
+        );
+
         return false;
     }
 
     if (!sf_create_folder(project_folder_path)) {
         log_failure(
-            "New failed", "Failed to create folder '%s': %s",
-            project_folder_path, strerror(errno)
+            "New Failed.",
+            "Failed to create project folder '%s'.",
+            project_folder_path
         );
+
         return false;
     }
 
     if (!sf_create_folder(src_folder_path)) {
         log_failure(
-            "New failed", "Failed to create folder '%s': %s",
-            src_folder_path, strerror(errno)
+            "New Failed.",
+            "Failed to create source folder '%s'.",
+            src_folder_path
         );
+
         return false;
     }
 
     if (!sf_create_file(main_file_path)) {
         log_failure(
-            "New failed", "Failed to create file '%s': %s",
-            main_file_path, strerror(errno)
+            "New Failed.",
+            "Failed to create entry file '%s'.",
+            main_file_path
         );
+
         return false;
     }
 
     if (!sf_create_file(toml_file_path)) {
         log_failure(
-            "New failed", "Failed to create file '%s': %s",
-            toml_file_path, strerror(errno)
+            "New Failed.",
+            "Failed to create configuration file '%s'.",
+            toml_file_path
         );
+
         return false;
     }
 
     if (!sf_write_file(main_file_path, main_file_content)) {
         log_failure(
-            "New failed", "Failed to write file '%s': %s",
-            main_file_path, strerror(errno)
+            "New Failed.",
+            "Failed to write entry file '%s'.",
+            main_file_path
         );
+
         return false;
     }
 
     if (!sf_write_file(toml_file_path, toml_file_content)) {
         log_failure(
-            "New failed", "Failed to write file '%s': %s",
-            toml_file_path, strerror(errno)
+            "New Failed.",
+            "Failed to write configuration file '%s'.",
+            toml_file_path
         );
+
         return false;
     }
 
     log_success(
-        "Created project", "'%s' (next: cd %s && sulfur build)",
-        project_name, project_name
+        "Created Project.",
+        "Project '%s' was created successfully.",
+        project_name
     );
+
     return true;
 }
 
 static bool command_build(int argc, char **argv) {
     if (argc != 2) {
         log_failure(
-            "Build failed", "Unexpected argument '%s' (usage: sulfur build)",
+            "Build Failed.",
+            "Unexpected argument '%s'. Usage: sulfur build.",
             argv[2]
         );
+
         return false;
     }
 
@@ -380,20 +432,27 @@ static bool command_build(int argc, char **argv) {
     sf_toml_parse_result parse_result = sf_toml_parse_project(toml_path, &cfg);
 
     if (parse_result != SF_TOML_PARSE_RESULT_OK) {
-        report_toml_error("Build failed", parse_result, toml_path);
+        report_toml_error("Build Failed.", parse_result, toml_path);
         goto cleanup;
     }
 
     if (!collect_slfr_files("src", &source_files)) {
         log_failure(
-            "Build failed", "Failed to collect '%s' files from 'src/': %s",
-            SOURCE_EXTENSION, strerror(errno)
+            "Build Failed.",
+            "Failed to collect '%s' source files from 'src/'.",
+            SOURCE_EXTENSION
         );
+
         goto cleanup;
     }
 
     if (source_files.count == 0) {
-        log_failure("Build failed", "No '%s' files found in 'src/'", SOURCE_EXTENSION);
+        log_failure(
+            "Build Failed.",
+            "No '%s' source files were found in 'src/'.",
+            SOURCE_EXTENSION
+        );
+
         goto cleanup;
     }
 
@@ -409,19 +468,21 @@ static bool command_build(int argc, char **argv) {
 
     if (cfg.emit == SF_EMIT_BIN && !has_main) {
         log_failure(
-            "Build failed",
-            "'src/%s' not found (required when build.emit = \"bin\")",
+            "Build Failed.",
+            "Entry file 'src/%s' was not found. It is required when build.emit = \"bin\".",
             ENTRY_FILE_NAME
         );
+
         goto cleanup;
     }
 
     if (cfg.emit == SF_EMIT_LIB && has_main) {
         log_failure(
-            "Build failed",
-            "A library cannot contain 'src/%s' (remove it or set build.emit = \"bin\")",
+            "Build Failed.",
+            "A library cannot contain the entry file 'src/%s'. Remove it or set build.emit = \"bin\".",
             ENTRY_FILE_NAME
         );
+
         goto cleanup;
     }
 
@@ -433,16 +494,21 @@ static bool command_build(int argc, char **argv) {
         !sf_create_folders(output_folder)
     ) {
         log_failure(
-            "Build failed", "Failed to create build directories: %s",
-            strerror(errno)
+            "Build Failed.",
+            "Failed to create the required build directories."
         );
+
         goto cleanup;
     }
 
     object_files = calloc(source_files.count, sizeof(*object_files));
 
     if (!object_files) {
-        log_failure("Build failed", "Failed to allocate memory");
+        log_failure(
+            "Build Failed.",
+            "Failed to allocate memory."
+        );
+
         goto cleanup;
     }
 
@@ -457,7 +523,12 @@ static bool command_build(int argc, char **argv) {
         bool is_entry = strcmp(relative, ENTRY_FILE_NAME) == 0;
 
         if (snprintf(stem, sizeof(stem), "%s", relative) >= (int)sizeof(stem)) {
-            log_failure("Build failed", "Path too long: '%s'", source);
+            log_failure(
+                "Build Failed.",
+                "Source path '%s' exceeds the maximum supported length.",
+                source
+            );
+
             goto cleanup;
         }
 
@@ -465,9 +536,11 @@ static bool command_build(int argc, char **argv) {
 
         if (!extension || strcmp(extension, SOURCE_EXTENSION) != 0) {
             log_failure(
-                "Build failed", "Invalid source extension: '%s' (expected '%s')",
+                "Build Failed.",
+                "Source file '%s' has an invalid extension. Expected '%s'.",
                 source, SOURCE_EXTENSION
             );
+
             goto cleanup;
         }
 
@@ -477,15 +550,22 @@ static bool command_build(int argc, char **argv) {
             !format_path(asm_path, sizeof(asm_path), asm_folder, stem, ".asm") ||
             !format_path(obj_path, sizeof(obj_path), obj_folder, stem, ".o")
         ) {
-            log_failure("Build failed", "Output path too long for '%s'", source);
+            log_failure(
+                "Build Failed.",
+                "Output path for source file '%s' exceeds the maximum supported length.",
+                source
+            );
+
             goto cleanup;
         }
 
         if (!create_parent_folders(asm_path) || !create_parent_folders(obj_path)) {
             log_failure(
-                "Build failed", "Failed to create build directories for '%s': %s",
-                source, strerror(errno)
+                "Build Failed.",
+                "Failed to create the required output directories for '%s'.",
+                source
             );
+
             goto cleanup;
         }
 
@@ -495,7 +575,12 @@ static bool command_build(int argc, char **argv) {
         );
 
         if (!compile_file(&cfg, source, asm_path, !is_entry)) {
-            log_failure("Build failed", "Failed to compile '%s'", source);
+            log_failure(
+                "Build Failed.",
+                "Failed to compile source file '%s'.",
+                source
+            );
+
             goto cleanup;
         }
 
@@ -504,66 +589,141 @@ static bool command_build(int argc, char **argv) {
         }
 
         if (!assemble_file(&cfg, asm_path, obj_path)) {
-            log_failure("Build failed", "Failed to assemble '%s'", asm_path);
+            log_failure(
+                "Build Failed.",
+                "Failed to assemble '%s'.",
+                asm_path
+            );
+
             goto cleanup;
         }
 
         object_files[i] = strdup(obj_path);
 
         if (!object_files[i]) {
-            log_failure("Build failed", "Failed to allocate memory");
+            log_failure(
+                "Build Failed.",
+                "Failed to allocate memory."
+            );
+
             goto cleanup;
         }
     }
 
     switch (cfg.emit) {
         case SF_EMIT_ASM: {
-            log_success("Build done", "Assembly emitted to '%s'", asm_folder);
+            log_success(
+                "Build Done.",
+                "Assembly files were emitted to '%s'.",
+                asm_folder
+            );
+
             success = true;
+
             break;
         }
         case SF_EMIT_OBJ: {
-            log_success("Build done", "Objects emitted to '%s'", obj_folder);
+            log_success(
+                "Build Done.",
+                "Object files were emitted to '%s'.",
+                obj_folder
+            );
+
             success = true;
             break;
         }
         case SF_EMIT_LIB: {
             char file_name[PATH_BUFFER_SIZE];
 
-            if (snprintf(file_name, sizeof(file_name), "lib%s", cfg.name) >= (int)sizeof(file_name)) {
-                log_failure("Build failed", "Library name too long: '%s'", cfg.name);
+            if (
+                snprintf(
+                    file_name, sizeof(file_name),
+                    "lib%s", cfg.name
+                ) >= (int)sizeof(file_name)
+            ) {
+                log_failure(
+                    "Build Failed.",
+                    "Library name '%s' exceeds the maximum supported length.",
+                    cfg.name
+                );
+
                 goto cleanup;
             }
 
-            if (!format_path(output_path, sizeof(output_path), lib_folder, file_name, ".a")) {
-                log_failure("Build failed", "Path too long for library '%s'", cfg.name);
+            if (
+                !format_path(
+                    output_path, sizeof(output_path),
+                    lib_folder, file_name, ".a"
+                )
+            ) {
+                log_failure(
+                    "Build Failed.",
+                    "Output path for library '%s' exceeds the maximum supported length.",
+                    cfg.name
+                );
+
                 goto cleanup;
             }
 
             if (!archive_files(object_files, source_files.count, output_path)) {
-                log_failure("Build failed", "Failed to archive '%s'", output_path);
+                log_failure(
+                    "Build Failed.",
+                    "Failed to create library archive '%s'.",
+                    output_path
+                );
+
                 goto cleanup;
             }
 
-            log_success("Build done", "Library emitted to '%s'", output_path);
+            log_success(
+                "Build Done.",
+                "Library archive was emitted to '%s'.",
+                output_path
+            );
 
             success = true;
             break;
         }
         case SF_EMIT_BIN: {
-            if (!format_path(output_path, sizeof(output_path), bin_folder, cfg.name, "")) {
-                log_failure("Build failed", "Path too long for binary '%s'", cfg.name);
+            if (
+                !format_path(
+                    output_path, sizeof(output_path),
+                    bin_folder, cfg.name, ""
+                )
+            ) {
+                log_failure(
+                    "Build Failed.",
+                    "Output path for binary '%s' exceeds the maximum supported length.",
+                    cfg.name
+                );
+
                 goto cleanup;
             }
 
-            if (!link_files(&cfg, object_files, source_files.count, output_path)) {
-                log_failure("Build failed", "Failed to link binary '%s'", cfg.name);
+            if (
+                !link_files(
+                    &cfg, object_files,
+                    source_files.count,
+                    output_path
+                )
+            ) {
+                log_failure(
+                    "Build Failed.",
+                    "Failed to link binary '%s'.",
+                    cfg.name
+                );
+
                 goto cleanup;
             }
 
-            log_success("Build done", "Binary emitted to '%s'", output_path);
+            log_success(
+                "Build Done.",
+                "Binary was emitted to '%s'.",
+                output_path
+            );
 
             success = true;
+
             break;
         }
 
@@ -591,37 +751,53 @@ static bool command_build(int argc, char **argv) {
 static bool command_clean(int argc, char **argv) {
     if (argc != 2) {
         log_failure(
-            "Clean failed", "Unexpected argument '%s' (usage: sulfur clean)",
+            "Clean Failed.",
+            "Unexpected argument '%s'. Usage: sulfur clean.",
             argv[2]
         );
+
         return false;
     }
 
     static const char *build_folder_path = "build";
 
     if (access(build_folder_path, F_OK) != 0) {
-        log_warn("Clean", "Nothing to clean ('%s' not found)", build_folder_path);
+        log_warn(
+            "Clean.",
+            "Nothing to clean. Directory '%s' does not exist.",
+            build_folder_path
+        );
+
         return true;
     }
 
     if (!sf_delete_folder(build_folder_path)) {
         log_failure(
-            "Clean failed", "Failed to delete '%s': %s",
-            build_folder_path, strerror(errno)
+            "Clean Failed.",
+            "Failed to delete directory '%s'.",
+            build_folder_path
         );
+
         return false;
     }
 
-    log_success("Clean done", "Removed '%s'", build_folder_path);
+    log_success(
+        "Clean Done.",
+        "Removed build directory '%s'.",
+        build_folder_path
+    );
+
     return true;
 }
 
 static bool command_run(int argc, char **argv) {
     if (argc != 2) {
         log_failure(
-            "Run failed", "Unexpected argument '%s' (usage: sulfur run)",
+            "Run Failed.",
+            "Unexpected argument '%s'. Usage: sulfur run.",
             argv[2]
         );
+
         return false;
     }
 
@@ -631,36 +807,51 @@ static bool command_run(int argc, char **argv) {
     sf_project_cfg cfg = {0};
     sf_args args = {0};
     char binary_path[PATH_BUFFER_SIZE];
-    int status = -1;
     bool success = false;
+    int status = -1;
 
     sf_toml_parse_result parse_result = sf_toml_parse_project(toml_path, &cfg);
 
     if (parse_result != SF_TOML_PARSE_RESULT_OK) {
-        report_toml_error("Run failed", parse_result, toml_path);
+        report_toml_error("Run Failed.", parse_result, toml_path);
         goto cleanup;
     }
 
     if (cfg.emit != SF_EMIT_BIN) {
-        log_failure("Run failed", "Project does not emit a binary (build.emit must be \"bin\")");
+        log_failure(
+            "Run Failed.",
+            "The project does not emit a binary. Set build.emit = \"bin\" to run it."
+        );
+
         goto cleanup;
     }
 
     if (!format_path(binary_path, sizeof(binary_path), bin_folder, cfg.name, "")) {
-        log_failure("Run failed", "Path too long for binary '%s'", cfg.name);
+        log_failure(
+            "Run Failed.",
+            "Output path for binary '%s' exceeds the maximum supported length.",
+            cfg.name
+        );
+
         goto cleanup;
     }
 
     if (access(binary_path, X_OK) != 0) {
         log_failure(
-            "Run failed", "Cannot execute '%s': %s (did you run 'sulfur build'?)",
-            binary_path, strerror(errno)
+            "Run Failed.",
+            "Cannot execute '%s'. Make sure you have run 'sulfur build'.",
+            binary_path
         );
+
         goto cleanup;
     }
 
     if (!args_push(&args, binary_path)) {
-        log_failure("Run failed", "Failed to allocate memory");
+        log_failure(
+            "Run Failed.",
+            "Failed to allocate memory."
+        );
+
         goto cleanup;
     }
 
@@ -668,38 +859,53 @@ static bool command_run(int argc, char **argv) {
 
     status = spawn(&args);
 
-    if (status == -1) {
-        log_failure("Run failed", "Failed to start '%s': %s", binary_path, strerror(errno));
-        goto cleanup;
-    }
-
     if (WIFEXITED(status)) {
         int exit_code = WEXITSTATUS(status);
 
         if (exit_code == EXEC_NOT_FOUND) {
-            log_failure("Run failed", "Failed to execute '%s'", binary_path);
+            log_failure(
+                "Run Failed.",
+                "Failed to execute binary '%s'.",
+                binary_path
+            );
+
             goto cleanup;
         }
 
         if (exit_code != 0) {
-            log_warn("Run done", "'%s' returned %d", binary_path, exit_code);
+            log_warn(
+                "Run Done.",
+                "Program '%s' exited with status %d.",
+                binary_path, exit_code
+            );
         } else {
-            log_success("Run done", "'%s' returned %d", binary_path, exit_code);
+            log_success(
+                "Run Done.",
+                "Program '%s' exited with status %d.",
+                binary_path, exit_code
+            );
         }
 
         success = true;
+
         goto cleanup;
     }
 
     if (WIFSIGNALED(status)) {
         log_failure(
-            "Run failed", "'%s' terminated by signal %d (%s)",
+            "Run Failed.",
+            "Program '%s' was terminated by signal %d (%s).",
             binary_path, WTERMSIG(status), strsignal(WTERMSIG(status))
         );
+
         goto cleanup;
     }
 
-    log_failure("Run failed", "'%s' ended in an unknown state", binary_path);
+    log_failure(
+        "Run Failed.",
+        "Program '%s' ended in an unknown execution state.",
+        binary_path
+    );
 
     cleanup: {
         args_free(&args);
@@ -748,7 +954,11 @@ static bool compile_file(
         (!is_module || args_push(&args, "--module"));
 
     if (!ok) {
-        log_failure("Command failed", "Failed to allocate memory");
+        log_failure(
+            "Command Failed.",
+            "Failed to allocate memory."
+        );
+
         args_free(&args);
         return false;
     }
@@ -772,7 +982,11 @@ static bool assemble_file(
         args_push_list(&args, &cfg->asm_flags);
 
     if (!ok) {
-        log_failure("Command failed", "Failed to allocate memory");
+        log_failure(
+            "Command Failed.",
+            "Failed to allocate memory."
+        );
+
         args_free(&args);
         return false;
     }
@@ -798,7 +1012,11 @@ static bool link_files(
         args_push_list(&args, &cfg->link_flags);
 
     if (!ok) {
-        log_failure("Command failed", "Failed to allocate memory");
+        log_failure(
+            "Command Failed.",
+            "Failed to allocate memory."
+        );
+
         args_free(&args);
         return false;
     }
@@ -824,7 +1042,11 @@ static bool archive_files(char **objects, size_t count, const char *output) {
     }
 
     if (!ok) {
-        log_failure("Command failed", "Failed to allocate memory");
+        log_failure(
+            "Command Failed.",
+            "Failed to allocate memory."
+        );
+
         args_free(&args);
         return false;
     }
@@ -847,7 +1069,6 @@ static bool create_parent_folders(const char *path) {
     char directory[PATH_BUFFER_SIZE];
 
     if (snprintf(directory, sizeof(directory), "%s", path) >= (int)sizeof(directory)) {
-        errno = ENAMETOOLONG;
         return false;
     }
 
@@ -871,57 +1092,101 @@ static void report_toml_error(
             break;
         }
         case SF_TOML_PARSE_RESULT_INVALID_ARGUMENT: {
-            log_failure(title, "Internal error: invalid arguments while reading '%s'", path);
+            log_failure(
+                title,
+                "Internal error: Invalid arguments were provided while reading '%s'.",
+                path
+            );
+
             break;
         }
         case SF_TOML_PARSE_RESULT_FAILED_TO_OPEN: {
             log_failure(
-                title, "Failed to open '%s': %s (run this command from the project root)",
+                title,
+                "Failed to open configuration file '%s': %s. Run this command from the project root.",
                 path, detail
             );
+
             break;
         }
         case SF_TOML_PARSE_RESULT_SYNTAX_ERROR: {
-            log_failure(title, "Invalid TOML in '%s': %s", path, detail);
+            log_failure(
+                title,
+                "Invalid TOML syntax in '%s': %s.",
+                path, detail
+            );
+
             break;
         }
         case SF_TOML_PARSE_RESULT_NAME_MISSING: {
-            log_failure(title, "Missing 'project.name' in '%s'", path);
+            log_failure(
+                title,
+                "Missing required field 'project.name' in '%s'.",
+                path
+            );
+
             break;
         }
         case SF_TOML_PARSE_RESULT_NAME_INVALID: {
             log_failure(
                 title,
-                "Invalid 'project.name' in '%s': %s (must be non-empty, not start with '.', no '/')",
+                "Invalid field 'project.name' in '%s': %s. The name must be non-empty, must not start with '.', and must not contain '/'.",
                 path, detail
             );
+
             break;
         }
         case SF_TOML_PARSE_RESULT_EMIT_INVALID: {
             log_failure(
-                title, "Invalid 'build.emit' in '%s': %s (expected asm, obj, bin or lib)",
+                title,
+                "Invalid field 'build.emit' in '%s': %s. Expected one of: asm, obj, bin or lib.",
                 path, detail
             );
+
             break;
         }
         case SF_TOML_PARSE_RESULT_SLFR_FLAGS_INVALID: {
-            log_failure(title, "Invalid 'build.slfr_flags' in '%s': %s", path, detail);
+            log_failure(
+                title,
+                "Invalid field 'build.slfr_flags' in '%s': %s.",
+                path, detail
+            );
+
             break;
         }
         case SF_TOML_PARSE_RESULT_ASM_FLAGS_INVALID: {
-            log_failure(title, "Invalid 'build.asm_flags' in '%s': %s", path, detail);
+            log_failure(
+                title,
+                "Invalid field 'build.asm_flags' in '%s': %s.",
+                path, detail
+            );
+
             break;
         }
         case SF_TOML_PARSE_RESULT_LINK_FLAGS_INVALID: {
-            log_failure(title, "Invalid 'build.link_flags' in '%s': %s", path, detail);
+            log_failure(
+                title,
+                "Invalid field 'build.link_flags' in '%s': %s.",
+                path, detail
+            );
+
             break;
         }
         case SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY: {
-            log_failure(title, "Failed to allocate memory while reading '%s'", path);
+            log_failure(
+                title,
+                "Failed to allocate memory."
+            );
+
             break;
         }
         default: {
-            log_failure(title, "Unknown error while reading '%s'", path);
+            log_failure(
+                title,
+                "An unknown error occurred while reading configuration file '%s'.",
+                path
+            );
+
             break;
         }
     }
@@ -1028,40 +1293,27 @@ static int spawn(const sf_args *args) {
         _exit(EXEC_NOT_FOUND);
     }
 
-    int status;
+    int status = -1;
 
-    while (waitpid(pid, &status, 0) < 0) {
-        if (errno != EINTR) {
-            return -1;
-        }
-    }
+    while (waitpid(pid, &status, 0) < 0);
 
     return status;
 }
 
 static bool run_ok(const sf_args *args) {
-    const char *program = args->items[0];
-
     int status = spawn(args);
 
     if (status == -1) {
-        log_failure("Command failed", "Could not run '%s': %s", program, strerror(errno));
         return false;
     }
 
     if (WIFEXITED(status)) {
         int code = WEXITSTATUS(status);
 
-        if (code == EXEC_NOT_FOUND) {
-            log_failure(
-                "Command not found", "'%s' is not installed or not in PATH",
-                program
-            );
-            return false;
-        }
-
-        if (code != 0) {
-            log_failure("Command failed", "'%s' exited with code %d", program, code);
+        if (
+            code == EXEC_NOT_FOUND ||
+            code != 0
+        ) {
             return false;
         }
 
@@ -1069,14 +1321,9 @@ static bool run_ok(const sf_args *args) {
     }
 
     if (WIFSIGNALED(status)) {
-        log_failure(
-            "Command failed", "'%s' terminated by signal %d (%s)",
-            program, WTERMSIG(status), strsignal(WTERMSIG(status))
-        );
         return false;
     }
 
-    log_failure("Command failed", "'%s' ended in an unknown state", program);
     return false;
 }
 
@@ -1104,6 +1351,7 @@ static void log_block(
         stream, "%s%s%s\n   ",
         color(stream, code), title, color(stream, SF_COLOR_RESET)
     );
+
     vfprintf(stream, msg, args);
     fputc('\n', stream);
 }

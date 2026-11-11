@@ -21,10 +21,18 @@
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/file.h"
 
-static bool compilation_run(sf_compilation *compilation, const sf_compiler_options *options);
-static void compilation_free(sf_compilation *compilation);
+static bool compilation_run(
+    sf_compilation *compilation,
+    const sf_compiler_options *options
+);
 
-static void dump_stages(sf_compilation *compilation);
+static void compilation_free(
+    sf_compilation *compilation
+);
+
+static void dump_stages(
+    sf_compilation *compilation
+);
 
 int main(int argc, char *argv[]) {
     sf_compiler_options options = {
@@ -40,7 +48,12 @@ int main(int argc, char *argv[]) {
     sf_compilation compilation = {0};
 
     sf_log_init();
-    sf_flags_parse(argc, argv, &options);
+
+    sf_flags_parse(
+        argc,
+        argv,
+        &options
+    );
 
     if (
         options.is_module &&
@@ -49,10 +62,14 @@ int main(int argc, char *argv[]) {
         ) == NULL
     ) {
         sf_log(
-            "invalid module", "'%s' is not inside any module search directory",
-            "pass the directory that contains this file with '-m'",
-            "N/A", SF_LOG_DRIVER_UNKNOWN_FLAG, (sf_span){0},
-            SF_LOG_SEVERITY_FATAL, options.file_input
+            "Invalid Module Path.",
+            "'%s' is not inside any module search directory.",
+            "Pass the directory containing this file with '-m'.",
+            "N/A",
+            SF_LOG_DRIVER_INVALID_MODULE_PATH,
+            (sf_span){0},
+            SF_LOG_SEVERITY_FATAL,
+            options.file_input
         );
     }
 
@@ -67,22 +84,34 @@ int main(int argc, char *argv[]) {
 
 static bool compilation_run(sf_compilation *compilation, const sf_compiler_options *options) {
     compilation->input_source = sf_file_read(
-        options->file_input, &compilation->input_size
+        options->file_input,
+        &compilation->input_size
     );
 
-    sf_log_set_source(options->file_input, compilation->input_source);
-    sf_arena_init(&compilation->arena);
+    sf_log_set_source(
+        options->file_input,
+        compilation->input_source
+    );
+
+    sf_arena_init(
+        &compilation->arena
+    );
 
     compilation->preprocessed = sf_preprocess(
-        compilation->input_source, compilation->input_size, options->file_input
+        compilation->input_source,
+        compilation->input_size,
+        options->file_input
     );
 
     compilation->tokens = sf_tokenize(
-        compilation->preprocessed, options->file_input
+        compilation->preprocessed,
+        options->file_input
     );
 
     compilation->ast = sf_parse(
-        &compilation->arena, compilation->tokens, options->file_input
+        &compilation->arena,
+        compilation->tokens,
+        options->file_input
     );
 
     sf_module_resolve(
@@ -96,25 +125,39 @@ static bool compilation_run(sf_compilation *compilation, const sf_compiler_optio
     );
 
     sf_analyze(
-        &compilation->arena, compilation->ast, options->file_input,
-        options, &compilation->modules
+        &compilation->arena,
+        compilation->ast,
+        options->file_input,
+        options,
+        &compilation->modules
     );
 
     compilation->ir = sf_ir_generate(
-        &compilation->arena, compilation->ast
+        &compilation->arena,
+        compilation->ast
     );
 
-    sf_optimize(
-        &compilation->ir
-    );
+    sf_optimize(&compilation->ir);
 
     compilation->assembly = sf_generate_assembly(
-        &compilation->ir, options
+        &compilation->ir,
+        options
     );
 
-    if (options->dump_stages) dump_stages(compilation);
+    if (options->dump_stages) {
+        dump_stages(compilation);
+    }
 
-    return sf_file_write(options->file_output, compilation->assembly);
+    if (sf_log_had_errors()) {
+        return false;
+    }
+
+    sf_file_write(
+        options->file_output,
+        compilation->assembly
+    );
+
+    return true;
 }
 
 static void compilation_free(sf_compilation *compilation) {
@@ -130,6 +173,7 @@ static void dump_stages(sf_compilation *compilation) {
 
     if (compilation->input_source != NULL) {
         printf("\n[Source]:\n\n");
+
         printf("%s", compilation->input_source);
     }
 

@@ -20,10 +20,15 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
         if (strcmp(this_arg, FLAGS_INPUT_FILE) == 0) {
             if (!has_next || next_arg[0] == '-') {
                 sf_log(
-                    "no input file", "No input file was provided after '%s'",
-                    "provide a filename after '%s', or remove the flag",
-                    "N/A", SF_LOG_DRIVER_NO_INPUT_FILE, (sf_span){0},
-                    SF_LOG_SEVERITY_FATAL, FLAGS_INPUT_FILE, FLAGS_INPUT_FILE
+                    "No Input File.",
+                    "No input file was provided after '%s'.",
+                    "Provide a filename after '%s',or remove the flag.",
+                    "N/A",
+                    SF_LOG_DRIVER_NO_INPUT_FILE,
+                    (sf_span){0},
+                    SF_LOG_SEVERITY_FATAL,
+                    FLAGS_INPUT_FILE,
+                    FLAGS_INPUT_FILE
                 );
 
                 return;
@@ -37,10 +42,15 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
         if (strcmp(this_arg, FLAGS_OUTPUT_FILE) == 0) {
             if (!has_next || next_arg[0] == '-') {
                 sf_log(
-                    "no output file", "no output file was provided after '%s'",
-                    "provide a filename after '%s', or remove the flag", "N/A",
-                    SF_LOG_DRIVER_NO_OUTPUT_FILE, (sf_span){0}, SF_LOG_SEVERITY_FATAL,
-                    FLAGS_OUTPUT_FILE, FLAGS_OUTPUT_FILE
+                    "No Output File.",
+                    "No output file was provided after '%s'.",
+                    "Provide a filename after '%s', or remove the flag.",
+                    "N/A",
+                    SF_LOG_DRIVER_NO_OUTPUT_FILE,
+                    (sf_span){0},
+                    SF_LOG_SEVERITY_FATAL,
+                    FLAGS_OUTPUT_FILE,
+                    FLAGS_OUTPUT_FILE
                 );
 
                 return;
@@ -63,9 +73,12 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
             while (has_next && argv[i + 1][0] != '-') {
                 if (!add_module_path(options, argv[++i])) {
                     sf_log(
-                        "insufficient memory", "cannot allocate memory for compiling",
-                        "free some memory and try again", "N/A",
-                        SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0},
+                        "Insufficient Memory.",
+                        "Could not allocate memory for the module search paths.",
+                        "Free some memory and try again.",
+                        "N/A",
+                        SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+                        (sf_span){0},
                         SF_LOG_SEVERITY_FATAL
                     );
 
@@ -78,11 +91,15 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
 
             if (added == 0) {
                 sf_log(
-                    "no module path",
-                    "no module search directories were provided after '%s'",
-                    "provide at least one directory after '%s'",
-                    "N/A", SF_LOG_DRIVER_NO_MODULE_PATH, (sf_span){0},
-                    SF_LOG_SEVERITY_FATAL, FLAGS_MODULE_PATH, FLAGS_MODULE_PATH
+                    "No Module Search Path.",
+                    "No module search directories were provided after '%s'.",
+                    "Provide at least one directory after '%s'.",
+                    "N/A",
+                    SF_LOG_DRIVER_NO_MODULE_PATH,
+                    (sf_span){0},
+                    SF_LOG_SEVERITY_FATAL,
+                    FLAGS_MODULE_PATH,
+                    FLAGS_MODULE_PATH
                 );
 
                 return;
@@ -97,10 +114,14 @@ void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
         }
 
         sf_log(
-            "unknown flag", "unrecognized flag '%s'",
-            "check available flags or remove this flag",
-            "N/A", SF_LOG_DRIVER_UNKNOWN_FLAG, (sf_span){0},
-            SF_LOG_SEVERITY_FATAL, argv[i]
+            "Unknown Flag.",
+            "Unrecognized flag '%s'.",
+            "Check the available flags or remove this flag.",
+            "N/A",
+            SF_LOG_DRIVER_UNKNOWN_FLAG,
+            (sf_span){0},
+            SF_LOG_SEVERITY_FATAL,
+            argv[i]
         );
     }
 }

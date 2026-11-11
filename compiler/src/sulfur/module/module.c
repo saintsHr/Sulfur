@@ -16,7 +16,9 @@
 #include "sulfur/utils/string.h"
 
 static bool find_module_index(
-    sf_module_list *list, const char *filename, size_t *index
+    sf_module_list *list,
+    const char *filename,
+    size_t *index
 );
 
 static bool add_module(
@@ -50,7 +52,9 @@ static char *join_path(
     const char *filename
 );
 
-static bool file_exists(const char *filename);
+static bool file_exists(
+    const char *filename
+);
 
 static char *find_module_path(
     const char *filename,
@@ -80,7 +84,9 @@ void sf_module_resolve(
 }
 
 const char *sf_module_name_from_path(
-    const char *file, const char **module_paths, size_t module_path_count
+    const char *file,
+    const char **module_paths,
+    size_t module_path_count
 ) {
     if (strncmp(file, "./", 2) == 0) file += 2;
 
@@ -101,7 +107,9 @@ const char *sf_module_name_from_path(
 }
 
 static bool find_module_index(
-    sf_module_list *list, const char *filename, size_t *index
+    sf_module_list *list,
+    const char *filename,
+    size_t *index
 ) {
     for (size_t i = 0; i < list->module_count; i++) {
         if (strcmp(list->modules[i].filename, filename) == 0) {
@@ -129,9 +137,13 @@ static bool add_module(
 
     if (modules == NULL) {
         sf_log(
-            "insufficient memory", "cannot allocate memory for compiling",
-            "free some memory and try again", "N/A",
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            "Insufficient Memory.",
+            "Unable to allocate memory while compiling.",
+            "Free some memory and try again.",
+            "N/A",
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0},
+            SF_LOG_SEVERITY_FATAL
         );
 
         return false;
@@ -182,11 +194,14 @@ static void resolve_import(
 
     if (filename == NULL) {
         sf_log(
-            "module not found",
-            "unable to find module '%s'",
-            "check the import path and configured module search directories",
-            importer_filename, SF_LOG_MODULE_NOT_FOUND, import->base.span,
-            SF_LOG_SEVERITY_ERROR, import->path
+            "Module Not Found.",
+            "Unable to find module '%s'.",
+            "Check the import path and configured module search directories.",
+            importer_filename,
+            SF_LOG_MODULE_NOT_FOUND,
+            import->base.span,
+            SF_LOG_SEVERITY_ERROR,
+            import->path
         );
 
         return;
@@ -258,9 +273,13 @@ static char *join_path(
 
     if (path == NULL) {
         sf_log(
-            "insufficient memory", "cannot allocate memory for compiling",
-            "free some memory and try again", "N/A",
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+            "Insufficient Memory.",
+            "Unable to allocate memory while compiling.",
+            "Free some memory and try again.",
+            "N/A",
+            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
+            (sf_span){0},
+            SF_LOG_SEVERITY_FATAL
         );
 
         return NULL;
