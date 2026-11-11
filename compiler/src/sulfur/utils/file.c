@@ -22,7 +22,7 @@ char *sf_file_read(const char *filename, size_t *size) {
     }
 
     fseek(file, 0, SEEK_END);
-    size_t read_size = ftell(file);
+    size_t read_size = (size_t)ftell(file);
     rewind(file);
     *size = read_size;
 

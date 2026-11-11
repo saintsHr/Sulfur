@@ -94,7 +94,7 @@ typedef struct {
 
     sf_qualifiers qualifiers;
 
-    char *name;
+    const char *name;
 
     size_t next_temp;
 

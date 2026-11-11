@@ -86,7 +86,7 @@ foreach(f
     -Wmissing-declarations -Wredundant-decls -Wnested-externs
     -Wformat=2 -Wformat-security -Wundef -Wcast-align
     -Wcast-qual -Wpointer-arith -Wwrite-strings
-    -Wbad-function-cast -Wswitch-enum -Wswitch-default
+    -Wbad-function-cast -Wswitch-default
     -Wimplicit-fallthrough -Wunused -Wunused-macros
     -Wuninitialized -Winit-self -Wnull-dereference
     -Wdouble-promotion -Wvla -Walloca -Wstrict-aliasing=2

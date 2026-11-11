@@ -39,8 +39,7 @@ void sf_var_symbol_table_free(sf_var_symbol_table *table) {
 }
 
 void sf_var_symbol_table_insert(
-    sf_var_symbol_table *table, sf_var_symbol symbol,
-    const char *filename
+    sf_var_symbol_table *table, sf_var_symbol symbol
 ) {
     if (table->count >= table->capacity) {
         table->capacity = table->capacity == 0 ? 8 : table->capacity * 2;

@@ -44,7 +44,7 @@ sf_var_symbol *sf_var_symbol_table_lookup(
 );
 void sf_var_symbol_table_free(sf_var_symbol_table *table);
 void sf_var_symbol_table_insert(
-    sf_var_symbol_table *table, sf_var_symbol symbol, const char *filename
+    sf_var_symbol_table *table, sf_var_symbol symbol
 );
 
 void sf_func_symbol_table_init(sf_func_symbol_table *table);

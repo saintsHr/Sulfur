@@ -97,7 +97,7 @@ void scope_insert(sf_scope *scope, sf_var_symbol symbol, const char *filename) {
     symbol.depth = scope->depth - 1;
 
     sf_var_symbol_table *table = &scope->stack[scope->depth - 1];
-    sf_var_symbol_table_insert(table, symbol, filename);
+    sf_var_symbol_table_insert(table, symbol);
 }
 
 void scope_free(sf_scope *scope) {

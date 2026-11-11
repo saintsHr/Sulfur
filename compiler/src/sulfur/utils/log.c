@@ -141,11 +141,14 @@ static const char *severity_label(sf_log_severity sev) {
         case SF_LOG_SEVERITY_FATAL: {
             return SF_LOG_COLOR_RED "fatal" SF_LOG_COLOR_RESET;
         }
-    }
 
-    return "";
+        default: {
+            return "";
+        }
+    }
 }
 
+__attribute__((format(printf, 3, 0)))
 static void format_message(char *buf, size_t size, const char *fmt, va_list *args) {
     if (fmt == NULL) {
         buf[0] = '\0';

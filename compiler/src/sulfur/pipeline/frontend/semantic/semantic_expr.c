@@ -24,8 +24,7 @@ static bool analyze_logical(
     sf_value_type ltype, sf_value_type rtype
 );
 static bool analyze_shift(
-    sf_semantic *s, sf_binary_node *bin,
-    sf_value_type ltype, sf_value_type rtype
+    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype
 );
 static bool analyze_relational(
     sf_semantic *s, sf_binary_node *bin,
@@ -121,7 +120,7 @@ static bool analyze_binary(
     }
 
     if (sf_op_is_shift(bin->op)) {
-        return analyze_shift(s, bin, ltype, rtype);
+        return analyze_shift(s, bin, ltype);
     }
 
     if (sf_op_is_relational(bin->op)) {
@@ -196,8 +195,7 @@ static bool analyze_logical(
 }
 
 static bool analyze_shift(
-    sf_semantic *s, sf_binary_node *bin,
-    sf_value_type ltype, sf_value_type rtype
+    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype
 ) {
     bin->base.resolved = ltype;
 

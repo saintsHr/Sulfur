@@ -365,6 +365,10 @@ static bool command_build(int argc, char **argv) {
         case SF_TOML_PARSE_RESULT_FAILED_TO_ALLOCATE_MEMORY:
             log_failure("Build failed", "Failed to allocate memory");
             goto cleanup;
+
+        default: {
+            break;
+        }
     }
 
     if (!collect_slfr_files("src", &source_files)) {
@@ -479,16 +483,16 @@ static bool command_build(int argc, char **argv) {
     }
 
     switch (cfg.emit) {
-        case SF_EMIT_ASM:
+        case SF_EMIT_ASM: {
             log_success("Build done", "Assembly emitted to '%s'", asm_folder);
             success = true;
             break;
-
-        case SF_EMIT_OBJ:
+        }
+        case SF_EMIT_OBJ: {
             log_success("Build done", "Objects emitted to '%s'", obj_folder);
             success = true;
             break;
-
+        }
         case SF_EMIT_LIB: {
             char file_name[PATH_BUFFER_SIZE];
 
@@ -513,8 +517,7 @@ static bool command_build(int argc, char **argv) {
             success = true;
             break;
         }
-
-        case SF_EMIT_BIN:
+        case SF_EMIT_BIN: {
             if (!format_path(output_path, sizeof(output_path), bin_folder, cfg.name, "")) {
                 log_failure("Build failed", "Path too long for binary '%s'", cfg.name);
                 goto cleanup;
@@ -530,6 +533,11 @@ static bool command_build(int argc, char **argv) {
 
             success = true;
             break;
+        }
+
+        default: {
+            break;
+        }
     }
 
 cleanup:
@@ -900,6 +908,7 @@ static void log_failure(const char *title, const char *msg, ...) {
     putchar('\n');
 }
 
+__attribute__((format(printf, 2, 3)))
 static void log_success(const char *title, const char *msg, ...) {
     printf(SF_COLOR_GREEN "%s\n" SF_COLOR_RESET "   ", title);
 
@@ -911,6 +920,7 @@ static void log_success(const char *title, const char *msg, ...) {
     putchar('\n');
 }
 
+__attribute__((format(printf, 2, 3)))
 static void log_action(const char *action, const char *msg, ...) {
     printf(SF_COLOR_CYAN "[%s] " SF_COLOR_RESET, action);
 

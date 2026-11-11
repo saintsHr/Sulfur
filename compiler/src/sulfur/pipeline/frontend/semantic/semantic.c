@@ -33,8 +33,7 @@ static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym);
 static bool analyze_program(
     sf_arena *arena, sf_module_list *modules, sf_program_node *program,
     const char *filename, sf_func_symbol_table *funcs,
-    const sf_compiler_options *options, bool is_root,
-    const char *module_name
+    const sf_compiler_options *options, bool is_root
 );
 static bool analyze_module(
     sf_arena *arena, sf_module_list *modules, size_t index,
@@ -57,7 +56,6 @@ static void check_entry_return(sf_semantic *semantic, const sf_func_symbol *entr
 
 static bool stmt_always_returns(sf_ast_node *node);
 static bool has_no_effect(sf_ast_node *node);
-static bool has_qualifiers(sf_func_symbol sym);
 static bool shadows_parameter(sf_semantic *semantic, const char *name);
 
 bool sf_analyze(
@@ -68,15 +66,9 @@ bool sf_analyze(
     sf_func_symbol_table funcs;
     sf_func_symbol_table_init(&funcs);
 
-    const char *module_name = options->is_module
-        ? sf_module_name_from_path(
-            filename, options->module_paths, options->module_path_count
-        )
-        : NULL;
-
     bool ok = analyze_program(
         arena, modules, program, filename, &funcs,
-        options, !options->is_module, module_name
+        options, !options->is_module
     );
 
     sf_func_symbol_table_free(&funcs);
@@ -102,8 +94,7 @@ void sf_semantic_report_qualified_unsupported(sf_semantic *s, sf_span span) {
 static bool analyze_program(
     sf_arena *arena, sf_module_list *modules, sf_program_node *program,
     const char *filename, sf_func_symbol_table *funcs,
-    const sf_compiler_options *options, bool is_root,
-    const char *module_name
+    const sf_compiler_options *options, bool is_root
 ) {
     sf_scope scope;
     scope_init(&scope);
@@ -183,7 +174,7 @@ static bool analyze_module(
     sf_func_symbol_table_init(&mod->funcs);
 
     bool ok = analyze_program(
-        arena, modules, mod->ast, mod->filename, &mod->funcs, options, false, mod->name
+        arena, modules, mod->ast, mod->filename, &mod->funcs, options, false
     );
 
     mod->analysis = ok ? SF_MODULE_ANALYSIS_DONE : SF_MODULE_ANALYSIS_FAILED;
@@ -918,18 +909,6 @@ static bool has_no_effect(sf_ast_node *node) {
             return false;
         }
     }
-}
-
-static bool has_qualifiers(sf_func_symbol sym) {
-    if (
-        sym.qualifiers.is_mutable ||
-        sym.qualifiers.is_public ||
-        sym.qualifiers.is_extern
-    ) {
-        return true;
-    }
-
-    return false;
 }
 
 static bool shadows_parameter(sf_semantic *semantic, const char *name) {

@@ -13,7 +13,6 @@
 #include "sulfur/utils/type_utils.h"
 
 static const sf_ir_operand k_no_operand = {0};
-static char k_empty_name[] = "";
 
 static void push(sf_arena *arena, sf_ir_context *context, sf_ir_operation operation);
 static void emit(
@@ -21,7 +20,6 @@ static void emit(
     sf_ir_operand a, sf_ir_operand b, sf_ir_operand c
 );
 
-static sf_ir_context context_from_program(sf_ir_program *program);
 static sf_ir_context context_from_function(sf_ir_function *function);
 
 static sf_ir_operand new_label(sf_ir_program *program);
@@ -111,7 +109,7 @@ static void collect_externs(sf_arena *arena, sf_ir_program *ir);
 
 sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program) {
     sf_ir_program ir = {0};
-    sf_ir_context ctx = context_from_program(&ir);
+    sf_ir_context ctx = {0};
 
     for (size_t i = 0; i < program->statement_count; i++) {
         generate_statement(arena, &ctx, &ir, program->statements[i]);
@@ -189,15 +187,6 @@ static void emit(
             .operand3 = c,
         }
     );
-}
-
-static sf_ir_context context_from_program(sf_ir_program *program) {
-    return (sf_ir_context){
-        .operations = NULL,
-        .operation_count = 0,
-        .operation_capacity = 0,
-        .next_temp = 0,
-    };
 }
 
 static sf_ir_context context_from_function(sf_ir_function *function) {
@@ -418,7 +407,7 @@ static void generate_function(
     sf_arena *arena, sf_ir_program *program, sf_func_decl_node *func
 ) {
     sf_ir_function func_ir = {
-        .name = (char *)(func->link_name != NULL ? func->link_name : func->name),
+        .name = (func->link_name != NULL ? func->link_name : func->name),
         .parameters = func->parameters,
         .parameter_count = func->parameter_count,
         .return_type = func->return_type,
@@ -645,6 +634,10 @@ static void print_operand(sf_ir_operand op) {
             printf("%s", op.function_name);
             break;
         }
+
+        default: {
+            break;
+        }
     }
 }
 
@@ -822,7 +815,7 @@ static sf_ir_operand generate_call(
 
     sf_ir_operand func_operand = {
         .type = SF_IR_OPERAND_TYPE_FUNCTION,
-        .function_name = (char *)call->link_name,
+        .function_name = call->link_name,
         .value_type = call->base.resolved
     };
 
