@@ -13,15 +13,8 @@ typedef struct {
     size_t depth;
 } sf_namespace_stack;
 
-bool sf_namespace_push_path(
-    sf_namespace_stack *ns,
-    const sf_path *path
-);
+bool sf_namespace_push_path(sf_namespace_stack *ns, const sf_path *path);
 bool sf_namespace_format(
-    char *buf,
-    size_t cap,
-    const sf_namespace_stack *ns,
-    size_t prefix_depth,
-    const sf_path_segment *segs,
-    size_t seg_count
+    char *buf, size_t cap, const sf_namespace_stack *ns, size_t prefix_depth,
+    const sf_path_segment *segs, size_t seg_count
 );

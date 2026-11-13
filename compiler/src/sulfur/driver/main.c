@@ -22,18 +22,14 @@
 #include "sulfur/utils/log.h"
 
 static bool compilation_run(
-    sf_compilation *compilation,
-    const sf_compiler_options *options
+    sf_compilation *compilation, const sf_compiler_options *options
 );
 
 static void compilation_free(sf_compilation *compilation);
 
 static void dump_stages(sf_compilation *compilation);
 
-int main(
-    int argc,
-    char *argv[]
-) {
+int main(int argc, char *argv[]) {
     sf_compiler_options options = {
         .file_input = "input.slfr",
         .file_output = "output.asm",
@@ -57,12 +53,9 @@ int main(
         sf_log(
             "Invalid Module Path.",
             "'%s' is not inside any module search directory.",
-            "Pass the directory containing this file with '-m'.",
-            "N/A",
-            SF_LOG_DRIVER_INVALID_MODULE_PATH,
-            (sf_span){0},
-            SF_LOG_SEVERITY_FATAL,
-            options.file_input
+            "Pass the directory containing this file with '-m'.", "N/A",
+            SF_LOG_DRIVER_INVALID_MODULE_PATH, (sf_span){0},
+            SF_LOG_SEVERITY_FATAL, options.file_input
         );
     }
 
@@ -76,8 +69,7 @@ int main(
 }
 
 static bool compilation_run(
-    sf_compilation *compilation,
-    const sf_compiler_options *options
+    sf_compilation *compilation, const sf_compiler_options *options
 ) {
     compilation->input_source =
         sf_file_read(options->file_input, &compilation->input_size);
@@ -97,20 +89,13 @@ static bool compilation_run(
         sf_parse(&compilation->arena, compilation->tokens, options->file_input);
 
     sf_module_resolve(
-        compilation->ast->imports,
-        compilation->ast->import_count,
-        options->file_input,
-        &compilation->modules,
-        options->module_paths,
-        options->module_path_count,
-        &compilation->arena
+        compilation->ast->imports, compilation->ast->import_count,
+        options->file_input, &compilation->modules, options->module_paths,
+        options->module_path_count, &compilation->arena
     );
 
     sf_analyze(
-        &compilation->arena,
-        compilation->ast,
-        options->file_input,
-        options,
+        &compilation->arena, compilation->ast, options->file_input, options,
         &compilation->modules
     );
 

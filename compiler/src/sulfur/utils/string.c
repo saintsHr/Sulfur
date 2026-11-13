@@ -19,10 +19,7 @@ char *sf_string_dup(const char *str) {
     return copy;
 }
 
-char *sf_string_dup_arena(
-    sf_arena *arena,
-    const char *str
-) {
+char *sf_string_dup_arena(sf_arena *arena, const char *str) {
     size_t size = strlen(str) + 1;
 
     char *copy = sf_arena_alloc(arena, size);
@@ -36,10 +33,7 @@ char *sf_string_dup_arena(
 }
 
 bool sf_string_push(
-    const char *src,
-    char **dst,
-    size_t *len,
-    size_t *capacity
+    const char *src, char **dst, size_t *len, size_t *capacity
 ) {
     if (src == NULL || dst == NULL || *dst == NULL || len == NULL ||
         capacity == NULL) {
@@ -82,10 +76,7 @@ bool sf_string_push(
     return true;
 }
 
-size_t sf_string_distance(
-    const char *a,
-    const char *b
-) {
+size_t sf_string_distance(const char *a, const char *b) {
     size_t a_len = strlen(a);
     size_t b_len = strlen(b);
 

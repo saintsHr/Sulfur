@@ -9,68 +9,34 @@
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/type_utils.h"
 
-static bool literal_magnitude(
-    const sf_ast_node *node,
-    uint64_t *out_value
-);
+static bool literal_magnitude(const sf_ast_node *node, uint64_t *out_value);
 
 static bool eval_uint_binary(
-    sf_ir_operation_type op,
-    uint64_t l,
-    uint64_t r,
-    uint64_t *out_value
+    sf_ir_operation_type op, uint64_t l, uint64_t r, uint64_t *out_value
 );
 static bool eval_int_binary(
-    sf_ir_operation_type op,
-    int64_t l,
-    int64_t r,
-    int64_t *out_value
+    sf_ir_operation_type op, int64_t l, int64_t r, int64_t *out_value
 );
-static bool eval_int_negate(
-    const sf_unary_node *un,
-    int64_t *out_value
-);
-static bool eval_bool_binary(
-    sf_binary_node *bin,
-    bool *out_value
-);
-static bool eval_relational(
-    sf_binary_node *bin,
-    bool *out_value
-);
+static bool eval_int_negate(const sf_unary_node *un, int64_t *out_value);
+static bool eval_bool_binary(sf_binary_node *bin, bool *out_value);
+static bool eval_relational(sf_binary_node *bin, bool *out_value);
 
 static bool compare_int(
-    sf_ir_operation_type op,
-    int64_t l,
-    int64_t r,
-    bool *out_value
+    sf_ir_operation_type op, int64_t l, int64_t r, bool *out_value
 );
 static bool compare_uint(
-    sf_ir_operation_type op,
-    uint64_t l,
-    uint64_t r,
-    bool *out_value
+    sf_ir_operation_type op, uint64_t l, uint64_t r, bool *out_value
 );
 
-static bool signed_fits(
-    sf_value_type type,
-    int64_t value
-);
+static bool signed_fits(sf_value_type type, int64_t value);
 static bool check_signed_overflow(
-    sf_ast_node *node,
-    sf_value_type resolved,
-    const char *filename
+    sf_ast_node *node, sf_value_type resolved, const char *filename
 );
 static bool check_unsigned_overflow(
-    sf_ast_node *node,
-    sf_value_type resolved,
-    const char *filename
+    sf_ast_node *node, sf_value_type resolved, const char *filename
 );
 
-bool sf_const_eval_uint(
-    sf_ast_node *node,
-    uint64_t *out_value
-) {
+bool sf_const_eval_uint(sf_ast_node *node, uint64_t *out_value) {
     if (node->type == SF_NODE_LITERAL) {
         return literal_magnitude(node, out_value);
     }
@@ -93,10 +59,7 @@ bool sf_const_eval_uint(
     return eval_uint_binary(bin->op, l, r, out_value);
 }
 
-bool sf_const_eval_int(
-    sf_ast_node *node,
-    int64_t *out_value
-) {
+bool sf_const_eval_int(sf_ast_node *node, int64_t *out_value) {
     if (node->type == SF_NODE_LITERAL) {
         uint64_t magnitude;
 
@@ -134,10 +97,7 @@ bool sf_const_eval_int(
     return eval_int_binary(bin->op, l, r, out_value);
 }
 
-bool sf_const_eval_bool(
-    sf_ast_node *node,
-    bool *out_value
-) {
+bool sf_const_eval_bool(sf_ast_node *node, bool *out_value) {
     if (node->type == SF_NODE_LITERAL) {
         sf_literal_node *lit = (sf_literal_node *)node;
 
@@ -179,9 +139,7 @@ bool sf_const_eval_bool(
 }
 
 bool sf_const_check_overflow(
-    sf_ast_node *node,
-    sf_value_type resolved,
-    const char *filename
+    sf_ast_node *node, sf_value_type resolved, const char *filename
 ) {
     if (sf_type_value_is_signed(resolved)) {
         return check_signed_overflow(node, resolved, filename);
@@ -190,10 +148,7 @@ bool sf_const_check_overflow(
     return check_unsigned_overflow(node, resolved, filename);
 }
 
-bool sf_const_is_zero(
-    sf_ast_node *node,
-    bool is_signed
-) {
+bool sf_const_is_zero(sf_ast_node *node, bool is_signed) {
     if (is_signed) {
         int64_t value;
         return sf_const_eval_int(node, &value) && value == 0;
@@ -203,11 +158,7 @@ bool sf_const_is_zero(
     return sf_const_eval_uint(node, &value) && value == 0;
 }
 
-void sf_const_warn(
-    sf_semantic *s,
-    sf_ast_node *node,
-    const char *desc
-) {
+void sf_const_warn(sf_semantic *s, sf_ast_node *node, const char *desc) {
     bool value;
 
     if (!sf_const_eval_bool(node, &value)) {
@@ -215,21 +166,13 @@ void sf_const_warn(
     }
 
     sf_log(
-        "constant condition",
-        desc,
-        "check the operands and operators",
-        s->filename,
-        SF_LOG_SEMANTIC_CONSTANT_EXPR,
-        node->span,
-        SF_LOG_SEVERITY_WARNING,
-        value ? "true" : "false"
+        "Constant Condition", desc, "Check the operands and operators.",
+        s->filename, SF_LOG_SEMANTIC_CONSTANT_EXPR, node->span,
+        SF_LOG_SEVERITY_WARNING, value ? "true" : "false"
     );
 }
 
-static bool literal_magnitude(
-    const sf_ast_node *node,
-    uint64_t *out_value
-) {
+static bool literal_magnitude(const sf_ast_node *node, uint64_t *out_value) {
     if (node->type != SF_NODE_LITERAL) {
         return false;
     }
@@ -252,169 +195,160 @@ static bool literal_magnitude(
 }
 
 static bool eval_uint_binary(
-    sf_ir_operation_type op,
-    uint64_t l,
-    uint64_t r,
-    uint64_t *out_value
+    sf_ir_operation_type op, uint64_t l, uint64_t r, uint64_t *out_value
 ) {
     switch (op) {
-    case SF_OP_TYPE_ADD: {
-        if (r > UINT64_MAX - l) {
+        case SF_OP_TYPE_ADD: {
+            if (r > UINT64_MAX - l) {
+                return false;
+            }
+
+            *out_value = l + r;
+            return true;
+        }
+        case SF_OP_TYPE_SUB: {
+            if (l < r) {
+                return false;
+            }
+
+            *out_value = l - r;
+            return true;
+        }
+        case SF_OP_TYPE_MUL: {
+            if (l != 0 && r > UINT64_MAX / l) {
+                return false;
+            }
+
+            *out_value = l * r;
+            return true;
+        }
+        case SF_OP_TYPE_DIV: {
+            if (r == 0) {
+                return false;
+            }
+
+            *out_value = l / r;
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_LSHIFT: {
+            if (r >= 64) {
+                return false;
+            }
+
+            *out_value = l << r;
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_RSHIFT: {
+            if (r >= 64) {
+                return false;
+            }
+
+            *out_value = l >> r;
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_AND: {
+            *out_value = l & r;
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_OR: {
+            *out_value = l | r;
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_XOR: {
+            *out_value = l ^ r;
+            return true;
+        }
+        default: {
             return false;
         }
-
-        *out_value = l + r;
-        return true;
-    }
-    case SF_OP_TYPE_SUB: {
-        if (l < r) {
-            return false;
-        }
-
-        *out_value = l - r;
-        return true;
-    }
-    case SF_OP_TYPE_MUL: {
-        if (l != 0 && r > UINT64_MAX / l) {
-            return false;
-        }
-
-        *out_value = l * r;
-        return true;
-    }
-    case SF_OP_TYPE_DIV: {
-        if (r == 0) {
-            return false;
-        }
-
-        *out_value = l / r;
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_LSHIFT: {
-        if (r >= 64) {
-            return false;
-        }
-
-        *out_value = l << r;
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_RSHIFT: {
-        if (r >= 64) {
-            return false;
-        }
-
-        *out_value = l >> r;
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_AND: {
-        *out_value = l & r;
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_OR: {
-        *out_value = l | r;
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_XOR: {
-        *out_value = l ^ r;
-        return true;
-    }
-    default: {
-        return false;
-    }
     }
 }
 
 static bool eval_int_binary(
-    sf_ir_operation_type op,
-    int64_t l,
-    int64_t r,
-    int64_t *out_value
+    sf_ir_operation_type op, int64_t l, int64_t r, int64_t *out_value
 ) {
     switch (op) {
-    case SF_OP_TYPE_ADD: {
-        if (r > 0 && l > INT64_MAX - r) {
+        case SF_OP_TYPE_ADD: {
+            if (r > 0 && l > INT64_MAX - r) {
+                return false;
+            }
+
+            if (r < 0 && l < INT64_MIN - r) {
+                return false;
+            }
+
+            *out_value = l + r;
+            return true;
+        }
+        case SF_OP_TYPE_SUB: {
+            if (r < 0 && l > INT64_MAX + r) {
+                return false;
+            }
+
+            if (r > 0 && l < INT64_MIN + r) {
+                return false;
+            }
+
+            *out_value = l - r;
+            return true;
+        }
+        case SF_OP_TYPE_MUL: {
+            int64_t result;
+
+            if (__builtin_mul_overflow(l, r, &result)) {
+                return false;
+            }
+
+            *out_value = result;
+            return true;
+        }
+        case SF_OP_TYPE_DIV: {
+            if (r == 0) {
+                return false;
+            }
+
+            if (l == INT64_MIN && r == -1) {
+                return false;
+            }
+
+            *out_value = l / r;
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_LSHIFT: {
+            if (r < 0 || r >= 64) {
+                return false;
+            }
+
+            *out_value = (int64_t)((uint64_t)l << r);
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_RSHIFT: {
+            if (r < 0 || r >= 64) {
+                return false;
+            }
+
+            *out_value = l >> r;
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_AND: {
+            *out_value = l & r;
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_OR: {
+            *out_value = l | r;
+            return true;
+        }
+        case SF_OP_TYPE_BITWISE_XOR: {
+            *out_value = l ^ r;
+            return true;
+        }
+        default: {
             return false;
         }
-
-        if (r < 0 && l < INT64_MIN - r) {
-            return false;
-        }
-
-        *out_value = l + r;
-        return true;
-    }
-    case SF_OP_TYPE_SUB: {
-        if (r < 0 && l > INT64_MAX + r) {
-            return false;
-        }
-
-        if (r > 0 && l < INT64_MIN + r) {
-            return false;
-        }
-
-        *out_value = l - r;
-        return true;
-    }
-    case SF_OP_TYPE_MUL: {
-        int64_t result;
-
-        if (__builtin_mul_overflow(l, r, &result)) {
-            return false;
-        }
-
-        *out_value = result;
-        return true;
-    }
-    case SF_OP_TYPE_DIV: {
-        if (r == 0) {
-            return false;
-        }
-
-        if (l == INT64_MIN && r == -1) {
-            return false;
-        }
-
-        *out_value = l / r;
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_LSHIFT: {
-        if (r < 0 || r >= 64) {
-            return false;
-        }
-
-        *out_value = (int64_t)((uint64_t)l << r);
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_RSHIFT: {
-        if (r < 0 || r >= 64) {
-            return false;
-        }
-
-        *out_value = l >> r;
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_AND: {
-        *out_value = l & r;
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_OR: {
-        *out_value = l | r;
-        return true;
-    }
-    case SF_OP_TYPE_BITWISE_XOR: {
-        *out_value = l ^ r;
-        return true;
-    }
-    default: {
-        return false;
-    }
     }
 }
 
-static bool eval_int_negate(
-    const sf_unary_node *un,
-    int64_t *out_value
-) {
+static bool eval_int_negate(const sf_unary_node *un, int64_t *out_value) {
     if (un->op != SF_OP_TYPE_NEGATE) {
         return false;
     }
@@ -453,10 +387,7 @@ static bool eval_int_negate(
     return true;
 }
 
-static bool eval_bool_binary(
-    sf_binary_node *bin,
-    bool *out_value
-) {
+static bool eval_bool_binary(sf_binary_node *bin, bool *out_value) {
     if (sf_op_is_logical(bin->op)) {
         bool l, r;
 
@@ -480,10 +411,7 @@ static bool eval_bool_binary(
     return false;
 }
 
-static bool eval_relational(
-    sf_binary_node *bin,
-    bool *out_value
-) {
+static bool eval_relational(sf_binary_node *bin, bool *out_value) {
     sf_value_type type = bin->left->resolved;
 
     if (type == SF_VAL_TYPE_BOOL) {
@@ -536,103 +464,92 @@ static bool eval_relational(
 }
 
 static bool compare_int(
-    sf_ir_operation_type op,
-    int64_t l,
-    int64_t r,
-    bool *out_value
+    sf_ir_operation_type op, int64_t l, int64_t r, bool *out_value
 ) {
     switch (op) {
-    case SF_OP_TYPE_RELATIONAL_EQUAL: {
-        *out_value = l == r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_NOT_EQUAL: {
-        *out_value = l != r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_LESS: {
-        *out_value = l < r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_LESS_EQUAL: {
-        *out_value = l <= r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_GREATER: {
-        *out_value = l > r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_GREATER_EQUAL: {
-        *out_value = l >= r;
-        return true;
-    }
-    default: {
-        return false;
-    }
+        case SF_OP_TYPE_RELATIONAL_EQUAL: {
+            *out_value = l == r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_NOT_EQUAL: {
+            *out_value = l != r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_LESS: {
+            *out_value = l < r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_LESS_EQUAL: {
+            *out_value = l <= r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_GREATER: {
+            *out_value = l > r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_GREATER_EQUAL: {
+            *out_value = l >= r;
+            return true;
+        }
+        default: {
+            return false;
+        }
     }
 }
 
 static bool compare_uint(
-    sf_ir_operation_type op,
-    uint64_t l,
-    uint64_t r,
-    bool *out_value
+    sf_ir_operation_type op, uint64_t l, uint64_t r, bool *out_value
 ) {
     switch (op) {
-    case SF_OP_TYPE_RELATIONAL_EQUAL: {
-        *out_value = l == r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_NOT_EQUAL: {
-        *out_value = l != r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_LESS: {
-        *out_value = l < r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_LESS_EQUAL: {
-        *out_value = l <= r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_GREATER: {
-        *out_value = l > r;
-        return true;
-    }
-    case SF_OP_TYPE_RELATIONAL_GREATER_EQUAL: {
-        *out_value = l >= r;
-        return true;
-    }
-    default: {
-        return false;
-    }
+        case SF_OP_TYPE_RELATIONAL_EQUAL: {
+            *out_value = l == r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_NOT_EQUAL: {
+            *out_value = l != r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_LESS: {
+            *out_value = l < r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_LESS_EQUAL: {
+            *out_value = l <= r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_GREATER: {
+            *out_value = l > r;
+            return true;
+        }
+        case SF_OP_TYPE_RELATIONAL_GREATER_EQUAL: {
+            *out_value = l >= r;
+            return true;
+        }
+        default: {
+            return false;
+        }
     }
 }
 
-static bool signed_fits(
-    sf_value_type type,
-    int64_t value
-) {
+static bool signed_fits(sf_value_type type, int64_t value) {
     switch (type) {
-    case SF_VAL_TYPE_I8: {
-        return value >= INT8_MIN && value <= INT8_MAX;
-    }
-    case SF_VAL_TYPE_I16: {
-        return value >= INT16_MIN && value <= INT16_MAX;
-    }
-    case SF_VAL_TYPE_I32: {
-        return value >= INT32_MIN && value <= INT32_MAX;
-    }
-    default: {
-        return true;
-    }
+        case SF_VAL_TYPE_I8: {
+            return value >= INT8_MIN && value <= INT8_MAX;
+        }
+        case SF_VAL_TYPE_I16: {
+            return value >= INT16_MIN && value <= INT16_MAX;
+        }
+        case SF_VAL_TYPE_I32: {
+            return value >= INT32_MIN && value <= INT32_MAX;
+        }
+        default: {
+            return true;
+        }
     }
 }
 
 static bool check_signed_overflow(
-    sf_ast_node *node,
-    sf_value_type resolved,
-    const char *filename
+    sf_ast_node *node, sf_value_type resolved, const char *filename
 ) {
     int64_t value;
 
@@ -645,26 +562,20 @@ static bool check_signed_overflow(
     }
 
     sf_log(
-        "constant expression overflow",
-        "the constant expression evaluates to '%lld', which does not fit in "
-        "type '%s'",
-        "the expression overflows at compile time; use a wider type or "
-        "restructure the expression",
-        filename,
-        SF_LOG_SEMANTIC_LITERAL_OVERFLOW,
-        node->span,
-        SF_LOG_SEVERITY_ERROR,
-        (long long)value,
-        sf_type_value_name(resolved)
+        "Constant Expression Overflow",
+        "The constant expression evaluates to '%lld', which does not fit in "
+        "type '%s'.",
+        "The expression overflows at compile time; use a wider type or "
+        "restructure the expression.",
+        filename, SF_LOG_SEMANTIC_LITERAL_OVERFLOW, node->span,
+        SF_LOG_SEVERITY_ERROR, (long long)value, sf_type_value_name(resolved)
     );
 
     return false;
 }
 
 static bool check_unsigned_overflow(
-    sf_ast_node *node,
-    sf_value_type resolved,
-    const char *filename
+    sf_ast_node *node, sf_value_type resolved, const char *filename
 ) {
     uint64_t value;
 
@@ -684,16 +595,13 @@ static bool check_unsigned_overflow(
         if (sf_const_eval_uint(bin->left, &l) &&
             sf_const_eval_uint(bin->right, &r) && l < r) {
             sf_log(
-                "constant expression underflow",
-                "the constant expression '%llu - %llu' underflows for an "
-                "unsigned type",
-                "unsigned subtraction cannot produce a negative result; check "
-                "operand order or use a signed type",
-                filename,
-                SF_LOG_SEMANTIC_LITERAL_OVERFLOW,
-                node->span,
-                SF_LOG_SEVERITY_ERROR,
-                (unsigned long long)l,
+                "Constant Expression Underflow",
+                "The constant expression '%llu - %llu' underflows for an "
+                "unsigned type.",
+                "Unsigned subtraction cannot produce a negative result, check "
+                "operand order or use a signed type.",
+                filename, SF_LOG_SEMANTIC_LITERAL_OVERFLOW, node->span,
+                SF_LOG_SEVERITY_ERROR, (unsigned long long)l,
                 (unsigned long long)r
             );
 
@@ -708,16 +616,13 @@ static bool check_unsigned_overflow(
     }
 
     sf_log(
-        "constant expression overflow",
-        "the constant expression evaluates to '%llu', which does not fit in "
-        "type '%s'",
-        "the expression overflows at compile time; use a wider type or "
-        "restructure the expression",
-        filename,
-        SF_LOG_SEMANTIC_LITERAL_OVERFLOW,
-        node->span,
-        SF_LOG_SEVERITY_ERROR,
-        (unsigned long long)value,
+        "Constant Expression Overflow",
+        "The constant expression evaluates to '%llu', which does not fit in "
+        "Type '%s'.",
+        "The expression overflows at compile time; use a wider type or "
+        "Restructure the expression.",
+        filename, SF_LOG_SEMANTIC_LITERAL_OVERFLOW, node->span,
+        SF_LOG_SEVERITY_ERROR, (unsigned long long)value,
         sf_type_value_name(resolved)
     );
 

@@ -8,22 +8,16 @@
 
 #include "sulfur/utils/log.h"
 
-char *sf_file_read(
-    const char *filename,
-    size_t *size
-) {
+char *sf_file_read(const char *filename, size_t *size) {
     FILE *file = fopen(filename, "rb");
 
     if (file == NULL) {
         sf_log(
-            "cannot open file",
-            "unable to open file '%s' for reading",
-            "make sure the file exists and the path is correct",
-            filename,
-            SF_LOG_DRIVER_CANNOT_OPEN_FILE,
-            (sf_span){0},
-            SF_LOG_SEVERITY_FATAL,
-            filename
+            "File Open Failed.", "Unable to open file '%s' for reading.",
+            "Verify that the file exists, the path is correct, and read "
+            "permissions are granted.",
+            filename, SF_LOG_DRIVER_CANNOT_OPEN_FILE, (sf_span){0},
+            SF_LOG_SEVERITY_FATAL, filename
         );
 
         return NULL;
@@ -39,15 +33,7 @@ char *sf_file_read(
     if (content == NULL) {
         fclose(file);
 
-        sf_log(
-            "insufficient memory",
-            "cannot allocate memory for compiling",
-            "free some memory and try again",
-            NULL,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-            (sf_span){0},
-            SF_LOG_SEVERITY_FATAL
-        );
+        sf_log_out_of_memory("N/A");
 
         return NULL;
     }
@@ -66,22 +52,16 @@ char *sf_file_read(
     return content;
 }
 
-bool sf_file_write(
-    const char *filename,
-    const char *content
-) {
+bool sf_file_write(const char *filename, const char *content) {
     FILE *file = fopen(filename, "wb");
 
     if (file == NULL) {
         sf_log(
-            "cannot open file",
-            "unable to open file '%s' for writing",
-            "check disk space and write permissions, then try again",
-            filename,
-            SF_LOG_DRIVER_CANNOT_OPEN_FILE,
-            (sf_span){0},
-            SF_LOG_SEVERITY_FATAL,
-            filename
+            "File Open Failed.", "Unable to open file '%s' for writing.",
+            "Verify that the destination path is valid, the directory exists, "
+            "and write permissions are granted.",
+            filename, SF_LOG_DRIVER_CANNOT_OPEN_FILE, (sf_span){0},
+            SF_LOG_SEVERITY_FATAL, filename
         );
 
         return false;
@@ -96,8 +76,11 @@ bool sf_file_write(
 bool sf_file_make_parents(const char *path) {
     char *tmp = malloc(strlen(path) + 1);
     if (tmp == NULL) {
+        sf_log_out_of_memory("N/A");
+
         return false;
     }
+
     strcpy(tmp, path);
 
     for (char *p = tmp + 1; *p != '\0'; p++) {

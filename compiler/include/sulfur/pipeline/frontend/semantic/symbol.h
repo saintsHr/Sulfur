@@ -40,28 +40,22 @@ typedef struct {
 
 void sf_var_symbol_table_init(sf_var_symbol_table *table);
 sf_var_symbol *sf_var_symbol_table_lookup(
-    sf_var_symbol_table *table,
-    const char *name
+    sf_var_symbol_table *table, const char *name
 );
 void sf_var_symbol_table_free(sf_var_symbol_table *table);
 void sf_var_symbol_table_insert(
-    sf_var_symbol_table *table,
-    sf_var_symbol symbol
+    sf_var_symbol_table *table, sf_var_symbol symbol
 );
 
 void sf_func_symbol_table_init(sf_func_symbol_table *table);
 sf_func_symbol *sf_func_symbol_table_lookup(
-    sf_func_symbol_table *table,
-    const char *name
+    sf_func_symbol_table *table, const char *name
 );
 void sf_func_symbol_table_free(sf_func_symbol_table *table);
 bool sf_func_symbol_table_insert(
-    sf_func_symbol_table *table,
-    sf_func_symbol func,
-    const char *filename
+    sf_func_symbol_table *table, sf_func_symbol func, const char *filename
 );
 
 const char *sf_func_symbol_table_find_closest(
-    const sf_func_symbol_table *table,
-    const char *name
+    const sf_func_symbol_table *table, const char *name
 );

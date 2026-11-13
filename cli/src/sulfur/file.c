@@ -175,10 +175,7 @@ bool sf_delete_file(const char *path) {
     return remove(path) == 0;
 }
 
-bool sf_write_file(
-    const char *path,
-    const char *content
-) {
+bool sf_write_file(const char *path, const char *content) {
     if (path == NULL || content == NULL) {
         errno = EINVAL;
         return false;
@@ -215,10 +212,7 @@ bool sf_write_file(
     return close(fd) == 0;
 }
 
-bool sf_read_file(
-    const char *path,
-    char **content
-) {
+bool sf_read_file(const char *path, char **content) {
     if (path == NULL || content == NULL) {
         errno = EINVAL;
         return false;
@@ -303,10 +297,7 @@ bool has_slfr_extension(const char *path) {
     return ext != NULL && strcmp(ext, ".slfr") == 0;
 }
 
-bool collect_slfr_files(
-    const char *dir_path,
-    sf_files *files
-) {
+bool collect_slfr_files(const char *dir_path, sf_files *files) {
     DIR *dir = opendir(dir_path);
 
     if (dir == NULL) {

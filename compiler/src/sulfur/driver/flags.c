@@ -5,16 +5,9 @@
 
 #include "sulfur/utils/log.h"
 
-static bool add_module_path(
-    sf_compiler_options *options,
-    const char *path
-);
+static bool add_module_path(sf_compiler_options *options, const char *path);
 
-void sf_flags_parse(
-    int argc,
-    char *argv[],
-    sf_compiler_options *options
-) {
+void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options) {
     for (int i = 1; i < argc; i++) {
         bool has_next = i + 1 < argc;
 
@@ -24,15 +17,10 @@ void sf_flags_parse(
         if (strcmp(this_arg, FLAGS_INPUT_FILE) == 0) {
             if (!has_next || next_arg[0] == '-') {
                 sf_log(
-                    "No Input File.",
-                    "No input file was provided after '%s'.",
-                    "Provide a filename after '%s',or remove the flag.",
-                    "N/A",
-                    SF_LOG_DRIVER_NO_INPUT_FILE,
-                    (sf_span){0},
-                    SF_LOG_SEVERITY_FATAL,
-                    FLAGS_INPUT_FILE,
-                    FLAGS_INPUT_FILE
+                    "No Input File.", "No input file was provided after '%s'.",
+                    "Provide a filename after '%s',or remove the flag.", "N/A",
+                    SF_LOG_DRIVER_NO_INPUT_FILE, (sf_span){0},
+                    SF_LOG_SEVERITY_FATAL, FLAGS_INPUT_FILE, FLAGS_INPUT_FILE
                 );
 
                 return;
@@ -48,13 +36,9 @@ void sf_flags_parse(
                 sf_log(
                     "No Output File.",
                     "No output file was provided after '%s'.",
-                    "Provide a filename after '%s', or remove the flag.",
-                    "N/A",
-                    SF_LOG_DRIVER_NO_OUTPUT_FILE,
-                    (sf_span){0},
-                    SF_LOG_SEVERITY_FATAL,
-                    FLAGS_OUTPUT_FILE,
-                    FLAGS_OUTPUT_FILE
+                    "Provide a filename after '%s', or remove the flag.", "N/A",
+                    SF_LOG_DRIVER_NO_OUTPUT_FILE, (sf_span){0},
+                    SF_LOG_SEVERITY_FATAL, FLAGS_OUTPUT_FILE, FLAGS_OUTPUT_FILE
                 );
 
                 return;
@@ -76,16 +60,7 @@ void sf_flags_parse(
 
             while (has_next && argv[i + 1][0] != '-') {
                 if (!add_module_path(options, argv[++i])) {
-                    sf_log(
-                        "Insufficient Memory.",
-                        "Could not allocate memory for the module search "
-                        "paths.",
-                        "Free some memory and try again.",
-                        "N/A",
-                        SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-                        (sf_span){0},
-                        SF_LOG_SEVERITY_FATAL
-                    );
+                    sf_log_out_of_memory("N/A");
 
                     return;
                 }
@@ -98,13 +73,9 @@ void sf_flags_parse(
                 sf_log(
                     "No Module Search Path.",
                     "No module search directories were provided after '%s'.",
-                    "Provide at least one directory after '%s'.",
-                    "N/A",
-                    SF_LOG_DRIVER_NO_MODULE_PATH,
-                    (sf_span){0},
-                    SF_LOG_SEVERITY_FATAL,
-                    FLAGS_MODULE_PATH,
-                    FLAGS_MODULE_PATH
+                    "Provide at least one directory after '%s'.", "N/A",
+                    SF_LOG_DRIVER_NO_MODULE_PATH, (sf_span){0},
+                    SF_LOG_SEVERITY_FATAL, FLAGS_MODULE_PATH, FLAGS_MODULE_PATH
                 );
 
                 return;
@@ -119,30 +90,23 @@ void sf_flags_parse(
         }
 
         sf_log(
-            "Unknown Flag.",
-            "Unrecognized flag '%s'.",
-            "Check the available flags or remove this flag.",
-            "N/A",
-            SF_LOG_DRIVER_UNKNOWN_FLAG,
-            (sf_span){0},
-            SF_LOG_SEVERITY_FATAL,
+            "Unknown Flag.", "Unrecognized flag '%s'.",
+            "Check the available flags or remove this flag.", "N/A",
+            SF_LOG_DRIVER_UNKNOWN_FLAG, (sf_span){0}, SF_LOG_SEVERITY_FATAL,
             argv[i]
         );
     }
 }
 
-static bool add_module_path(
-    sf_compiler_options *options,
-    const char *path
-) {
+static bool add_module_path(sf_compiler_options *options, const char *path) {
     if (path == NULL) {
         return false;
     }
 
     if (options->module_path_count == options->module_path_capacity) {
-        size_t new_capacity = options->module_path_capacity == 0
-                                  ? 4
-                                  : options->module_path_capacity * 2;
+        size_t new_capacity = options->module_path_capacity == 0 ?
+                                  4 :
+                                  options->module_path_capacity * 2;
 
         const char **paths =
             realloc(options->module_paths, new_capacity * sizeof(char *));

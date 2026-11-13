@@ -14,8 +14,8 @@ typedef struct {
 } sf_binary_level;
 
 static const sf_binary_level k_binary_levels[] = {
-    {{SF_TOKEN_TYPE_PIPE_PIPE}, 1, true},
-    {{SF_TOKEN_TYPE_AMP_AMP}, 1, true},
+    {{SF_TOKEN_TYPE_PIPE_PIPE},                             1, true},
+    {{SF_TOKEN_TYPE_AMP_AMP},                               1, true},
     {{
          SF_TOKEN_TYPE_EQUAL_EQUAL,
          SF_TOKEN_TYPE_BANG_EQUAL,
@@ -23,43 +23,36 @@ static const sf_binary_level k_binary_levels[] = {
          SF_TOKEN_TYPE_LESS_EQUAL,
          SF_TOKEN_TYPE_GREATER,
          SF_TOKEN_TYPE_GREATER_EQUAL,
-     },
-     6,
-     false},
-    {{SF_TOKEN_TYPE_PIPE}, 1, true},
-    {{SF_TOKEN_TYPE_CARET}, 1, true},
-    {{SF_TOKEN_TYPE_AMP}, 1, true},
+     },                                                6,
+     false                                                         },
+    {{SF_TOKEN_TYPE_PIPE},                                  1, true},
+    {{SF_TOKEN_TYPE_CARET},                                 1, true},
+    {{SF_TOKEN_TYPE_AMP},                                   1, true},
     {{SF_TOKEN_TYPE_LEFT_SHIFT, SF_TOKEN_TYPE_RIGHT_SHIFT}, 2, true},
-    {{SF_TOKEN_TYPE_PLUS, SF_TOKEN_TYPE_MINUS}, 2, true},
-    {{SF_TOKEN_TYPE_STAR, SF_TOKEN_TYPE_SLASH}, 2, true},
+    {{SF_TOKEN_TYPE_PLUS, SF_TOKEN_TYPE_MINUS},             2, true},
+    {{SF_TOKEN_TYPE_STAR, SF_TOKEN_TYPE_SLASH},             2, true},
 };
 
 #define SF_BINARY_LEVEL_COUNT                                                  \
     (sizeof(k_binary_levels) / sizeof(k_binary_levels[0]))
 
 static bool level_has_operator(
-    const sf_binary_level *level,
-    sf_token_type type
+    const sf_binary_level *level, sf_token_type type
 );
 
-static sf_ast_node *parse_binary(
-    sf_parser *p,
-    size_t level
-);
+static sf_ast_node *parse_binary(sf_parser *p, size_t level);
 static sf_ast_node *parse_cast(sf_parser *p);
 static sf_ast_node *parse_unary(sf_parser *p);
 static sf_ast_node *parse_postfix(sf_parser *p);
-static sf_ast_node *parse_call(
-    sf_parser *p,
-    sf_identifier_node *callee
-);
+static sf_ast_node *parse_call(sf_parser *p, sf_identifier_node *callee);
 static sf_ast_node *parse_primary(sf_parser *p);
 
-sf_ast_node *sf_parse_expression(sf_parser *p) { return parse_binary(p, 0); }
+sf_ast_node *sf_parse_expression(sf_parser *p) {
+    return parse_binary(p, 0);
+}
 
 static bool level_has_operator(
-    const sf_binary_level *level,
-    sf_token_type type
+    const sf_binary_level *level, sf_token_type type
 ) {
     for (size_t i = 0; i < level->op_count; i++) {
         if (level->ops[i] == type) {
@@ -70,10 +63,7 @@ static bool level_has_operator(
     return false;
 }
 
-static sf_ast_node *parse_binary(
-    sf_parser *p,
-    size_t level
-) {
+static sf_ast_node *parse_binary(sf_parser *p, size_t level) {
     if (level >= SF_BINARY_LEVEL_COUNT) {
         return parse_cast(p);
     }
@@ -129,10 +119,8 @@ static sf_ast_node *parse_cast(sf_parser *p) {
         sf_value_type target_type;
 
         if (!sf_parser_expect_type(
-                p,
-                &target_type,
-                "a type keyword after 'as'",
-                "use any type keyword"
+                p, &target_type, "a type keyword after 'as'",
+                "Use any type keyword."
             )) {
             sf_parser_recover_expression(p);
             return NULL;
@@ -197,10 +185,7 @@ static sf_ast_node *parse_postfix(sf_parser *p) {
     return operand;
 }
 
-static sf_ast_node *parse_call(
-    sf_parser *p,
-    sf_identifier_node *callee
-) {
+static sf_ast_node *parse_call(sf_parser *p, sf_identifier_node *callee) {
     sf_parser_advance(p);
 
     sf_func_call_node *call_node = sf_new_func_call_node(
@@ -278,10 +263,8 @@ static sf_ast_node *parse_primary(sf_parser *p) {
     }
 
     sf_parser_report_unexpected(
-        p,
-        token,
-        "an expression",
-        "check for a missing or misplaced token nearby"
+        p, token, "an expression",
+        "Check for a missing or misplaced token nearby."
     );
 
     sf_parser_recover_expression(p);

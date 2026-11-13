@@ -2,9 +2,6 @@
 
 #include <stdbool.h>
 
-bool cmd_parse(
-    int argc,
-    char **argv
-);
+bool cmd_parse(int argc, char **argv);
 
 void cmd_print_usage(void);

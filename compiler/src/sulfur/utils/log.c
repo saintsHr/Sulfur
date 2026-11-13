@@ -27,64 +27,38 @@ static char *g_cache_content = NULL;
 
 static size_t g_error_count = 0;
 
-static void emit_log(
-    sf_log_info info,
-    va_list *args
-);
+static void emit_log(sf_log_info info, va_list *args);
 
 static const char *severity_label(sf_log_severity sev);
 static void format_message(
-    char *buf,
-    size_t size,
-    const char *fmt,
-    va_list *args
+    char *buf, size_t size, const char *fmt, va_list *args
 );
 static const char *find_line(
-    const char *content,
-    size_t target_line,
-    size_t *out_len
+    const char *content, size_t target_line, size_t *out_len
 );
 
 static void print_source_snippet(
-    sf_span span,
-    const char *content,
-    const char *msg
+    sf_span span, const char *content, const char *msg
 );
 static void print_highlighted_line(
-    const char *line_num,
-    const char *line,
-    size_t line_len,
-    size_t col_start,
+    const char *line_num, const char *line, size_t line_len, size_t col_start,
     size_t col_end
 );
 static void print_underline(
-    int gutter,
-    const char *line,
-    size_t line_len,
-    size_t col,
-    size_t carets,
+    int gutter, const char *line, size_t line_len, size_t col, size_t carets,
     const char *msg
 );
 
 static const char *load_source(const char *file);
 
-void sf_log_set_source(
-    const char *filename,
-    const char *content
-) {
+void sf_log_set_source(const char *filename, const char *content) {
     g_source_filename = filename;
     g_source_content = content;
 }
 
 void sf_log(
-    const char *title,
-    const char *desc,
-    const char *hint,
-    const char *file,
-    sf_log_error_code_num code,
-    sf_span span,
-    sf_log_severity sev,
-    ...
+    const char *title, const char *desc, const char *hint, const char *file,
+    sf_log_error_code_num code, sf_span span, sf_log_severity sev, ...
 ) {
     sf_log_info info = {
         .title = title,
@@ -102,7 +76,9 @@ void sf_log(
     va_end(args);
 }
 
-void sf_log_init(void) { g_error_count = 0; }
+void sf_log_init(void) {
+    g_error_count = 0;
+}
 
 void sf_log_shutdown(void) {
     free(g_cache_filename);
@@ -111,12 +87,11 @@ void sf_log_shutdown(void) {
     g_cache_content = NULL;
 }
 
-bool sf_log_had_errors(void) { return g_error_count > 0; }
+bool sf_log_had_errors(void) {
+    return g_error_count > 0;
+}
 
-static void emit_log(
-    sf_log_info info,
-    va_list *args
-) {
+static void emit_log(sf_log_info info, va_list *args) {
     char title[SF_LOG_BUFFER_SIZE];
     char desc[SF_LOG_BUFFER_SIZE];
     char hint[SF_LOG_BUFFER_SIZE];
@@ -132,18 +107,14 @@ static void emit_log(
 
     printf(
         "%s " SF_LOG_COLOR_BRIGHT_BLACK "[0x%04x]" SF_LOG_COLOR_RESET ": %s\n",
-        severity_label(info.sev),
-        (unsigned int)info.code,
-        title
+        severity_label(info.sev), (unsigned int)info.code, title
     );
 
     if (info.span.line > 0) {
         printf(
             SF_LOG_COLOR_BRIGHT_BLUE "  --> from: " SF_LOG_COLOR_RESET
                                      "%s:%zu:%zu\n",
-            file,
-            info.span.line,
-            info.span.col
+            file, info.span.line, info.span.col
         );
 
         print_source_snippet(
@@ -174,35 +145,27 @@ static void emit_log(
 
 static const char *severity_label(sf_log_severity sev) {
     switch (sev) {
-    case SF_LOG_SEVERITY_INFO: {
-        return SF_LOG_COLOR_BRIGHT_CYAN "info" SF_LOG_COLOR_RESET;
-    }
-    case SF_LOG_SEVERITY_WARNING: {
-        return SF_LOG_COLOR_BRIGHT_MAGENTA "warning" SF_LOG_COLOR_RESET;
-    }
-    case SF_LOG_SEVERITY_ERROR: {
-        return SF_LOG_COLOR_BRIGHT_RED "error" SF_LOG_COLOR_RESET;
-    }
-    case SF_LOG_SEVERITY_FATAL: {
-        return SF_LOG_COLOR_RED "fatal" SF_LOG_COLOR_RESET;
-    }
+        case SF_LOG_SEVERITY_INFO: {
+            return SF_LOG_COLOR_BRIGHT_CYAN "info" SF_LOG_COLOR_RESET;
+        }
+        case SF_LOG_SEVERITY_WARNING: {
+            return SF_LOG_COLOR_BRIGHT_MAGENTA "warning" SF_LOG_COLOR_RESET;
+        }
+        case SF_LOG_SEVERITY_ERROR: {
+            return SF_LOG_COLOR_BRIGHT_RED "error" SF_LOG_COLOR_RESET;
+        }
+        case SF_LOG_SEVERITY_FATAL: {
+            return SF_LOG_COLOR_RED "fatal" SF_LOG_COLOR_RESET;
+        }
 
-    default: {
-        return "";
-    }
+        default: {
+            return "";
+        }
     }
 }
 
-__attribute__((format(
-    printf,
-    3,
-    0
-))) static void
-format_message(
-    char *buf,
-    size_t size,
-    const char *fmt,
-    va_list *args
+__attribute__((format(printf, 3, 0))) static void format_message(
+    char *buf, size_t size, const char *fmt, va_list *args
 ) {
     if (fmt == NULL) {
         buf[0] = '\0';
@@ -213,9 +176,7 @@ format_message(
 }
 
 static const char *find_line(
-    const char *content,
-    size_t target_line,
-    size_t *out_len
+    const char *content, size_t target_line, size_t *out_len
 ) {
     if (content == NULL) {
         return NULL;
@@ -240,9 +201,7 @@ static const char *find_line(
 }
 
 static void print_source_snippet(
-    sf_span span,
-    const char *content,
-    const char *msg
+    sf_span span, const char *content, const char *msg
 ) {
     if (span.line == 0 || content == NULL) {
         return;
@@ -278,10 +237,7 @@ static void print_source_snippet(
 }
 
 static void print_highlighted_line(
-    const char *line_num,
-    const char *line,
-    size_t line_len,
-    size_t col_start,
+    const char *line_num, const char *line, size_t line_len, size_t col_start,
     size_t col_end
 ) {
     printf(SF_LOG_COLOR_BRIGHT_BLUE "%s | " SF_LOG_COLOR_RESET, line_num);
@@ -291,8 +247,7 @@ static void print_highlighted_line(
     if (col_end > col_start) {
         printf(
             SF_LOG_COLOR_BRIGHT_RED "%.*s" SF_LOG_COLOR_RESET,
-            (int)(col_end - col_start),
-            line + col_start
+            (int)(col_end - col_start), line + col_start
         );
     }
 
@@ -304,11 +259,7 @@ static void print_highlighted_line(
 }
 
 static void print_underline(
-    int gutter,
-    const char *line,
-    size_t line_len,
-    size_t col,
-    size_t carets,
+    int gutter, const char *line, size_t line_len, size_t col, size_t carets,
     const char *msg
 ) {
     printf(SF_LOG_COLOR_BRIGHT_BLUE "%*s| " SF_LOG_COLOR_RESET, gutter + 1, "");
@@ -368,4 +319,12 @@ static const char *load_source(const char *file) {
     g_cache_content = content;
 
     return g_cache_content;
+}
+
+void sf_log_out_of_memory(const char *filename) {
+    sf_log(
+        "Insufficient Memory.", "Cannot allocate memory for compiling.",
+        "Free some memory and try again.", filename,
+        SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+    );
 }

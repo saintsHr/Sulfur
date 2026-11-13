@@ -33,6 +33,7 @@ typedef enum {
     SF_LOG_PARSER_UNEXPECTED_TOKEN = 0x4000,
     SF_LOG_PARSER_REPEATED_QUALIFIER = 0x4001,
     SF_LOG_PARSER_INVALID_IMPORT = 0x4002,
+    SF_LOG_PARSER_INVALID_NAMESPACE = 0x4003,
 
     SF_LOG_SEMANTIC_REDECLARATION = 0x5000,
     SF_LOG_SEMANTIC_REDEFINITION = 0x5001,
@@ -49,7 +50,7 @@ typedef enum {
     SF_LOG_SEMANTIC_VOID_RETURN_VALUE = 0x500c,
     SF_LOG_SEMANTIC_MISSING_RETURN = 0x500d,
     SF_LOG_SEMANTIC_INVALID_TYPE = 0x500e,
-    SF_LOG_SEMANTIC_NO_MAIN_FUNCTION = 0x500f,
+    SF_LOG_SEMANTIC_NO_ENTRY_POINT = 0x500f,
     SF_LOG_SEMANTIC_INVALID_RETURN_TYPE = 0x5010,
     SF_LOG_SEMANTIC_INVALID_PARAMETERS = 0x5011,
     SF_LOG_SEMANTIC_INVALID_ASSIGN = 0x5012,
@@ -60,9 +61,11 @@ typedef enum {
     SF_LOG_SEMANTIC_USELESS_CAST = 0x5017,
     SF_LOG_SEMANTIC_ARGUMENT_COUNT = 0x5018,
     SF_LOG_SEMANTIC_CYCLIC_IMPORT = 0x5019,
-    SF_LOG_SEMANTIC_INVALID_NAMESPACE = 0x501A,
-    SF_LOG_SEMANTIC_NAME_TOO_LONG = 0x501B,
-    SF_LOG_SEMANTIC_INVALID_CALL = 0x501C,
+    SF_LOG_SEMANTIC_INVALID_NAMESPACE = 0x501a,
+    SF_LOG_SEMANTIC_NAME_TOO_LONG = 0x501b,
+    SF_LOG_SEMANTIC_INVALID_CALL = 0x501c,
+    SF_LOG_SEMANTIC_INVALID_OPERAND = 0x501d,
+    SF_LOG_SEMANTIC_INVALID_LITERAL = 0x501e,
 
     SF_LOG_MODULE_NOT_FOUND = 0x6000
 } sf_log_error_code;
@@ -79,20 +82,13 @@ typedef struct {
 
 void sf_log_init(void);
 void sf_log_shutdown(void);
-void sf_log_set_source(
-    const char *filename,
-    const char *content
-);
+void sf_log_set_source(const char *filename, const char *content);
 
 bool sf_log_had_errors(void);
 
 void sf_log(
-    const char *title,
-    const char *desc,
-    const char *hint,
-    const char *file,
-    sf_log_error_code_num code,
-    sf_span span,
-    sf_log_severity sev,
-    ...
+    const char *title, const char *desc, const char *hint, const char *file,
+    sf_log_error_code_num code, sf_span span, sf_log_severity sev, ...
 );
+
+void sf_log_out_of_memory(const char *filename);

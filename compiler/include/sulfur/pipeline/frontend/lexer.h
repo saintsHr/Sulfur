@@ -107,10 +107,7 @@ typedef struct {
     size_t capacity;
 } sf_token_list;
 
-sf_token_list sf_tokenize(
-    const char *input,
-    const char *filename
-);
+sf_token_list sf_tokenize(const char *input, const char *filename);
 
 void sf_tokens_print(const sf_token_list *list);
 void sf_tokens_free(sf_token_list *list);

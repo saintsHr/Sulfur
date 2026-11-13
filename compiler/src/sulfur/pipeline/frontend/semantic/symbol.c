@@ -6,22 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-static bool has_same_name(
-    sf_func_symbol a,
-    sf_func_symbol b
-);
-static bool has_same_parameters(
-    sf_func_symbol a,
-    sf_func_symbol b
-);
-static bool has_same_return_type(
-    sf_func_symbol a,
-    sf_func_symbol b
-);
-static bool has_same_signature(
-    sf_func_symbol a,
-    sf_func_symbol b
-);
+static bool has_same_name(sf_func_symbol a, sf_func_symbol b);
+static bool has_same_parameters(sf_func_symbol a, sf_func_symbol b);
+static bool has_same_return_type(sf_func_symbol a, sf_func_symbol b);
+static bool has_same_signature(sf_func_symbol a, sf_func_symbol b);
 static bool is_definition(sf_func_symbol func);
 
 void sf_var_symbol_table_init(sf_var_symbol_table *table) {
@@ -31,8 +19,7 @@ void sf_var_symbol_table_init(sf_var_symbol_table *table) {
 }
 
 sf_var_symbol *sf_var_symbol_table_lookup(
-    sf_var_symbol_table *table,
-    const char *name
+    sf_var_symbol_table *table, const char *name
 ) {
     for (uint64_t i = 0; i < table->count; i++) {
         if (strcmp(table->symbols[i].name, name) == 0) {
@@ -52,8 +39,7 @@ void sf_var_symbol_table_free(sf_var_symbol_table *table) {
 }
 
 void sf_var_symbol_table_insert(
-    sf_var_symbol_table *table,
-    sf_var_symbol symbol
+    sf_var_symbol_table *table, sf_var_symbol symbol
 ) {
     if (table->count >= table->capacity) {
         table->capacity = table->capacity == 0 ? 8 : table->capacity * 2;
@@ -72,8 +58,7 @@ void sf_func_symbol_table_init(sf_func_symbol_table *table) {
 }
 
 sf_func_symbol *sf_func_symbol_table_lookup(
-    sf_func_symbol_table *table,
-    const char *name
+    sf_func_symbol_table *table, const char *name
 ) {
     for (uint64_t i = 0; i < table->count; i++) {
         if (strcmp(table->functions[i].name, name) == 0) {
@@ -93,20 +78,15 @@ void sf_func_symbol_table_free(sf_func_symbol_table *table) {
 }
 
 bool sf_func_symbol_table_insert(
-    sf_func_symbol_table *table,
-    sf_func_symbol func,
-    const char *filename
+    sf_func_symbol_table *table, sf_func_symbol func, const char *filename
 ) {
     if (func.qualifiers.is_extern && is_definition(func)) {
         sf_log(
-            "invalid definition",
-            "extern function '%s' cannot be defined here",
-            "do not define extern functions where it is declared",
-            filename,
-            SF_LOG_SEMANTIC_INVALID_DEFINITION,
-            func.span,
-            SF_LOG_SEVERITY_ERROR,
-            func.name
+            "Invalid Definition",
+            "Extern function '%s' cannot be defined here.",
+            "Do not define extern functions where it is declared.", filename,
+            SF_LOG_SEMANTIC_INVALID_DEFINITION, func.span,
+            SF_LOG_SEVERITY_ERROR, func.name
         );
 
         return false;
@@ -117,28 +97,21 @@ bool sf_func_symbol_table_insert(
     if (existing != NULL) {
         if (!is_definition(func)) {
             sf_log(
-                "redeclaration",
-                "'%s' is already declared",
-                "remove the duplicate declaration",
-                filename,
-                SF_LOG_SEMANTIC_REDECLARATION,
-                func.span,
-                SF_LOG_SEVERITY_WARNING,
-                func.name
+                "Redeclaration", "'%s' is already declared.",
+                "Remove the duplicate declaration.", filename,
+                SF_LOG_SEMANTIC_REDECLARATION, func.span,
+                SF_LOG_SEVERITY_WARNING, func.name
             );
         }
 
         if (!has_same_signature(func, *existing)) {
             sf_log(
-                "conflicting declaration",
-                "'%s' was previously declared with a different signature",
-                "make the return type and parameters match the previous "
-                "declaration",
-                filename,
-                SF_LOG_SEMANTIC_CONFLICTING_DECLARATION,
-                func.span,
-                SF_LOG_SEVERITY_ERROR,
-                func.name
+                "Conflicting Declaration",
+                "'%s' was previously declared with a different signature.",
+                "Make the return type and parameters match the previous "
+                "declaration.",
+                filename, SF_LOG_SEMANTIC_CONFLICTING_DECLARATION, func.span,
+                SF_LOG_SEVERITY_ERROR, func.name
             );
 
             return false;
@@ -146,14 +119,10 @@ bool sf_func_symbol_table_insert(
 
         if (is_definition(func) && is_definition(*existing)) {
             sf_log(
-                "redefinition",
-                "'%s' is already defined",
-                "rename the new function, or remove the duplicate definition",
-                filename,
-                SF_LOG_SEMANTIC_REDEFINITION,
-                func.span,
-                SF_LOG_SEVERITY_ERROR,
-                func.name
+                "Redefinition", "'%s' is already defined.",
+                "Rename the new function, or remove the duplicate definition.",
+                filename, SF_LOG_SEMANTIC_REDEFINITION, func.span,
+                SF_LOG_SEVERITY_ERROR, func.name
             );
 
             return false;
@@ -180,8 +149,7 @@ bool sf_func_symbol_table_insert(
 }
 
 const char *sf_func_symbol_table_find_closest(
-    const sf_func_symbol_table *table,
-    const char *name
+    const sf_func_symbol_table *table, const char *name
 ) {
     const char *best_candidate = NULL;
     size_t minimal_distance = UINT32_MAX;
@@ -205,20 +173,14 @@ const char *sf_func_symbol_table_find_closest(
     return best_candidate;
 }
 
-static bool has_same_name(
-    sf_func_symbol a,
-    sf_func_symbol b
-) {
+static bool has_same_name(sf_func_symbol a, sf_func_symbol b) {
     if (strcmp(a.name, b.name) == 0) {
         return true;
     }
     return false;
 }
 
-static bool has_same_parameters(
-    sf_func_symbol a,
-    sf_func_symbol b
-) {
+static bool has_same_parameters(sf_func_symbol a, sf_func_symbol b) {
     if (a.parameter_count != b.parameter_count) {
         return false;
     }
@@ -235,17 +197,11 @@ static bool has_same_parameters(
     return true;
 }
 
-static bool has_same_return_type(
-    sf_func_symbol a,
-    sf_func_symbol b
-) {
+static bool has_same_return_type(sf_func_symbol a, sf_func_symbol b) {
     return a.return_type == b.return_type;
 }
 
-static bool has_same_signature(
-    sf_func_symbol a,
-    sf_func_symbol b
-) {
+static bool has_same_signature(sf_func_symbol a, sf_func_symbol b) {
     if (has_same_return_type(a, b) && has_same_parameters(a, b) &&
         has_same_name(a, b)) {
         return true;
@@ -254,4 +210,6 @@ static bool has_same_signature(
     return false;
 }
 
-static bool is_definition(sf_func_symbol func) { return func.defined == true; }
+static bool is_definition(sf_func_symbol func) {
+    return func.defined == true;
+}

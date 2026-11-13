@@ -16,75 +16,47 @@
 #include "sulfur/utils/string.h"
 
 static bool find_module_index(
-    sf_module_list *list,
-    const char *filename,
-    size_t *index
+    sf_module_list *list, const char *filename, size_t *index
 );
 
 static bool add_module(
-    sf_arena *arena,
-    sf_module_list *list,
-    sf_module module,
-    size_t *index
+    sf_arena *arena, sf_module_list *list, sf_module module, size_t *index
 );
 
 static void resolve_import(
-    sf_import_node *import,
-    const char *importer_filename,
-    sf_module_list *modules,
-    const char **module_paths,
-    size_t module_path_count,
-    sf_arena *arena
+    sf_import_node *import, const char *importer_filename,
+    sf_module_list *modules, const char **module_paths,
+    size_t module_path_count, sf_arena *arena
 );
 
 static void resolve_imports(
-    sf_import_node **imports,
-    size_t import_count,
-    const char *importer_filename,
-    sf_module_list *modules,
-    const char **module_paths,
-    size_t module_path_count,
-    sf_arena *arena
+    sf_import_node **imports, size_t import_count,
+    const char *importer_filename, sf_module_list *modules,
+    const char **module_paths, size_t module_path_count, sf_arena *arena
 );
 
-static char *join_path(
-    const char *directory,
-    const char *filename
-);
+static char *join_path(const char *directory, const char *filename);
 
 static bool file_exists(const char *filename);
 
 static char *find_module_path(
-    const char *filename,
-    const char **module_paths,
-    size_t module_path_count,
+    const char *filename, const char **module_paths, size_t module_path_count,
     sf_arena *arena
 );
 
 void sf_module_resolve(
-    sf_import_node **imports,
-    size_t import_count,
-    const char *importer_filename,
-    sf_module_list *modules,
-    const char **module_paths,
-    size_t module_path_count,
-    sf_arena *arena
+    sf_import_node **imports, size_t import_count,
+    const char *importer_filename, sf_module_list *modules,
+    const char **module_paths, size_t module_path_count, sf_arena *arena
 ) {
     resolve_imports(
-        imports,
-        import_count,
-        importer_filename,
-        modules,
-        module_paths,
-        module_path_count,
-        arena
+        imports, import_count, importer_filename, modules, module_paths,
+        module_path_count, arena
     );
 }
 
 const char *sf_module_name_from_path(
-    const char *file,
-    const char **module_paths,
-    size_t module_path_count
+    const char *file, const char **module_paths, size_t module_path_count
 ) {
     if (strncmp(file, "./", 2) == 0) {
         file += 2;
@@ -111,9 +83,7 @@ const char *sf_module_name_from_path(
 }
 
 static bool find_module_index(
-    sf_module_list *list,
-    const char *filename,
-    size_t *index
+    sf_module_list *list, const char *filename, size_t *index
 ) {
     for (size_t i = 0; i < list->module_count; i++) {
         if (strcmp(list->modules[i].filename, filename) == 0) {
@@ -126,29 +96,15 @@ static bool find_module_index(
 }
 
 static bool add_module(
-    sf_arena *arena,
-    sf_module_list *list,
-    sf_module module,
-    size_t *index
+    sf_arena *arena, sf_module_list *list, sf_module module, size_t *index
 ) {
     sf_module *modules = sf_arena_grow_one(
-        arena,
-        list->modules,
-        list->module_count,
-        &list->module_capacity,
+        arena, list->modules, list->module_count, &list->module_capacity,
         sizeof(sf_module)
     );
 
     if (modules == NULL) {
-        sf_log(
-            "Insufficient Memory.",
-            "Unable to allocate memory while compiling.",
-            "Free some memory and try again.",
-            "N/A",
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-            (sf_span){0},
-            SF_LOG_SEVERITY_FATAL
-        );
+        sf_log_out_of_memory("N/A");
 
         return false;
     }
@@ -161,47 +117,32 @@ static bool add_module(
 }
 
 static void resolve_imports(
-    sf_import_node **imports,
-    size_t import_count,
-    const char *importer_filename,
-    sf_module_list *modules,
-    const char **module_paths,
-    size_t module_path_count,
-    sf_arena *arena
+    sf_import_node **imports, size_t import_count,
+    const char *importer_filename, sf_module_list *modules,
+    const char **module_paths, size_t module_path_count, sf_arena *arena
 ) {
     for (size_t i = 0; i < import_count; i++) {
         resolve_import(
-            imports[i],
-            importer_filename,
-            modules,
-            module_paths,
-            module_path_count,
-            arena
+            imports[i], importer_filename, modules, module_paths,
+            module_path_count, arena
         );
     }
 }
 
 static void resolve_import(
-    sf_import_node *import,
-    const char *importer_filename,
-    sf_module_list *modules,
-    const char **module_paths,
-    size_t module_path_count,
-    sf_arena *arena
+    sf_import_node *import, const char *importer_filename,
+    sf_module_list *modules, const char **module_paths,
+    size_t module_path_count, sf_arena *arena
 ) {
     char *filename =
         find_module_path(import->path, module_paths, module_path_count, arena);
 
     if (filename == NULL) {
         sf_log(
-            "Module Not Found.",
-            "Unable to find module '%s'.",
+            "Module Not Found.", "Unable to find module '%s'.",
             "Check the import path and configured module search directories.",
-            importer_filename,
-            SF_LOG_MODULE_NOT_FOUND,
-            import->base.span,
-            SF_LOG_SEVERITY_ERROR,
-            import->path
+            importer_filename, SF_LOG_MODULE_NOT_FOUND, import->base.span,
+            SF_LOG_SEVERITY_ERROR, import->path
         );
 
         return;
@@ -243,13 +184,8 @@ static void resolve_import(
     modules->modules[module_index].ast = ast;
 
     resolve_imports(
-        ast->imports,
-        ast->import_count,
-        filename,
-        modules,
-        module_paths,
-        module_path_count,
-        arena
+        ast->imports, ast->import_count, filename, modules, module_paths,
+        module_path_count, arena
     );
 
     modules->modules[module_index].state = SF_MODULE_STATE_LOADED;
@@ -259,10 +195,7 @@ static void resolve_import(
     free(input);
 }
 
-static char *join_path(
-    const char *directory,
-    const char *filename
-) {
+static char *join_path(const char *directory, const char *filename) {
     size_t dir_len = strlen(directory);
     size_t file_len = strlen(filename);
 
@@ -272,15 +205,7 @@ static char *join_path(
     char *path = malloc(size);
 
     if (path == NULL) {
-        sf_log(
-            "Insufficient Memory.",
-            "Unable to allocate memory while compiling.",
-            "Free some memory and try again.",
-            "N/A",
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-            (sf_span){0},
-            SF_LOG_SEVERITY_FATAL
-        );
+        sf_log_out_of_memory("N/A");
 
         return NULL;
     }
@@ -305,9 +230,7 @@ static bool file_exists(const char *filename) {
 }
 
 static char *find_module_path(
-    const char *filename,
-    const char **module_paths,
-    size_t module_path_count,
+    const char *filename, const char **module_paths, size_t module_path_count,
     sf_arena *arena
 ) {
     if (file_exists(filename)) {

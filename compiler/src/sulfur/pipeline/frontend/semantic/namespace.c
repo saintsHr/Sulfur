@@ -7,11 +7,7 @@
 #include "sulfur/utils/string.h"
 
 static bool append_segment(
-    char *buf,
-    size_t cap,
-    size_t *len,
-    bool *first,
-    const char *name
+    char *buf, size_t cap, size_t *len, bool *first, const char *name
 ) {
     const char *sep = *first ? "" : "::";
     size_t sep_len = strlen(sep);
@@ -31,10 +27,7 @@ static bool append_segment(
     return true;
 }
 
-bool sf_namespace_push_path(
-    sf_namespace_stack *ns,
-    const sf_path *path
-) {
+bool sf_namespace_push_path(sf_namespace_stack *ns, const sf_path *path) {
     if (ns->depth + path->segment_count > SF_NS_MAX_DEPTH) {
         return false;
     }
@@ -47,12 +40,8 @@ bool sf_namespace_push_path(
 }
 
 bool sf_namespace_format(
-    char *buf,
-    size_t cap,
-    const sf_namespace_stack *ns,
-    size_t prefix_depth,
-    const sf_path_segment *segs,
-    size_t seg_count
+    char *buf, size_t cap, const sf_namespace_stack *ns, size_t prefix_depth,
+    const sf_path_segment *segs, size_t seg_count
 ) {
     if (cap == 0) {
         return false;
@@ -78,8 +67,7 @@ bool sf_namespace_format(
 }
 
 const sf_func_symbol *sf_semantic_resolve_func(
-    sf_semantic *s,
-    const sf_path *path
+    sf_semantic *s, const sf_path *path
 ) {
     char buf[SF_QNAME_MAX];
     size_t k = path->is_global ? 0 : s->ns.depth;
@@ -104,10 +92,7 @@ const sf_func_symbol *sf_semantic_resolve_func(
     }
 }
 
-const char *sf_semantic_suggest_func(
-    sf_semantic *s,
-    const sf_path *path
-) {
+const char *sf_semantic_suggest_func(sf_semantic *s, const sf_path *path) {
     char typed[SF_QNAME_MAX];
 
     if (!sf_namespace_format(

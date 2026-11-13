@@ -25,81 +25,81 @@ typedef struct {
 } sf_lexer;
 
 static const sf_token_spelling k_symbols[] = {
-    {SF_TOKEN_TYPE_LEFT_SHIFT_EQUAL, "<<="},
+    {SF_TOKEN_TYPE_LEFT_SHIFT_EQUAL,  "<<="},
     {SF_TOKEN_TYPE_RIGHT_SHIFT_EQUAL, ">>="},
 
-    {SF_TOKEN_TYPE_PLUS_PLUS, "++"},
-    {SF_TOKEN_TYPE_MINUS_MINUS, "--"},
-    {SF_TOKEN_TYPE_PLUS_EQUAL, "+="},
-    {SF_TOKEN_TYPE_MINUS_EQUAL, "-="},
-    {SF_TOKEN_TYPE_STAR_EQUAL, "*="},
-    {SF_TOKEN_TYPE_SLASH_EQUAL, "/="},
-    {SF_TOKEN_TYPE_AMP_EQUAL, "&="},
-    {SF_TOKEN_TYPE_PIPE_EQUAL, "|="},
-    {SF_TOKEN_TYPE_CARET_EQUAL, "^="},
-    {SF_TOKEN_TYPE_EQUAL_EQUAL, "=="},
-    {SF_TOKEN_TYPE_BANG_EQUAL, "!="},
-    {SF_TOKEN_TYPE_LESS_EQUAL, "<="},
-    {SF_TOKEN_TYPE_GREATER_EQUAL, ">="},
-    {SF_TOKEN_TYPE_AMP_AMP, "&&"},
-    {SF_TOKEN_TYPE_PIPE_PIPE, "||"},
-    {SF_TOKEN_TYPE_LEFT_SHIFT, "<<"},
-    {SF_TOKEN_TYPE_RIGHT_SHIFT, ">>"},
-    {SF_TOKEN_TYPE_COLON_COLON, "::"},
+    {SF_TOKEN_TYPE_PLUS_PLUS,         "++" },
+    {SF_TOKEN_TYPE_MINUS_MINUS,       "--" },
+    {SF_TOKEN_TYPE_PLUS_EQUAL,        "+=" },
+    {SF_TOKEN_TYPE_MINUS_EQUAL,       "-=" },
+    {SF_TOKEN_TYPE_STAR_EQUAL,        "*=" },
+    {SF_TOKEN_TYPE_SLASH_EQUAL,       "/=" },
+    {SF_TOKEN_TYPE_AMP_EQUAL,         "&=" },
+    {SF_TOKEN_TYPE_PIPE_EQUAL,        "|=" },
+    {SF_TOKEN_TYPE_CARET_EQUAL,       "^=" },
+    {SF_TOKEN_TYPE_EQUAL_EQUAL,       "==" },
+    {SF_TOKEN_TYPE_BANG_EQUAL,        "!=" },
+    {SF_TOKEN_TYPE_LESS_EQUAL,        "<=" },
+    {SF_TOKEN_TYPE_GREATER_EQUAL,     ">=" },
+    {SF_TOKEN_TYPE_AMP_AMP,           "&&" },
+    {SF_TOKEN_TYPE_PIPE_PIPE,         "||" },
+    {SF_TOKEN_TYPE_LEFT_SHIFT,        "<<" },
+    {SF_TOKEN_TYPE_RIGHT_SHIFT,       ">>" },
+    {SF_TOKEN_TYPE_COLON_COLON,       "::" },
 
-    {SF_TOKEN_TYPE_PLUS, "+"},
-    {SF_TOKEN_TYPE_MINUS, "-"},
-    {SF_TOKEN_TYPE_STAR, "*"},
-    {SF_TOKEN_TYPE_SLASH, "/"},
-    {SF_TOKEN_TYPE_EQUAL, "="},
-    {SF_TOKEN_TYPE_BANG, "!"},
-    {SF_TOKEN_TYPE_LESS, "<"},
-    {SF_TOKEN_TYPE_GREATER, ">"},
-    {SF_TOKEN_TYPE_AMP, "&"},
-    {SF_TOKEN_TYPE_PIPE, "|"},
-    {SF_TOKEN_TYPE_CARET, "^"},
-    {SF_TOKEN_TYPE_TILDE, "~"},
+    {SF_TOKEN_TYPE_PLUS,              "+"  },
+    {SF_TOKEN_TYPE_MINUS,             "-"  },
+    {SF_TOKEN_TYPE_STAR,              "*"  },
+    {SF_TOKEN_TYPE_SLASH,             "/"  },
+    {SF_TOKEN_TYPE_EQUAL,             "="  },
+    {SF_TOKEN_TYPE_BANG,              "!"  },
+    {SF_TOKEN_TYPE_LESS,              "<"  },
+    {SF_TOKEN_TYPE_GREATER,           ">"  },
+    {SF_TOKEN_TYPE_AMP,               "&"  },
+    {SF_TOKEN_TYPE_PIPE,              "|"  },
+    {SF_TOKEN_TYPE_CARET,             "^"  },
+    {SF_TOKEN_TYPE_TILDE,             "~"  },
 
-    {SF_TOKEN_TYPE_SEMICOLON, ";"},
-    {SF_TOKEN_TYPE_LPAREN, "("},
-    {SF_TOKEN_TYPE_RPAREN, ")"},
-    {SF_TOKEN_TYPE_LBRACE, "{"},
-    {SF_TOKEN_TYPE_RBRACE, "}"},
-    {SF_TOKEN_TYPE_COMMA, ","},
-    {SF_TOKEN_TYPE_DOT, "."}
+    {SF_TOKEN_TYPE_SEMICOLON,         ";"  },
+    {SF_TOKEN_TYPE_LPAREN,            "("  },
+    {SF_TOKEN_TYPE_RPAREN,            ")"  },
+    {SF_TOKEN_TYPE_LBRACE,            "{"  },
+    {SF_TOKEN_TYPE_RBRACE,            "}"  },
+    {SF_TOKEN_TYPE_COMMA,             ","  },
+    {SF_TOKEN_TYPE_DOT,               "."  }
 };
 
 static const sf_token_spelling k_keywords[] = {
-    {SF_TOKEN_TYPE_KW_TRUE, "true"},
-    {SF_TOKEN_TYPE_KW_FALSE, "false"},
+    {SF_TOKEN_TYPE_KW_TRUE,      "true"     },
+    {SF_TOKEN_TYPE_KW_FALSE,     "false"    },
 
-    {SF_TOKEN_TYPE_KW_I8, "i8"},
-    {SF_TOKEN_TYPE_KW_I16, "i16"},
-    {SF_TOKEN_TYPE_KW_I32, "i32"},
-    {SF_TOKEN_TYPE_KW_I64, "i64"},
+    {SF_TOKEN_TYPE_KW_I8,        "i8"       },
+    {SF_TOKEN_TYPE_KW_I16,       "i16"      },
+    {SF_TOKEN_TYPE_KW_I32,       "i32"      },
+    {SF_TOKEN_TYPE_KW_I64,       "i64"      },
 
-    {SF_TOKEN_TYPE_KW_U8, "u8"},
-    {SF_TOKEN_TYPE_KW_U16, "u16"},
-    {SF_TOKEN_TYPE_KW_U32, "u32"},
-    {SF_TOKEN_TYPE_KW_U64, "u64"},
+    {SF_TOKEN_TYPE_KW_U8,        "u8"       },
+    {SF_TOKEN_TYPE_KW_U16,       "u16"      },
+    {SF_TOKEN_TYPE_KW_U32,       "u32"      },
+    {SF_TOKEN_TYPE_KW_U64,       "u64"      },
 
-    {SF_TOKEN_TYPE_KW_BOOL, "bool"},
-    {SF_TOKEN_TYPE_KW_VOID, "void"},
+    {SF_TOKEN_TYPE_KW_BOOL,      "bool"     },
+    {SF_TOKEN_TYPE_KW_VOID,      "void"     },
 
-    {SF_TOKEN_TYPE_KW_AS, "as"},
+    {SF_TOKEN_TYPE_KW_AS,        "as"       },
 
-    {SF_TOKEN_TYPE_KW_IF, "if"},
-    {SF_TOKEN_TYPE_KW_ELSE, "else"},
-    {SF_TOKEN_TYPE_KW_WHILE, "while"},
+    {SF_TOKEN_TYPE_KW_IF,        "if"       },
+    {SF_TOKEN_TYPE_KW_ELSE,      "else"     },
+    {SF_TOKEN_TYPE_KW_WHILE,     "while"    },
 
-    {SF_TOKEN_TYPE_KW_FN, "fn"},
-    {SF_TOKEN_TYPE_KW_RETURN, "return"},
+    {SF_TOKEN_TYPE_KW_FN,        "fn"       },
+    {SF_TOKEN_TYPE_KW_RETURN,    "return"   },
 
-    {SF_TOKEN_TYPE_KW_MUT, "mut"},
-    {SF_TOKEN_TYPE_KW_PUB, "pub"},
-    {SF_TOKEN_TYPE_KW_EXTERN, "extern"},
+    {SF_TOKEN_TYPE_KW_MUT,       "mut"      },
+    {SF_TOKEN_TYPE_KW_PUB,       "pub"      },
+    {SF_TOKEN_TYPE_KW_EXTERN,    "extern"   },
 
-    {SF_TOKEN_TYPE_KW_IMPORT, "import"},
+    {SF_TOKEN_TYPE_KW_IMPORT,    "import"   },
 
     {SF_TOKEN_TYPE_KW_NAMESPACE, "namespace"}
 };
@@ -111,57 +111,32 @@ static bool is_ident_char(char c);
 
 static char lexer_current(const sf_lexer *lx);
 static char lexer_next(const sf_lexer *lx);
-static void lexer_advance(
-    sf_lexer *lx,
-    size_t count
-);
+static void lexer_advance(sf_lexer *lx, size_t count);
 static sf_span lexer_span_here(const sf_lexer *lx);
 
-static bool list_add(
-    sf_token_list *list,
-    sf_token token
-);
-static sf_token make_token(
-    sf_token_type type,
-    sf_span span
-);
+static bool list_add(sf_token_list *list, sf_token token);
+static sf_token make_token(sf_token_type type, sf_span span);
 
 static bool lexer_emit(
-    sf_lexer *lx,
-    sf_token token,
-    size_t start_pos,
-    uint32_t start_col
+    sf_lexer *lx, sf_token token, size_t start_pos, uint32_t start_col
 );
 static bool lexer_report_undefined(
-    sf_lexer *lx,
-    size_t start_pos,
-    uint32_t start_col
+    sf_lexer *lx, size_t start_pos, uint32_t start_col
 );
-static bool undefined_run_continues(
-    const sf_lexer *lx,
-    bool number
-);
+static bool undefined_run_continues(const sf_lexer *lx, bool number);
 
 static sf_token read_number(sf_lexer *lx);
 static sf_token read_identifier(sf_lexer *lx);
 static sf_token read_symbol(sf_lexer *lx);
 
-static int digit_value(
-    char c,
-    int base
-);
+static int digit_value(char c, int base);
 static sf_token_type resolve_keyword(const char *value);
 static const sf_token_spelling *find_symbol(const char *text);
 static const char *find_spelling(
-    const sf_token_spelling *table,
-    size_t count,
-    sf_token_type type
+    const sf_token_spelling *table, size_t count, sf_token_type type
 );
 
-sf_token_list sf_tokenize(
-    const char *input,
-    const char *filename
-) {
+sf_token_list sf_tokenize(const char *input, const char *filename) {
     sf_lexer lx = {
         .input = input,
         .filename = filename,
@@ -211,12 +186,9 @@ sf_token_list sf_tokenize(
 void sf_tokens_print(const sf_token_list *list) {
     for (size_t i = 0; i < list->count; i++) {
         printf(
-            "Token %zu: type= %d value= %s (%zu:%zu)\n",
-            i,
-            list->tokens[i].type,
-            list->tokens[i].value,
-            list->tokens[i].span.line,
-            list->tokens[i].span.col
+            "Token %zu: type= %d value= %s (%zu:%zu)\n", i,
+            list->tokens[i].type, list->tokens[i].value,
+            list->tokens[i].span.line, list->tokens[i].span.col
         );
     }
 }
@@ -235,22 +207,22 @@ void sf_tokens_free(sf_token_list *list) {
 
 const char *sf_token_type_name(sf_token_type type) {
     switch (type) {
-    case SF_TOKEN_TYPE_IDENTIFIER: {
-        return "an identifier";
-    }
-    case SF_TOKEN_TYPE_INTEGER: {
-        return "an integer";
-    }
-    case SF_TOKEN_TYPE_EOF: {
-        return "end of file";
-    }
-    case SF_TOKEN_TYPE_UNDEFINED: {
-        return "an invalid token";
-    }
+        case SF_TOKEN_TYPE_IDENTIFIER: {
+            return "an identifier";
+        }
+        case SF_TOKEN_TYPE_INTEGER: {
+            return "an integer";
+        }
+        case SF_TOKEN_TYPE_EOF: {
+            return "end of file";
+        }
+        case SF_TOKEN_TYPE_UNDEFINED: {
+            return "an invalid token";
+        }
 
-    default: {
-        break;
-    }
+        default: {
+            break;
+        }
     }
 
     const char *name = find_spelling(k_symbols, ARRAY_LEN(k_symbols), type);
@@ -268,7 +240,9 @@ const char *sf_token_type_name(sf_token_type type) {
     return "a token";
 }
 
-static bool is_digit(char c) { return c >= '0' && c <= '9'; }
+static bool is_digit(char c) {
+    return c >= '0' && c <= '9';
+}
 
 static bool is_space(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' ||
@@ -279,18 +253,19 @@ static bool is_ident_start(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
-static bool is_ident_char(char c) { return is_ident_start(c) || is_digit(c); }
+static bool is_ident_char(char c) {
+    return is_ident_start(c) || is_digit(c);
+}
 
-static char lexer_current(const sf_lexer *lx) { return lx->input[lx->pos]; }
+static char lexer_current(const sf_lexer *lx) {
+    return lx->input[lx->pos];
+}
 
 static char lexer_next(const sf_lexer *lx) {
     return lx->input[lx->pos] == '\0' ? '\0' : lx->input[lx->pos + 1];
 }
 
-static void lexer_advance(
-    sf_lexer *lx,
-    size_t count
-) {
+static void lexer_advance(sf_lexer *lx, size_t count) {
     lx->pos += count;
     lx->col += (uint32_t)count;
 }
@@ -299,10 +274,7 @@ static sf_span lexer_span_here(const sf_lexer *lx) {
     return (sf_span){.line = lx->line, .col = lx->col, .len = 0};
 }
 
-static sf_token make_token(
-    sf_token_type type,
-    sf_span span
-) {
+static sf_token make_token(sf_token_type type, sf_span span) {
     sf_token tk = {0};
     tk.type = type;
     tk.span = span;
@@ -310,10 +282,7 @@ static sf_token make_token(
     return tk;
 }
 
-static bool list_add(
-    sf_token_list *list,
-    sf_token token
-) {
+static bool list_add(sf_token_list *list, sf_token token) {
     if (list->count >= list->capacity) {
         size_t new_capacity = list->capacity == 0 ? 16 : list->capacity * 2;
 
@@ -324,15 +293,7 @@ static bool list_add(
         }
 
         if (new_tokens == NULL) {
-            sf_log(
-                "Insufficient Memory.",
-                "Cannot allocate memory for compiling.",
-                "Free some memory and try again.",
-                NULL,
-                SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-                (sf_span){0},
-                SF_LOG_SEVERITY_FATAL
-            );
+            sf_log_out_of_memory("N/A");
             return false;
         }
 
@@ -346,10 +307,7 @@ static bool list_add(
 }
 
 static bool lexer_emit(
-    sf_lexer *lx,
-    sf_token token,
-    size_t start_pos,
-    uint32_t start_col
+    sf_lexer *lx, sf_token token, size_t start_pos, uint32_t start_col
 ) {
     if (token.type == SF_TOKEN_TYPE_UNDEFINED) {
         return lexer_report_undefined(lx, start_pos, start_col);
@@ -358,10 +316,7 @@ static bool lexer_emit(
     return list_add(&lx->list, token);
 }
 
-static bool undefined_run_continues(
-    const sf_lexer *lx,
-    bool number
-) {
+static bool undefined_run_continues(const sf_lexer *lx, bool number) {
     char c = lexer_current(lx);
 
     if (c == '\0' || is_space(c)) {
@@ -376,9 +331,7 @@ static bool undefined_run_continues(
 }
 
 static bool lexer_report_undefined(
-    sf_lexer *lx,
-    size_t start_pos,
-    uint32_t start_col
+    sf_lexer *lx, size_t start_pos, uint32_t start_col
 ) {
     lx->pos = start_pos;
     lx->col = start_col;
@@ -404,24 +357,15 @@ static bool lexer_report_undefined(
     }
 
     sf_log(
-        "undefined token",
-        "unrecognized token '%s' in source file",
-        "check for typos or invalid characters, and follow the language "
-        "grammar",
-        lx->filename,
-        SF_LOG_LEXER_UNDEFINED_TOKEN,
-        tk.span,
-        SF_LOG_SEVERITY_ERROR,
-        tk.value
+        "Undefined Token", "The token '%s' is not recognized.",
+        "Check for typographical errors.", lx->filename,
+        SF_LOG_LEXER_UNDEFINED_TOKEN, tk.span, SF_LOG_SEVERITY_ERROR, tk.value
     );
 
     return true;
 }
 
-static int digit_value(
-    char c,
-    int base
-) {
+static int digit_value(char c, int base) {
     int digit;
 
     if (c >= '0' && c <= '9') {
@@ -553,9 +497,7 @@ static const sf_token_spelling *find_symbol(const char *text) {
 }
 
 static const char *find_spelling(
-    const sf_token_spelling *table,
-    size_t count,
-    sf_token_type type
+    const sf_token_spelling *table, size_t count, sf_token_type type
 ) {
     for (size_t i = 0; i < count; i++) {
         if (table[i].type == type) {

@@ -9,11 +9,7 @@ static const char k_empty_name[] = "";
 
 static size_t count_segments(const char *name);
 
-const char *sf_mangle_variable(
-    sf_arena *arena,
-    const char *name,
-    size_t id
-) {
+const char *sf_mangle_variable(sf_arena *arena, const char *name, size_t id) {
     int needed = snprintf(NULL, 0, "%s@%zu", name, id);
 
     if (needed < 0) {
@@ -24,15 +20,7 @@ const char *sf_mangle_variable(
     char *mangled = sf_arena_alloc(arena, length);
 
     if (mangled == NULL) {
-        sf_log(
-            "insufficient memory",
-            "cannot allocate memory for compiling",
-            "free some memory and try again",
-            NULL,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-            (sf_span){0},
-            SF_LOG_SEVERITY_FATAL
-        );
+        sf_log_out_of_memory("N/A");
 
         return k_empty_name;
     }
@@ -43,9 +31,7 @@ const char *sf_mangle_variable(
 }
 
 const char *sf_mangle_function(
-    sf_arena *arena,
-    const char *name,
-    bool keep_name
+    sf_arena *arena, const char *name, bool keep_name
 ) {
     if (keep_name) {
         return name;
@@ -62,15 +48,8 @@ const char *sf_mangle_function(
     char *result = sf_arena_alloc(arena, capacity);
 
     if (result == NULL) {
-        sf_log(
-            "insufficient memory",
-            "cannot allocate memory for compiling",
-            "free some memory and try again",
-            NULL,
-            SF_LOG_GENERAL_INSUFFICIENT_MEMORY,
-            (sf_span){0},
-            SF_LOG_SEVERITY_FATAL
-        );
+        sf_log_out_of_memory("N/A");
+
         return name;
     }
 

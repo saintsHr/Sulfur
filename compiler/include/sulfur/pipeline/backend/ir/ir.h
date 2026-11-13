@@ -120,8 +120,5 @@ typedef struct {
     size_t *next_temp;
 } sf_ir_context;
 
-sf_ir_program sf_ir_generate(
-    sf_arena *arena,
-    const sf_program_node *program
-);
+sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program);
 void sf_ir_print(const sf_ir_program *program);

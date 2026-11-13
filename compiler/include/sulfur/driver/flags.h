@@ -8,8 +8,4 @@
 #define FLAGS_MODULE_PATH "-m"
 #define FLAGS_MODULE "--module"
 
-void sf_flags_parse(
-    int argc,
-    char *argv[],
-    sf_compiler_options *options
-);
+void sf_flags_parse(int argc, char *argv[], sf_compiler_options *options);

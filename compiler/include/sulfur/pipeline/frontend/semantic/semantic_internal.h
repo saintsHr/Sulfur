@@ -10,6 +10,8 @@
 #include "sulfur/utils/arena.h"
 #include "sulfur/utils/span.h"
 
+#define SF_SEMANTIC_ENTRY_NAME "main"
+
 typedef struct {
     sf_scope *scope;
     sf_namespace_stack ns;
@@ -19,56 +21,24 @@ typedef struct {
     sf_arena *arena;
 } sf_semantic;
 
-#define SF_SEMANTIC_ENTRY_NAME "main"
-
 bool sf_semantic_expr(
-    sf_semantic *s,
-    sf_ast_node *node,
-    sf_value_type expected
+    sf_semantic *s, sf_ast_node *node, sf_value_type expected
 );
 const sf_func_symbol *sf_semantic_resolve_func(
-    sf_semantic *s,
-    const sf_path *path
+    sf_semantic *s, const sf_path *path
 );
 void sf_semantic_report_undeclared(
-    const sf_semantic *s,
-    const char *name,
-    sf_span span
+    const sf_semantic *s, const char *name, sf_span span
 );
-bool sf_const_eval_uint(
-    sf_ast_node *node,
-    uint64_t *out_value
-);
-bool sf_const_eval_int(
-    sf_ast_node *node,
-    int64_t *out_value
-);
-bool sf_const_eval_bool(
-    sf_ast_node *node,
-    bool *out_value
-);
+bool sf_const_eval_uint(sf_ast_node *node, uint64_t *out_value);
+bool sf_const_eval_int(sf_ast_node *node, int64_t *out_value);
+bool sf_const_eval_bool(sf_ast_node *node, bool *out_value);
 bool sf_const_check_overflow(
-    sf_ast_node *node,
-    sf_value_type resolved,
-    const char *filename
+    sf_ast_node *node, sf_value_type resolved, const char *filename
 );
-bool sf_const_is_zero(
-    sf_ast_node *node,
-    bool is_signed
-);
-void sf_const_warn(
-    sf_semantic *s,
-    sf_ast_node *node,
-    const char *desc
-);
-void sf_semantic_report_qualified_unsupported(
-    sf_semantic *s,
-    sf_span span
-);
-const char *sf_semantic_suggest_func(
-    sf_semantic *s,
-    const sf_path *path
-);
+bool sf_const_is_zero(sf_ast_node *node, bool is_signed);
+void sf_const_warn(sf_semantic *s, sf_ast_node *node, const char *desc);
+const char *sf_semantic_suggest_func(sf_semantic *s, const sf_path *path);
 
 static inline bool sf_op_is_logical(sf_ir_operation_type op) {
     return op == SF_OP_TYPE_LOGICAL_AND || op == SF_OP_TYPE_LOGICAL_OR;

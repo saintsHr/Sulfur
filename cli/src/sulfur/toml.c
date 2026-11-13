@@ -13,31 +13,22 @@
 
 static char error_detail[256];
 
-static void set_detail(
-    const char *fmt,
-    ...)
-    SF_PRINTF(
-        1,
-        2);
+static void set_detail(const char *fmt, ...) SF_PRINTF(1, 2);
 
 static char *string_dup(const char *string);
 static void list_free(sf_string_list *list);
 static bool name_is_valid(const char *name);
-static sf_toml_parse_result parse_emit(
-    toml_datum_t datum,
-    sf_emit *out
-);
+static sf_toml_parse_result parse_emit(toml_datum_t datum, sf_emit *out);
 static sf_toml_parse_result parse_list(
-    toml_datum_t datum,
-    sf_toml_parse_result invalid,
-    sf_string_list *out
+    toml_datum_t datum, sf_toml_parse_result invalid, sf_string_list *out
 );
 
-const char *sf_toml_error_detail(void) { return error_detail; }
+const char *sf_toml_error_detail(void) {
+    return error_detail;
+}
 
 sf_toml_parse_result sf_toml_parse_project(
-    const char *filename,
-    sf_project_cfg *output
+    const char *filename, sf_project_cfg *output
 ) {
     error_detail[0] = '\0';
 
@@ -101,8 +92,7 @@ sf_toml_parse_result sf_toml_parse_project(
     }
 
     result = parse_list(
-        slfr_flags_d,
-        SF_TOML_PARSE_RESULT_SLFR_FLAGS_INVALID,
+        slfr_flags_d, SF_TOML_PARSE_RESULT_SLFR_FLAGS_INVALID,
         &output->slfr_flags
     );
     if (result != SF_TOML_PARSE_RESULT_OK) {
@@ -117,8 +107,7 @@ sf_toml_parse_result sf_toml_parse_project(
     }
 
     result = parse_list(
-        link_flags_d,
-        SF_TOML_PARSE_RESULT_LINK_FLAGS_INVALID,
+        link_flags_d, SF_TOML_PARSE_RESULT_LINK_FLAGS_INVALID,
         &output->link_flags
     );
 
@@ -145,10 +134,7 @@ void sf_toml_free_project(sf_project_cfg *cfg) {
     *cfg = (sf_project_cfg){0};
 }
 
-static void set_detail(
-    const char *fmt,
-    ...
-) {
+static void set_detail(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     vsnprintf(error_detail, sizeof(error_detail), fmt, args);
@@ -159,10 +145,7 @@ static bool name_is_valid(const char *name) {
     return name[0] != '\0' && name[0] != '.' && strchr(name, '/') == NULL;
 }
 
-static sf_toml_parse_result parse_emit(
-    toml_datum_t datum,
-    sf_emit *out
-) {
+static sf_toml_parse_result parse_emit(toml_datum_t datum, sf_emit *out) {
     static const struct {
         const char *name;
         sf_emit value;
@@ -195,9 +178,7 @@ static sf_toml_parse_result parse_emit(
 }
 
 static sf_toml_parse_result parse_list(
-    toml_datum_t datum,
-    sf_toml_parse_result invalid,
-    sf_string_list *out
+    toml_datum_t datum, sf_toml_parse_result invalid, sf_string_list *out
 ) {
     if (datum.type == TOML_UNKNOWN) {
         return SF_TOML_PARSE_RESULT_OK;

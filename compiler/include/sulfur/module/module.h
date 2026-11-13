@@ -33,17 +33,11 @@ typedef struct {
 } sf_module_list;
 
 void sf_module_resolve(
-    sf_import_node **imports,
-    size_t import_count,
-    const char *importer_filename,
-    sf_module_list *modules,
-    const char **module_paths,
-    size_t module_path_count,
-    sf_arena *arena
+    sf_import_node **imports, size_t import_count,
+    const char *importer_filename, sf_module_list *modules,
+    const char **module_paths, size_t module_path_count, sf_arena *arena
 );
 
 const char *sf_module_name_from_path(
-    const char *file,
-    const char **module_paths,
-    size_t module_path_count
+    const char *file, const char **module_paths, size_t module_path_count
 );

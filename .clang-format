@@ -1,18 +1,49 @@
-BasedOnStyle: LLVM
-
 Language: C
+BasedOnStyle: LLVM
 
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
+ContinuationIndentWidth: 4
+IndentCaseLabels: true
+IndentPPDirectives: None
+AccessModifierOffset: -4
+
+ColumnLimit: 80
 
 BreakBeforeBraces: Attach
+InsertBraces: true
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
 
 AlignAfterOpenBracket: BlockIndent
-BinPackArguments: false
-BinPackParameters: AlwaysOnePerLine
+BinPackParameters: BinPack
+BinPackArguments: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowAllArgumentsOnNextLine: true
+PenaltyReturnTypeOnItsOwnLine: 1000
 
-SeparateDefinitionBlocks: Always
-InsertNewlineAtEOF: true
+PointerAlignment: Right
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+Cpp11BracedListStyle: true
 
-InsertBraces: true
+AlignArrayOfStructures: Left
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: None
+AlignTrailingComments: true
+AlignOperands: Align
+
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: false
+
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+SeparateDefinitionBlocks: Leave
