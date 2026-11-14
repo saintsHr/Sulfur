@@ -214,7 +214,7 @@ static bool command_version(int argc, char **argv) {
     const char *reset = color(stdout, SF_COLOR_RESET);
 
     printf(
-        "%sVersion v0.1.0%s\n"
+        "%sVersion v0.2.0%s\n"
         "Copyright (C) 2026 %ssaintsHr%s\n"
         "Licensed under the %sMIT license%s\n",
         cyan, reset, green, reset, yellow, reset
