@@ -2,8 +2,8 @@
 
 #include <stdbool.h>
 
-#include "sulfur/pipeline/frontend/ast.h"
-#include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
+#include "sulfur/pipeline/frontend/lexer/lexer.h"
 
 bool sf_token_is_type(sf_token token);
 bool sf_token_is_ident(sf_token token);

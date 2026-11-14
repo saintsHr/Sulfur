@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #include "sulfur/driver/main.h"
-#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
 
 bool sf_analyze(
     sf_arena *arena, sf_program_node *program, const char *filename,

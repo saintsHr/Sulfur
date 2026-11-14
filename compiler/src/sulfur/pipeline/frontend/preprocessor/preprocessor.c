@@ -1,4 +1,4 @@
-#include "sulfur/pipeline/frontend/preprocessor.h"
+#include "sulfur/pipeline/frontend/preprocessor/preprocessor.h"
 
 #include <stddef.h>
 #include <stdlib.h>

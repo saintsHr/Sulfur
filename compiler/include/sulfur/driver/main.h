@@ -4,9 +4,9 @@
 #include <stddef.h>
 
 #include "sulfur/module/module.h"
-#include "sulfur/pipeline/backend/ir/ir.h"
-#include "sulfur/pipeline/frontend/ast.h"
-#include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
+#include "sulfur/pipeline/frontend/lexer/lexer.h"
+#include "sulfur/pipeline/midend/ir/ir.h"
 #include "sulfur/utils/arena.h"
 
 typedef struct {

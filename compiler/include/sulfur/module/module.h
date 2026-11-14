@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
 
 typedef enum {

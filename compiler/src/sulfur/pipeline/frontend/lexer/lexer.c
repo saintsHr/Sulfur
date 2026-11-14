@@ -1,4 +1,4 @@
-#include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/pipeline/frontend/lexer/lexer.h"
 
 #include <stdbool.h>
 #include <stdint.h>

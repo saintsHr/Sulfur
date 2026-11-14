@@ -20,12 +20,12 @@ set(SOURCES
 	src/sulfur/utils/file.c
 	src/sulfur/utils/mangle.c
 
-	src/sulfur/pipeline/frontend/ast.c
-	src/sulfur/pipeline/frontend/lexer.c
+	src/sulfur/pipeline/frontend/ast/ast.c
+	src/sulfur/pipeline/frontend/lexer/lexer.c
 	src/sulfur/pipeline/frontend/parser/parser.c
 	src/sulfur/pipeline/frontend/parser/parser_stmt.c
 	src/sulfur/pipeline/frontend/parser/parser_expr.c
-	src/sulfur/pipeline/frontend/preprocessor.c
+	src/sulfur/pipeline/frontend/preprocessor/preprocessor.c
 	src/sulfur/pipeline/frontend/semantic/semantic.c
 	src/sulfur/pipeline/frontend/semantic/semantic_expr.c
 	src/sulfur/pipeline/frontend/semantic/semantic_const.c
@@ -33,8 +33,9 @@ set(SOURCES
 	src/sulfur/pipeline/frontend/semantic/symbol.c
 	src/sulfur/pipeline/frontend/semantic/namespace.c
 
-	src/sulfur/pipeline/backend/ir/ir.c
-	src/sulfur/pipeline/backend/optimization/optimization.c
+	src/sulfur/pipeline/midend/ir/ir.c
+	src/sulfur/pipeline/midend/ir/optimization.c
+
 	src/sulfur/pipeline/backend/codegen/codegen.c
 	src/sulfur/pipeline/backend/codegen/stack.c
 

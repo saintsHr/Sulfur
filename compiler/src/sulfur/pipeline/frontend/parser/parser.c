@@ -4,8 +4,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "sulfur/pipeline/frontend/ast.h"
-#include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
+#include "sulfur/pipeline/frontend/lexer/lexer.h"
 #include "sulfur/pipeline/frontend/parser/parser_internal.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/token_utils.h"

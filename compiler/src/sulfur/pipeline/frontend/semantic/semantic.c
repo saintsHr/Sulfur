@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/semantic/namespace.h"
 #include "sulfur/pipeline/frontend/semantic/scope.h"
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"

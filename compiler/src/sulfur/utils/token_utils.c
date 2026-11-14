@@ -1,7 +1,7 @@
 #include "sulfur/utils/token_utils.h"
 
-#include "sulfur/pipeline/frontend/ast.h"
-#include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
+#include "sulfur/pipeline/frontend/lexer/lexer.h"
 
 bool sf_token_is_type(sf_token token) {
     switch (token.type) {

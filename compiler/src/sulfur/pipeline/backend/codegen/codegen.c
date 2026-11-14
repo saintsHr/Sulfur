@@ -9,8 +9,8 @@
 #include <string.h>
 
 #include "sulfur/pipeline/backend/codegen/stack.h"
-#include "sulfur/pipeline/backend/ir/ir.h"
-#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
+#include "sulfur/pipeline/midend/ir/ir.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/string.h"
 #include "sulfur/utils/type_utils.h"

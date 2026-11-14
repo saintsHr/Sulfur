@@ -6,10 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sulfur/pipeline/frontend/ast.h"
-#include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
+#include "sulfur/pipeline/frontend/lexer/lexer.h"
 #include "sulfur/pipeline/frontend/parser/parser.h"
-#include "sulfur/pipeline/frontend/preprocessor.h"
+#include "sulfur/pipeline/frontend/preprocessor/preprocessor.h"
 #include "sulfur/utils/arena.h"
 #include "sulfur/utils/file.h"
 #include "sulfur/utils/log.h"

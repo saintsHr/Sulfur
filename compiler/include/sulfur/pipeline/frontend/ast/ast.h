@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "sulfur/pipeline/frontend/lexer.h"
+#include "sulfur/pipeline/frontend/lexer/lexer.h"
 #include "sulfur/utils/arena.h"
 #include "sulfur/utils/span.h"
 

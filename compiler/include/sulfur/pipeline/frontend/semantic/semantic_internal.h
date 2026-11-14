@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/semantic/namespace.h"
 #include "sulfur/pipeline/frontend/semantic/scope.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"

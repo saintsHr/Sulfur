@@ -4,8 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "sulfur/module/module.h"
-#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
 
 typedef enum {
     SF_IR_OPERAND_TYPE_NONE,

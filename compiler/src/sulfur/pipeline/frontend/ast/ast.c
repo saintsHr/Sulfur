@@ -1,4 +1,4 @@
-#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
 
 #include <stdbool.h>
 #include <stddef.h>

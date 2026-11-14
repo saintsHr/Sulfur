@@ -1,5 +1,5 @@
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
-#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/string.h"
 

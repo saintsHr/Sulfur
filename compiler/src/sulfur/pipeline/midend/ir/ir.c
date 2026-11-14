@@ -1,4 +1,4 @@
-#include "sulfur/pipeline/backend/ir/ir.h"
+#include "sulfur/pipeline/midend/ir/ir.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "sulfur/pipeline/frontend/ast.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/utils/arena.h"
 #include "sulfur/utils/log.h"
 #include "sulfur/utils/mangle.h"
