@@ -62,6 +62,10 @@ bool sf_token_is_qual(sf_token token) {
     }
 }
 
+bool sf_token_is_attr(sf_token token) {
+    return token.type == SF_TOKEN_TYPE_AT;
+}
+
 bool sf_token_is_import(sf_token token) {
     return token.type == SF_TOKEN_TYPE_KW_IMPORT;
 }

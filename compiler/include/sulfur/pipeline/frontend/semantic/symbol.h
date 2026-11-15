@@ -10,6 +10,7 @@ typedef struct sf_var_symbol {
     size_t id;
     sf_span span;
     sf_qualifiers qualifiers;
+    sf_attributes attributes;
 } sf_var_symbol;
 
 typedef struct {
@@ -28,6 +29,7 @@ typedef struct {
     sf_span span;
     size_t id;
     sf_qualifiers qualifiers;
+    sf_attributes attributes;
     bool imported;
 } sf_func_symbol;
 

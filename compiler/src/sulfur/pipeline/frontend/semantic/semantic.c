@@ -30,6 +30,9 @@ static void analyze_namespace(sf_semantic *semantic, sf_namespace_node *ns);
 static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym);
 static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym);
 
+static bool analyze_var_sym_attr(sf_semantic *semantic, sf_var_symbol sym);
+static bool analyze_func_sym_attr(sf_semantic *semantic, sf_func_symbol sym);
+
 static bool analyze_program(
     sf_arena *arena, sf_module_list *modules, sf_program_node *program,
     const char *filename, sf_func_symbol_table *funcs,
@@ -280,7 +283,8 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
         .type = var->var_type,
         .initialized = var->value != NULL,
         .span = var->base.span,
-        .qualifiers = var->qualifiers
+        .qualifiers = var->qualifiers,
+        .attributes = var->attributes,
     };
 
     if (sym.type == SF_VAL_TYPE_VOID) {
@@ -306,6 +310,9 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
     }
 
     if (analyze_var_sym_qual(semantic, sym) == false) {
+        return;
+    }
+    if (analyze_var_sym_attr(semantic, sym) == false) {
         return;
     }
 
@@ -481,15 +488,20 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
         .defined = func->body != NULL,
         .span = func->base.span,
         .parameters = func->parameters,
-        .qualifiers = func->qualifiers
+        .qualifiers = func->qualifiers,
+        .attributes = func->attributes,
     };
 
     sym.link_name = sf_mangle_function(
-        semantic->arena, qualified, func->qualifiers.is_extern
+        semantic->arena, qualified,
+        func->qualifiers.is_extern || func->attributes.no_mangle
     );
     func->link_name = sym.link_name;
 
     if (analyze_func_sym_qual(semantic, sym) == false) {
+        return;
+    }
+    if (analyze_func_sym_attr(semantic, sym) == false) {
         return;
     }
 
@@ -693,6 +705,29 @@ static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym) {
 
         return false;
     }
+
+    return true;
+}
+
+static bool analyze_var_sym_attr(sf_semantic *semantic, sf_var_symbol sym) {
+    if (sym.attributes.no_mangle) {
+        sf_log(
+            "Invalid Attribute",
+            "Variable '%s' cannot have 'no_mangle' attribute.",
+            "Remove the invalid attribute.", semantic->filename,
+            SF_LOG_SEMANTIC_INVALID_ATTRIBUTE, sym.span, SF_LOG_SEVERITY_ERROR,
+            sym.name
+        );
+
+        return false;
+    }
+
+    return true;
+}
+
+static bool analyze_func_sym_attr(sf_semantic *semantic, sf_func_symbol sym) {
+    (void)semantic;
+    (void)sym;
 
     return true;
 }

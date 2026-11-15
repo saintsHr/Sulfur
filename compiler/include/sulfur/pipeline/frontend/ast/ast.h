@@ -132,8 +132,13 @@ typedef struct {
 } sf_qualifiers;
 
 typedef struct {
+    bool no_mangle;
+} sf_attributes;
+
+typedef struct {
     sf_ast_node base;
     sf_qualifiers qualifiers;
+    sf_attributes attributes;
     sf_value_type var_type;
     char *name;
     size_t id;
@@ -185,6 +190,7 @@ typedef struct {
     char *name;
     const char *link_name;
     sf_qualifiers qualifiers;
+    sf_attributes attributes;
     sf_parameter *parameters;
     size_t parameter_count;
     size_t parameter_capacity;
@@ -273,7 +279,7 @@ sf_binary_node *sf_new_binary_node(
 );
 sf_var_decl_node *sf_new_var_decl_node(
     sf_arena *arena, const char *name, sf_value_type type, sf_ast_node *value,
-    sf_qualifiers qualifiers, sf_span span
+    sf_qualifiers qualifiers, sf_attributes attributes, sf_span span
 );
 sf_var_assign_node *sf_new_var_assign_node(
     sf_arena *arena, sf_ast_node *value, sf_span span
@@ -295,7 +301,7 @@ sf_while_node *sf_new_while_node(
 );
 sf_func_decl_node *sf_new_func_decl_node(
     sf_arena *arena, const char *name, sf_value_type return_type,
-    sf_qualifiers qualifiers, sf_span span
+    sf_qualifiers qualifiers, sf_attributes attributes, sf_span span
 );
 sf_return_node *sf_new_return_node(
     sf_arena *arena, sf_ast_node *value, sf_span span

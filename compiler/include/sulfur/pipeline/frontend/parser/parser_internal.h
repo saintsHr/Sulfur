@@ -7,6 +7,8 @@
 #include "sulfur/pipeline/frontend/lexer/lexer.h"
 #include "sulfur/utils/arena.h"
 
+#define SF_ATTRIBUTE_NO_MANGLE "no_mangle"
+
 typedef struct {
     sf_arena *arena;
     sf_token_list tokens;

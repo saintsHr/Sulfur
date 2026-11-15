@@ -66,7 +66,8 @@ static const sf_token_spelling k_symbols[] = {
     {SF_TOKEN_TYPE_LBRACE,            "{"  },
     {SF_TOKEN_TYPE_RBRACE,            "}"  },
     {SF_TOKEN_TYPE_COMMA,             ","  },
-    {SF_TOKEN_TYPE_DOT,               "."  }
+    {SF_TOKEN_TYPE_DOT,               "."  },
+    {SF_TOKEN_TYPE_AT,                "@"  }
 };
 
 static const sf_token_spelling k_keywords[] = {

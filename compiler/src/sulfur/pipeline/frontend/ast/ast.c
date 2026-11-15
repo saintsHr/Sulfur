@@ -251,7 +251,7 @@ sf_cast_node *sf_new_cast_node(
 
 sf_var_decl_node *sf_new_var_decl_node(
     sf_arena *arena, const char *name, sf_value_type type, sf_ast_node *value,
-    sf_qualifiers qualifiers, sf_span span
+    sf_qualifiers qualifiers, sf_attributes attributes, sf_span span
 ) {
     sf_var_decl_node *node =
         new_node(arena, sizeof(sf_var_decl_node), SF_NODE_VAR_DECL, span);
@@ -264,6 +264,7 @@ sf_var_decl_node *sf_new_var_decl_node(
     node->var_type = type;
     node->value = value;
     node->qualifiers = qualifiers;
+    node->attributes = attributes;
 
     return node->name != NULL ? node : NULL;
 }
@@ -319,7 +320,7 @@ sf_while_node *sf_new_while_node(
 
 sf_func_decl_node *sf_new_func_decl_node(
     sf_arena *arena, const char *name, sf_value_type return_type,
-    sf_qualifiers qualifiers, sf_span span
+    sf_qualifiers qualifiers, sf_attributes attributes, sf_span span
 ) {
     sf_func_decl_node *node =
         new_node(arena, sizeof(sf_func_decl_node), SF_NODE_FUNC_DECL, span);
@@ -332,6 +333,7 @@ sf_func_decl_node *sf_new_func_decl_node(
     node->name = copy_string(arena, name);
     node->return_type = return_type;
     node->qualifiers = qualifiers;
+    node->attributes = attributes;
     node->link_name = NULL;
 
     return node->name != NULL ? node : NULL;
