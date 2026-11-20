@@ -1,6 +1,7 @@
-#include "sulfur/utils/type.h"
+#include "sulfur/shared/type.h"
 
 #include "sulfur/pipeline/midend/ir/ir.h"
+#include "sulfur/shared/operation.h"
 
 bool sf_type_kind_unsigned_literal_fits(sf_type_kind type, uint64_t value) {
     switch (type) {
@@ -187,76 +188,4 @@ uint8_t sf_type_kind_width_bytes(sf_type_kind type) {
 
 sf_type_kind sf_type_kind_promote(sf_type_kind a, sf_type_kind b) {
     return sf_type_kind_width_bits(a) >= sf_type_kind_width_bits(b) ? a : b;
-}
-
-sf_ir_opcode sf_type_operation_to_opcode(sf_operation_type type) {
-    switch (type) {
-        case SF_OPERATION_TYPE_ADD: {
-            return SF_IR_OPCODE_ADD;
-        }
-        case SF_OPERATION_TYPE_SUB: {
-            return SF_IR_OPCODE_SUB;
-        }
-        case SF_OPERATION_TYPE_MUL: {
-            return SF_IR_OPCODE_MULT;
-        }
-        case SF_OPERATION_TYPE_DIV: {
-            return SF_IR_OPCODE_DIV;
-        }
-        case SF_OPERATION_TYPE_NEGATE: {
-            return SF_IR_OPCODE_NEGATE;
-        }
-
-        case SF_OPERATION_TYPE_BITWISE_AND: {
-            return SF_IR_OPCODE_BITWISE_AND;
-        }
-        case SF_OPERATION_TYPE_BITWISE_OR: {
-            return SF_IR_OPCODE_BITWISE_OR;
-        }
-        case SF_OPERATION_TYPE_BITWISE_XOR: {
-            return SF_IR_OPCODE_BITWISE_XOR;
-        }
-        case SF_OPERATION_TYPE_BITWISE_RSHIFT: {
-            return SF_IR_OPCODE_BITWISE_RSHIFT;
-        }
-        case SF_OPERATION_TYPE_BITWISE_LSHIFT: {
-            return SF_IR_OPCODE_BITWISE_LSHIFT;
-        }
-        case SF_OPERATION_TYPE_BITWISE_NOT: {
-            return SF_IR_OPCODE_BITWISE_NOT;
-        }
-
-        case SF_OPERATION_TYPE_RELATIONAL_EQUAL: {
-            return SF_IR_OPCODE_RELATIONAL_EQUAL;
-        }
-        case SF_OPERATION_TYPE_RELATIONAL_NOT_EQUAL: {
-            return SF_IR_OPCODE_RELATIONAL_NOT_EQUAL;
-        }
-        case SF_OPERATION_TYPE_RELATIONAL_LESS: {
-            return SF_IR_OPCODE_RELATIONAL_LESS;
-        }
-        case SF_OPERATION_TYPE_RELATIONAL_LESS_EQUAL: {
-            return SF_IR_OPCODE_RELATIONAL_LESS_EQUAL;
-        }
-        case SF_OPERATION_TYPE_RELATIONAL_GREATER: {
-            return SF_IR_OPCODE_RELATIONAL_GREATER;
-        }
-        case SF_OPERATION_TYPE_RELATIONAL_GREATER_EQUAL: {
-            return SF_IR_OPCODE_RELATIONAL_GREATER_EQUAL;
-        }
-
-        case SF_OPERATION_TYPE_LOGICAL_AND: {
-            return SF_IR_OPCODE_LOGICAL_AND;
-        }
-        case SF_OPERATION_TYPE_LOGICAL_OR: {
-            return SF_IR_OPCODE_LOGICAL_OR;
-        }
-        case SF_OPERATION_TYPE_LOGICAL_NOT: {
-            return SF_IR_OPCODE_LOGICAL_NOT;
-        }
-
-        default: {
-            return SF_IR_OPCODE_INVALID;
-        }
-    }
 }

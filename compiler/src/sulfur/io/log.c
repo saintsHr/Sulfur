@@ -1,5 +1,5 @@
 #include "sulfur/io/log.h"
-#include "sulfur/utils/string.h"
+#include "sulfur/shared/string.h"
 
 #include <stdarg.h>
 #include <stddef.h>

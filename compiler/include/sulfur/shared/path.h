@@ -15,3 +15,5 @@ typedef struct sf_path {
     size_t segment_capacity;
     bool is_global;
 } sf_path;
+
+const char *sf_path_name(const sf_path *path);

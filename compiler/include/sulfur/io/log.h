@@ -78,12 +78,9 @@ typedef struct sf_log_info {
 void sf_log_init(void);
 void sf_log_shutdown(void);
 void sf_log_set_source(const char *filename, const char *content);
-
 bool sf_log_had_errors(void);
-
 void sf_log(
     const char *title, const char *desc, const char *hint, const char *file,
     sf_log_code code, sf_span span, sf_log_severity severity, ...
 );
-
 void sf_log_out_of_memory(const char *filename);

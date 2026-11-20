@@ -4,11 +4,10 @@
 #include <stddef.h>
 
 #include "sulfur/pipeline/frontend/ast/ast.h"
-#include "sulfur/pipeline/frontend/lexer/lexer.h"
-#include "sulfur/utils/token.h"
+#include "sulfur/pipeline/frontend/lexer/token.h"
 
 typedef struct {
-    sf_lexer_token_type ops[6];
+    sf_token_type ops[6];
     size_t op_count;
     bool chainable;
 } sf_binary_level;
@@ -35,7 +34,7 @@ static const sf_binary_level k_binary_levels[] = {
 
 #define SF_BINARY_LEVEL_COUNT (sizeof(k_binary_levels) / sizeof(k_binary_levels[0]))
 
-static bool level_has_operator(const sf_binary_level *level, sf_lexer_token_type type);
+static bool level_has_operator(const sf_binary_level *level, sf_token_type type);
 
 static sf_ast_node *parse_binary(sf_parser *p, size_t level);
 static sf_ast_node *parse_cast(sf_parser *p);
@@ -48,7 +47,7 @@ sf_ast_node *sf_parse_expression(sf_parser *p) {
     return parse_binary(p, 0);
 }
 
-static bool level_has_operator(const sf_binary_level *level, sf_lexer_token_type type) {
+static bool level_has_operator(const sf_binary_level *level, sf_token_type type) {
     for (size_t i = 0; i < level->op_count; i++) {
         if (level->ops[i] == type) {
             return true;
@@ -72,7 +71,7 @@ static sf_ast_node *parse_binary(sf_parser *p, size_t level) {
     }
 
     while (level_has_operator(info, sf_parser_peek(p)->type)) {
-        const sf_lexer_token *op_token = sf_parser_advance(p);
+        const sf_token *op_token = sf_parser_advance(p);
 
         sf_ast_node *right = parse_binary(p, level + 1);
 
@@ -130,7 +129,7 @@ static sf_ast_node *parse_cast(sf_parser *p) {
 }
 
 static sf_ast_node *parse_unary(sf_parser *p) {
-    const sf_lexer_token *token = sf_parser_peek(p);
+    const sf_token *token = sf_parser_peek(p);
     sf_operation_type op = sf_token_to_unary_op(*token);
 
     if (op == SF_OPERATION_TYPE_UNRESOLVED) {
@@ -157,7 +156,7 @@ static sf_ast_node *parse_postfix(sf_parser *p) {
 
     while (sf_parser_peek(p)->type == SF_TOKEN_TYPE_PLUS_PLUS ||
            sf_parser_peek(p)->type == SF_TOKEN_TYPE_MINUS_MINUS) {
-        const sf_lexer_token *op_token = sf_parser_advance(p);
+        const sf_token *op_token = sf_parser_advance(p);
         sf_operation_type op = sf_token_to_postfix_op(*op_token);
 
         if (op == SF_OPERATION_TYPE_UNRESOLVED) {
@@ -222,7 +221,7 @@ static sf_ast_node *parse_primary(sf_parser *p) {
         return expr;
     }
 
-    const sf_lexer_token *token = sf_parser_peek(p);
+    const sf_token *token = sf_parser_peek(p);
 
     if (token->type == SF_TOKEN_TYPE_INTEGER || token->type == SF_TOKEN_TYPE_KW_TRUE ||
         token->type == SF_TOKEN_TYPE_KW_FALSE) {

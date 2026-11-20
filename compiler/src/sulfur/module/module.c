@@ -13,7 +13,7 @@
 #include "sulfur/pipeline/frontend/parser/parser.h"
 #include "sulfur/pipeline/frontend/preprocessor/preprocessor.h"
 #include "sulfur/shared/arena.h"
-#include "sulfur/utils/string.h"
+#include "sulfur/shared/string.h"
 
 static bool find_module_index(sf_module_list *list, const char *filename, size_t *index);
 
@@ -166,7 +166,7 @@ static void resolve_import(
 
     char *input = NULL;
     char *preprocessed = NULL;
-    sf_lexer_token_list tokens = {0};
+    sf_token_list tokens = {0};
     sf_ast_node_program *ast = NULL;
     size_t input_size = 0;
 
@@ -183,7 +183,7 @@ static void resolve_import(
 
     modules->modules[module_index].state = SF_MODULE_STATE_LOADED;
 
-    sf_lexer_token_list_free(&tokens);
+    sf_token_list_free(&tokens);
     free(preprocessed);
     free(input);
 }

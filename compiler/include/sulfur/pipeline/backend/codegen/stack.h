@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 
-#include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/midend/ir/ir.h"
 
 typedef int64_t sf_stack_offset_size;

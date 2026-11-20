@@ -118,7 +118,7 @@ static bool compilation_run(
 
 static void compilation_free(sf_compilation *compilation) {
     free(compilation->assembly);
-    sf_lexer_token_list_free(&compilation->tokens);
+    sf_token_list_free(&compilation->tokens);
     free(compilation->preprocessed);
     sf_arena_free(&compilation->arena);
     free(compilation->input_source);
@@ -135,7 +135,7 @@ static void dump_stages(sf_compilation *compilation) {
 
     if (compilation->tokens.count > 0) {
         printf("\n[Tokens]:\n\n");
-        sf_lexer_token_list_print(&compilation->tokens);
+        sf_token_list_print(&compilation->tokens);
     }
 
     if (compilation->ast != NULL) {

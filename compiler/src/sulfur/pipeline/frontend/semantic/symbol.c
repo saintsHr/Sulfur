@@ -1,7 +1,7 @@
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
 #include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
-#include "sulfur/utils/string.h"
+#include "sulfur/shared/string.h"
 
 #include <stdlib.h>
 #include <string.h>

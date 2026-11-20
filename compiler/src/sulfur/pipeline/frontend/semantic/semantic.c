@@ -13,10 +13,10 @@
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
 #include "sulfur/shared/arena.h"
+#include "sulfur/shared/operation.h"
 #include "sulfur/shared/span.h"
-#include "sulfur/utils/operation.h"
-#include "sulfur/utils/string.h"
-#include "sulfur/utils/type.h"
+#include "sulfur/shared/string.h"
+#include "sulfur/shared/type.h"
 
 static void analyze_statement(sf_semantic *semantic, sf_ast_node *node);
 static void analyze_var_decl(sf_semantic *semantic, sf_ast_node_var_decl *var);
@@ -329,7 +329,7 @@ static void analyze_var_decl(sf_semantic *semantic, sf_ast_node_var_decl *var) {
 }
 
 static void analyze_var_assign(sf_semantic *semantic, sf_ast_node_var_assign *asg) {
-    const char *name = sf_path_simple_name(&asg->path);
+    const char *name = sf_path_name(&asg->path);
 
     if (name == NULL) {
         return;
@@ -451,7 +451,7 @@ static void analyze_while(sf_semantic *semantic, sf_ast_node_while *while_stmt) 
 }
 
 static void analyze_func_decl(sf_semantic *semantic, sf_ast_node_func_decl *func) {
-    char qname[SF_QNAME_MAX];
+    char qname[SF_NS_QNAME_MAX];
     sf_path_segment self = {.span = func->base.span, .name = func->name};
 
     if (!sf_namespace_format(

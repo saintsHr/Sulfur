@@ -8,7 +8,6 @@ typedef struct sf_arena_chunk {
     struct sf_arena_chunk *next;
     size_t size;
     size_t used;
-
     max_align_t _align;
     uint8_t data[];
 } sf_arena_chunk;

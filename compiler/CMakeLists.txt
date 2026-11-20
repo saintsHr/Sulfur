@@ -11,27 +11,20 @@ find_program(CCACHE_PROGRAM ccache)
 set(SOURCES
     src/sulfur/driver/main.c
 	src/sulfur/driver/flags.c
-
 	src/sulfur/io/log.c
 	src/sulfur/io/file.c
-
-	src/sulfur/utils/type.c
-	src/sulfur/utils/token.c
-	src/sulfur/utils/string.c
-	src/sulfur/utils/operation.c
-
+	src/sulfur/shared/type.c
+	src/sulfur/shared/string.c
+	src/sulfur/shared/operation.c
 	src/sulfur/shared/arena.c
-
+	src/sulfur/shared/path.c
 	src/sulfur/pipeline/frontend/preprocessor/preprocessor.c
-
 	src/sulfur/pipeline/frontend/lexer/lexer.c
-
+	src/sulfur/pipeline/frontend/lexer/token.c
 	src/sulfur/pipeline/frontend/ast/ast.c
-
 	src/sulfur/pipeline/frontend/parser/parser.c
 	src/sulfur/pipeline/frontend/parser/parser_stmt.c
 	src/sulfur/pipeline/frontend/parser/parser_expr.c
-
 	src/sulfur/pipeline/frontend/semantic/semantic.c
 	src/sulfur/pipeline/frontend/semantic/semantic_expr.c
 	src/sulfur/pipeline/frontend/semantic/semantic_const.c
@@ -39,13 +32,10 @@ set(SOURCES
 	src/sulfur/pipeline/frontend/semantic/symbol.c
 	src/sulfur/pipeline/frontend/semantic/namespace.c
 	src/sulfur/pipeline/frontend/semantic/mangle.c
-
 	src/sulfur/pipeline/midend/ir/ir.c
 	src/sulfur/pipeline/midend/ir/optimization.c
-
 	src/sulfur/pipeline/backend/codegen/codegen.c
 	src/sulfur/pipeline/backend/codegen/stack.c
-
 	src/sulfur/module/module.c
 )
 
