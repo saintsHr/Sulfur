@@ -1,8 +1,29 @@
-#include "sulfur/utils/token.h"
+#include "sulfur/pipeline/frontend/lexer/token.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-#include "sulfur/pipeline/frontend/lexer/lexer.h"
+void sf_token_list_free(sf_token_list *list) {
+    if (list == NULL) {
+        return;
+    }
 
-bool sf_token_is_type(sf_lexer_token token) {
+    free(list->tokens);
+
+    list->tokens = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+void sf_token_list_print(const sf_token_list *list) {
+    for (size_t i = 0; i < list->count; i++) {
+        printf(
+            "Token %zu: type= %d value= %s (%zu:%zu)\n", i, list->tokens[i].type,
+            list->tokens[i].value, list->tokens[i].span.line, list->tokens[i].span.col
+        );
+    }
+}
+
+bool sf_token_is_type(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_KW_I8:
         case SF_TOKEN_TYPE_KW_I16:
@@ -23,31 +44,31 @@ bool sf_token_is_type(sf_lexer_token token) {
     }
 }
 
-bool sf_token_is_ident(sf_lexer_token token) {
+bool sf_token_is_ident(sf_token token) {
     return token.type == SF_TOKEN_TYPE_IDENTIFIER;
 }
 
-bool sf_token_is_block(sf_lexer_token token) {
+bool sf_token_is_block(sf_token token) {
     return token.type == SF_TOKEN_TYPE_LBRACE;
 }
 
-bool sf_token_is_if(sf_lexer_token token) {
+bool sf_token_is_if(sf_token token) {
     return token.type == SF_TOKEN_TYPE_KW_IF;
 }
 
-bool sf_token_is_while(sf_lexer_token token) {
+bool sf_token_is_while(sf_token token) {
     return token.type == SF_TOKEN_TYPE_KW_WHILE;
 }
 
-bool sf_token_is_fn(sf_lexer_token token) {
+bool sf_token_is_fn(sf_token token) {
     return token.type == SF_TOKEN_TYPE_KW_FN;
 }
 
-bool sf_token_is_return(sf_lexer_token token) {
+bool sf_token_is_return(sf_token token) {
     return token.type == SF_TOKEN_TYPE_KW_RETURN;
 }
 
-bool sf_token_is_qual(sf_lexer_token token) {
+bool sf_token_is_qual(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_KW_MUT:
         case SF_TOKEN_TYPE_KW_EXTERN:
@@ -61,19 +82,19 @@ bool sf_token_is_qual(sf_lexer_token token) {
     }
 }
 
-bool sf_token_is_attr(sf_lexer_token token) {
+bool sf_token_is_attr(sf_token token) {
     return token.type == SF_TOKEN_TYPE_AT;
 }
 
-bool sf_token_is_import(sf_lexer_token token) {
+bool sf_token_is_import(sf_token token) {
     return token.type == SF_TOKEN_TYPE_KW_IMPORT;
 }
 
-bool sf_token_is_namespace(sf_lexer_token token) {
+bool sf_token_is_namespace(sf_token token) {
     return token.type == SF_TOKEN_TYPE_KW_NAMESPACE;
 }
 
-bool sf_token_is_assign(sf_lexer_token token) {
+bool sf_token_is_assign(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_EQUAL:
         case SF_TOKEN_TYPE_PLUS_EQUAL:
@@ -94,7 +115,7 @@ bool sf_token_is_assign(sf_lexer_token token) {
     }
 }
 
-sf_type_kind sf_token_to_type(sf_lexer_token token) {
+sf_type_kind sf_token_to_type(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_KW_I8: {
             return SF_TYPE_KIND_I8;
@@ -136,7 +157,7 @@ sf_type_kind sf_token_to_type(sf_lexer_token token) {
     }
 }
 
-sf_operation_type sf_token_to_unary_op(sf_lexer_token token) {
+sf_operation_type sf_token_to_unary_op(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_MINUS: {
             return SF_OPERATION_TYPE_NEGATE;
@@ -160,7 +181,7 @@ sf_operation_type sf_token_to_unary_op(sf_lexer_token token) {
     }
 }
 
-sf_operation_type sf_token_to_postfix_op(sf_lexer_token token) {
+sf_operation_type sf_token_to_postfix_op(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_PLUS_PLUS: {
             return SF_OPERATION_TYPE_POSTFIX_INCREMENT;
@@ -175,7 +196,7 @@ sf_operation_type sf_token_to_postfix_op(sf_lexer_token token) {
     }
 }
 
-sf_operation_type sf_token_to_binary_op(sf_lexer_token token) {
+sf_operation_type sf_token_to_binary_op(sf_token token) {
     switch (token.type) {
         case SF_TOKEN_TYPE_PLUS:
         case SF_TOKEN_TYPE_PLUS_EQUAL: {

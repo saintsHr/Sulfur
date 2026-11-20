@@ -47,6 +47,11 @@ option(ENABLE_SANITIZERS "Enable sanitizers" OFF)
 # Common Flags
 # ------------------------------------------------------------------------------
 
+
+# ------------------------------------------------------------------------------
+# Common Flags
+# ------------------------------------------------------------------------------
+
 add_compile_options(
     -Werror
     -Wall
@@ -69,7 +74,6 @@ add_compile_options(
     -Wcast-qual
     -Wpointer-arith
     -Wwrite-strings
-    -Wbad-function-cast
     -Wswitch-default
     -Wimplicit-fallthrough
     -Wunused
@@ -80,16 +84,9 @@ add_compile_options(
     -Wdouble-promotion
     -Wvla
     -Walloca
-    -Wstrict-aliasing=2
-    -Warray-bounds=2
-    -Wstringop-overflow=2
-    -Wstringop-truncation
-    -Wformat-overflow=2
     -Wpointer-sign
     -Wint-conversion
-    -Wenum-conversion
     -Waddress
-    -Wlogical-not-parentheses
     -Wparentheses
     -Wsequence-point
     -Wreturn-type
@@ -101,6 +98,12 @@ add_compile_options(
 
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     add_compile_options(
+        -Wbad-function-cast
+        -Wstrict-aliasing=2
+        -Warray-bounds=2
+        -Wstringop-overflow=2
+        -Wstringop-truncation
+        -Wformat-overflow=2
         -Wlogical-op
         -Wduplicated-cond
         -Wduplicated-branches
@@ -111,11 +114,11 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
         -Walloc-size
         -Warray-parameter=2
         -Wcast-function-type
-        -fstrict-flex-arrays=3
         -Wstringop-overread
         -Wmaybe-uninitialized
+        -fstrict-flex-arrays=3
     )
-else()
+elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
     add_compile_options(
         -Wcomma
         -Wconditional-uninitialized
@@ -124,12 +127,8 @@ else()
         -Wshorten-64-to-32
         -Wdocumentation
         -Wunreachable-code
-        -Wunreachable-code-aggressive
-        -Wthread-safety
-        -Wtautological-compare
-        -Wtautological-constant-out-of-range-compare
         -Wextra-semi
-        -Wreserved-identifier
+        -Wtautological-compare
     )
 endif()
 

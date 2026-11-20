@@ -5,11 +5,11 @@
 
 #include "sulfur/shared/path.h"
 
-#define SF_NS_MAX_DEPTH 32
-#define SF_QNAME_MAX 512
+#define SF_NS_DEPTH_MAX 32
+#define SF_NS_QNAME_MAX 512
 
 typedef struct {
-    const char *segments[SF_NS_MAX_DEPTH];
+    const char *segments[SF_NS_DEPTH_MAX];
     size_t depth;
 } sf_namespace_stack;
 

@@ -1,4 +1,4 @@
-#include "sulfur/utils/string.h"
+#include "sulfur/shared/string.h"
 
 #include <stdlib.h>
 #include <string.h>

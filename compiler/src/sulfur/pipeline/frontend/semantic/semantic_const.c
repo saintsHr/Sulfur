@@ -5,9 +5,9 @@
 
 #include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
-#include "sulfur/pipeline/frontend/lexer/lexer.h"
+#include "sulfur/pipeline/frontend/lexer/token.h"
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
-#include "sulfur/utils/type.h"
+#include "sulfur/shared/type.h"
 
 static bool literal_magnitude(const sf_ast_node *node, uint64_t *out_value);
 

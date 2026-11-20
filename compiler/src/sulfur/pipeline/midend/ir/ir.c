@@ -10,8 +10,8 @@
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/semantic/mangle.h"
 #include "sulfur/shared/arena.h"
-#include "sulfur/utils/operation.h"
-#include "sulfur/utils/type.h"
+#include "sulfur/shared/operation.h"
+#include "sulfur/shared/type.h"
 
 static const sf_ir_operand k_no_operand = {0};
 
@@ -312,7 +312,7 @@ static void generate_var_decl(
 static void generate_var_assign(
     sf_arena *arena, sf_ir_context *context, sf_ast_node_var_assign *as
 ) {
-    const char *name = sf_path_simple_name(&as->path);
+    const char *name = sf_path_name(&as->path);
     assert(name != NULL);
 
     sf_ir_operand dst = {
@@ -497,7 +497,7 @@ static sf_ir_operand generate_expression_into(
 static sf_ir_operand generate_binary(
     sf_arena *arena, sf_ir_context *context, sf_ast_node_binary *ex, sf_ir_operand *hint
 ) {
-    sf_ir_opcode opcode = sf_type_operation_to_opcode(ex->op);
+    sf_ir_opcode opcode = sf_operation_to_opcode(ex->op);
 
     sf_ir_operand left = generate_expression(arena, context, ex->left);
     sf_ir_operand right = generate_expression(arena, context, ex->right);
@@ -514,7 +514,7 @@ static sf_ir_operand generate_unary(
     if (sf_operation_is_increment_or_decrement(un->op)) {
         return generate_increment(arena, context, un);
     }
-    sf_ir_opcode opcode = sf_type_operation_to_opcode(un->op);
+    sf_ir_opcode opcode = sf_operation_to_opcode(un->op);
 
     sf_ir_operand src = generate_expression(arena, context, un->operand);
     sf_ir_operand dst = hint != NULL ? *hint : new_temporary(context, un->base.resolved);
@@ -576,7 +576,7 @@ static sf_ir_operand generate_literal(sf_ast_node_literal *lt) {
 }
 
 static sf_ir_operand generate_identifier(sf_arena *arena, sf_ast_node_identifier *id) {
-    const char *name = sf_path_simple_name(&id->path);
+    const char *name = sf_path_name(&id->path);
     assert(name != NULL);
 
     sf_ir_operand op = {0};

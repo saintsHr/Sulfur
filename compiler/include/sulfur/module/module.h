@@ -37,7 +37,6 @@ void sf_module_resolve(
     sf_module_list *modules, const char **module_paths, size_t module_path_count,
     sf_arena *arena
 );
-
 const char *sf_module_name_from_path(
     const char *file, const char **module_paths, size_t module_path_count
 );

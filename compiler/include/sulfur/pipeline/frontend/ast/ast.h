@@ -4,8 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "sulfur/pipeline/frontend/lexer/lexer.h"
+#include "sulfur/pipeline/frontend/lexer/token.h"
 #include "sulfur/shared/arena.h"
+#include "sulfur/shared/attribute.h"
 #include "sulfur/shared/operation.h"
 #include "sulfur/shared/path.h"
 #include "sulfur/shared/span.h"
@@ -40,7 +41,7 @@ typedef struct sf_ast_node {
 
 typedef struct sf_ast_node_literal {
     sf_ast_node base;
-    sf_lexer_token_type token_type;
+    sf_token_type token_type;
     const char *value;
 } sf_ast_node_literal;
 
@@ -64,16 +65,6 @@ typedef struct sf_ast_node_unary {
     sf_ast_node *operand;
     sf_operation_type op;
 } sf_ast_node_unary;
-
-typedef struct sf_qualifiers {
-    bool is_mutable;
-    bool is_public;
-    bool is_extern;
-} sf_qualifiers;
-
-typedef struct sf_attributes {
-    bool no_mangle;
-} sf_attributes;
 
 typedef struct sf_ast_node_var_decl {
     sf_ast_node base;
@@ -117,13 +108,6 @@ typedef struct sf_ast_node_while {
     sf_ast_node *condition;
     sf_ast_node *branch_do;
 } sf_ast_node_while;
-
-typedef struct sf_parameter {
-    sf_type_kind type;
-    const char *name;
-    size_t id;
-    sf_qualifiers qualifiers;
-} sf_parameter;
 
 typedef struct sf_ast_node_func_decl {
     sf_ast_node base;
@@ -177,10 +161,7 @@ typedef struct sf_ast_node_program {
     size_t import_capacity;
 } sf_ast_node_program;
 
-const char *sf_path_simple_name(const sf_path *path);
-
 void sf_print_ast(const sf_ast_node *root);
-
 void sf_program_add_statement(
     sf_arena *arena, sf_ast_node_program *program, sf_ast_node *stmt
 );
@@ -196,11 +177,10 @@ void sf_call_add_argument(
 );
 void sf_namespace_add_item(sf_arena *arena, sf_ast_node_namespace *ns, sf_ast_node *item);
 bool sf_path_add_segment(sf_arena *arena, sf_path *path, const char *name, sf_span span);
-
 sf_ast_node_program *sf_new_program_node(sf_arena *arena);
 sf_ast_node_block *sf_new_block_node(sf_arena *arena, sf_span span);
 sf_ast_node_literal *sf_new_literal_node(
-    sf_arena *arena, const char *value, sf_lexer_token_type token_type, sf_span span
+    sf_arena *arena, const char *value, sf_token_type token_type, sf_span span
 );
 sf_ast_node_identifier *sf_new_identifier_node(sf_arena *arena, sf_span span);
 sf_ast_node_binary *sf_new_binary_node(

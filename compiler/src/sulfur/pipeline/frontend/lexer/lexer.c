@@ -9,10 +9,8 @@
 
 #include "sulfur/io/log.h"
 
-#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
-
 typedef struct {
-    sf_lexer_token_type type;
+    sf_token_type type;
     const char *text;
 } sf_token_spelling;
 
@@ -22,7 +20,7 @@ typedef struct {
     size_t pos;
     size_t line;
     size_t col;
-    sf_lexer_token_list list;
+    sf_token_list list;
 } sf_lexer;
 
 static const sf_token_spelling k_symbols[] = {
@@ -110,33 +108,26 @@ static bool is_digit(char c);
 static bool is_space(char c);
 static bool is_ident_start(char c);
 static bool is_ident_char(char c);
-
 static char lexer_current(const sf_lexer *lx);
 static char lexer_next(const sf_lexer *lx);
 static void lexer_advance(sf_lexer *lx, size_t count);
 static sf_span lexer_span_here(const sf_lexer *lx);
-
-static bool list_add(sf_lexer_token_list *list, sf_lexer_token token);
-static sf_lexer_token make_token(sf_lexer_token_type type, sf_span span);
-
-static bool lexer_emit(
-    sf_lexer *lx, sf_lexer_token token, size_t start_pos, size_t start_col
-);
+static bool lexer_emit(sf_lexer *lx, sf_token token, size_t start_pos, size_t start_col);
+static bool list_add(sf_token_list *list, sf_token token);
+static sf_token make_token(sf_token_type type, sf_span span);
 static bool lexer_report_undefined(sf_lexer *lx, size_t start_pos, size_t start_col);
 static bool undefined_run_continues(const sf_lexer *lx, bool number);
-
-static sf_lexer_token read_number(sf_lexer *lx);
-static sf_lexer_token read_identifier(sf_lexer *lx);
-static sf_lexer_token read_symbol(sf_lexer *lx);
-
+static sf_token read_number(sf_lexer *lx);
+static sf_token read_identifier(sf_lexer *lx);
+static sf_token read_symbol(sf_lexer *lx);
 static int digit_value(char c, int base);
-static sf_lexer_token_type resolve_keyword(const char *value);
+static sf_token_type resolve_keyword(const char *value);
 static const sf_token_spelling *find_symbol(const char *text);
 static const char *find_spelling(
-    const sf_token_spelling *table, size_t count, sf_lexer_token_type type
+    const sf_token_spelling *table, size_t count, sf_token_type type
 );
 
-sf_lexer_token_list sf_lexer_run(const char *input, const char *filename) {
+sf_token_list sf_lexer_run(const char *input, const char *filename) {
     sf_lexer lx = {
         .input = input,
         .filename = filename,
@@ -163,7 +154,7 @@ sf_lexer_token_list sf_lexer_run(const char *input, const char *filename) {
 
         size_t start_pos = lx.pos;
         size_t start_col = lx.col;
-        sf_lexer_token tk;
+        sf_token tk;
 
         if (is_digit(c)) {
             tk = read_number(&lx);
@@ -183,28 +174,7 @@ sf_lexer_token_list sf_lexer_run(const char *input, const char *filename) {
     return lx.list;
 }
 
-void sf_lexer_token_list_print(const sf_lexer_token_list *list) {
-    for (size_t i = 0; i < list->count; i++) {
-        printf(
-            "Token %zu: type= %d value= %s (%zu:%zu)\n", i, list->tokens[i].type,
-            list->tokens[i].value, list->tokens[i].span.line, list->tokens[i].span.col
-        );
-    }
-}
-
-void sf_lexer_token_list_free(sf_lexer_token_list *list) {
-    if (list == NULL) {
-        return;
-    }
-
-    free(list->tokens);
-
-    list->tokens = NULL;
-    list->count = 0;
-    list->capacity = 0;
-}
-
-const char *sf_lexer_token_type_name(sf_lexer_token_type type) {
+const char *sf_lexer_token_type_name(sf_token_type type) {
     switch (type) {
         case SF_TOKEN_TYPE_IDENTIFIER: {
             return "an identifier";
@@ -224,13 +194,14 @@ const char *sf_lexer_token_type_name(sf_lexer_token_type type) {
         }
     }
 
-    const char *name = find_spelling(k_symbols, ARRAY_LEN(k_symbols), type);
+    const char *name =
+        find_spelling(k_symbols, sizeof(k_symbols) / sizeof(k_symbols[0]), type);
 
     if (name != NULL) {
         return name;
     }
 
-    name = find_spelling(k_keywords, ARRAY_LEN(k_keywords), type);
+    name = find_spelling(k_keywords, sizeof(k_keywords) / sizeof(k_keywords[0]), type);
 
     if (name != NULL) {
         return name;
@@ -272,22 +243,22 @@ static sf_span lexer_span_here(const sf_lexer *lx) {
     return (sf_span){.line = lx->line, .col = lx->col, .len = 0};
 }
 
-static sf_lexer_token make_token(sf_lexer_token_type type, sf_span span) {
-    sf_lexer_token tk = {0};
+static sf_token make_token(sf_token_type type, sf_span span) {
+    sf_token tk = {0};
     tk.type = type;
     tk.span = span;
 
     return tk;
 }
 
-static bool list_add(sf_lexer_token_list *list, sf_lexer_token token) {
+static bool list_add(sf_token_list *list, sf_token token) {
     if (list->count >= list->capacity) {
         size_t new_capacity = list->capacity == 0 ? 16 : list->capacity * 2;
 
-        sf_lexer_token *new_tokens = NULL;
+        sf_token *new_tokens = NULL;
 
-        if (new_capacity <= SIZE_MAX / sizeof(sf_lexer_token)) {
-            new_tokens = realloc(list->tokens, new_capacity * sizeof(sf_lexer_token));
+        if (new_capacity <= SIZE_MAX / sizeof(sf_token)) {
+            new_tokens = realloc(list->tokens, new_capacity * sizeof(sf_token));
         }
 
         if (new_tokens == NULL) {
@@ -304,9 +275,7 @@ static bool list_add(sf_lexer_token_list *list, sf_lexer_token token) {
     return true;
 }
 
-static bool lexer_emit(
-    sf_lexer *lx, sf_lexer_token token, size_t start_pos, size_t start_col
-) {
+static bool lexer_emit(sf_lexer *lx, sf_token token, size_t start_pos, size_t start_col) {
     if (token.type == SF_TOKEN_TYPE_UNDEFINED) {
         return lexer_report_undefined(lx, start_pos, start_col);
     }
@@ -332,13 +301,13 @@ static bool lexer_report_undefined(sf_lexer *lx, size_t start_pos, size_t start_
     lx->pos = start_pos;
     lx->col = start_col;
 
-    sf_lexer_token tk = make_token(SF_TOKEN_TYPE_UNDEFINED, lexer_span_here(lx));
+    sf_token tk = make_token(SF_TOKEN_TYPE_UNDEFINED, lexer_span_here(lx));
 
     bool number = is_digit(lexer_current(lx));
     size_t j = 0;
 
     do {
-        if (j < SF_LEXER_MAX_TOKEN_VALUE_SIZE - 1) {
+        if (j < SF_TOKEN_VALUE_SIZE - 1) {
             tk.value[j++] = lexer_current(lx);
         }
 
@@ -377,10 +346,10 @@ static int digit_value(char c, int base) {
     return digit < base ? digit : -1;
 }
 
-static sf_lexer_token read_number(sf_lexer *lx) {
+static sf_token read_number(sf_lexer *lx) {
     size_t start = lx->pos;
     sf_span span = lexer_span_here(lx);
-    sf_lexer_token tk = make_token(SF_TOKEN_TYPE_INTEGER, span);
+    sf_token tk = make_token(SF_TOKEN_TYPE_INTEGER, span);
 
     int base = 10;
 
@@ -427,19 +396,19 @@ static sf_lexer_token read_number(sf_lexer *lx) {
 
     size_t len = lx->pos - start;
 
-    snprintf(tk.value, SF_LEXER_MAX_TOKEN_VALUE_SIZE, "%llu", value);
+    snprintf(tk.value, SF_TOKEN_VALUE_SIZE, "%llu", value);
     tk.span.len = (uint8_t)(len > UINT8_MAX ? UINT8_MAX : len);
 
     return tk;
 }
 
-static sf_lexer_token read_identifier(sf_lexer *lx) {
-    sf_lexer_token tk = make_token(SF_TOKEN_TYPE_IDENTIFIER, lexer_span_here(lx));
+static sf_token read_identifier(sf_lexer *lx) {
+    sf_token tk = make_token(SF_TOKEN_TYPE_IDENTIFIER, lexer_span_here(lx));
 
     size_t j = 0;
 
     while (is_ident_char(lexer_current(lx))) {
-        if (j < SF_LEXER_MAX_TOKEN_VALUE_SIZE - 1) {
+        if (j < SF_TOKEN_VALUE_SIZE - 1) {
             tk.value[j++] = lexer_current(lx);
         }
 
@@ -453,8 +422,8 @@ static sf_lexer_token read_identifier(sf_lexer *lx) {
     return tk;
 }
 
-static sf_lexer_token read_symbol(sf_lexer *lx) {
-    sf_lexer_token tk = make_token(SF_TOKEN_TYPE_UNDEFINED, lexer_span_here(lx));
+static sf_token read_symbol(sf_lexer *lx) {
+    sf_token tk = make_token(SF_TOKEN_TYPE_UNDEFINED, lexer_span_here(lx));
     const sf_token_spelling *symbol = find_symbol(lx->input + lx->pos);
 
     if (symbol == NULL) {
@@ -472,8 +441,8 @@ static sf_lexer_token read_symbol(sf_lexer *lx) {
     return tk;
 }
 
-static sf_lexer_token_type resolve_keyword(const char *value) {
-    for (size_t i = 0; i < ARRAY_LEN(k_keywords); i++) {
+static sf_token_type resolve_keyword(const char *value) {
+    for (size_t i = 0; i < sizeof(k_keywords) / sizeof(k_keywords[0]); i++) {
         if (strcmp(value, k_keywords[i].text) == 0) {
             return k_keywords[i].type;
         }
@@ -483,7 +452,7 @@ static sf_lexer_token_type resolve_keyword(const char *value) {
 }
 
 static const sf_token_spelling *find_symbol(const char *text) {
-    for (size_t i = 0; i < ARRAY_LEN(k_symbols); i++) {
+    for (size_t i = 0; i < sizeof(k_symbols) / sizeof(k_symbols[0]); i++) {
         if (strncmp(text, k_symbols[i].text, strlen(k_symbols[i].text)) == 0) {
             return &k_symbols[i];
         }
@@ -493,7 +462,7 @@ static const sf_token_spelling *find_symbol(const char *text) {
 }
 
 static const char *find_spelling(
-    const sf_token_spelling *table, size_t count, sf_lexer_token_type type
+    const sf_token_spelling *table, size_t count, sf_token_type type
 ) {
     for (size_t i = 0; i < count; i++) {
         if (table[i].type == type) {

@@ -4,7 +4,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "sulfur/pipeline/frontend/ast/ast.h"
+#include "sulfur/shared/arena.h"
+#include "sulfur/shared/parameter.h"
+#include "sulfur/shared/qualifier.h"
+#include "sulfur/shared/type.h"
+
+typedef struct sf_ast_node_program sf_ast_node_program;
 
 typedef enum {
     SF_IR_OPERAND_TYPE_NONE,

@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "sulfur/io/log.h"
-#include "sulfur/utils/string.h"
+#include "sulfur/shared/string.h"
 
 void scope_init(sf_scope *scope) {
     scope->stack = NULL;

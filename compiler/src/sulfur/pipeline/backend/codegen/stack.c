@@ -7,9 +7,8 @@
 #include <string.h>
 
 #include "sulfur/io/log.h"
-#include "sulfur/pipeline/frontend/ast/ast.h"
-#include "sulfur/utils/string.h"
-#include "sulfur/utils/type.h"
+#include "sulfur/shared/string.h"
+#include "sulfur/shared/type.h"
 
 static const sf_stack_map_size k_initial_capacity = 8;
 

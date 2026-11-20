@@ -14,7 +14,7 @@ typedef struct sf_compilation {
     char *input_source;
     size_t input_size;
     char *preprocessed;
-    sf_lexer_token_list tokens;
+    sf_token_list tokens;
     sf_ast_node_program *ast;
     sf_ir_program ir;
     char *assembly;

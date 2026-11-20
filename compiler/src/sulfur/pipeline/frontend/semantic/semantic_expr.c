@@ -8,11 +8,11 @@
 
 #include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
-#include "sulfur/pipeline/frontend/lexer/lexer.h"
+#include "sulfur/pipeline/frontend/lexer/token.h"
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
-#include "sulfur/utils/operation.h"
-#include "sulfur/utils/type.h"
+#include "sulfur/shared/operation.h"
+#include "sulfur/shared/type.h"
 
 static bool analyze_binary(
     sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind expected
@@ -570,7 +570,7 @@ static bool analyze_literal(
 }
 
 static bool analyze_identifier(sf_semantic *s, sf_ast_node_identifier *id) {
-    const char *name = sf_path_simple_name(&id->path);
+    const char *name = sf_path_name(&id->path);
 
     if (name == NULL) {
         return false;
@@ -607,7 +607,7 @@ static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
     const sf_func_symbol *sym = sf_semantic_resolve_func(s, &callee->path);
 
     if (sym == NULL) {
-        char shown[SF_QNAME_MAX];
+        char shown[SF_NS_QNAME_MAX];
 
         if (!sf_namespace_format(
                 shown, sizeof shown, &s->ns, 0, callee->path.segments,

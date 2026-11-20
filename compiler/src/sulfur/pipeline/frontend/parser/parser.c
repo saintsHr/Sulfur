@@ -7,15 +7,13 @@
 #include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/lexer/lexer.h"
+#include "sulfur/pipeline/frontend/lexer/token.h"
 #include "sulfur/pipeline/frontend/parser/parser_internal.h"
-#include "sulfur/utils/token.h"
 
-static const sf_lexer_token *peek_at(const sf_parser *p, size_t idx);
-static void describe_token(const sf_lexer_token *token, char *buf, size_t size);
+static const sf_token *peek_at(const sf_parser *p, size_t idx);
+static void describe_token(const sf_token *token, char *buf, size_t size);
 
-sf_ast_node_program *sf_parse(
-    sf_arena *arena, sf_lexer_token_list list, const char *filename
-) {
+sf_ast_node_program *sf_parse(sf_arena *arena, sf_token_list list, const char *filename) {
     sf_ast_node_program *program = sf_new_program_node(arena);
 
     if (program == NULL || list.count == 0) {
@@ -47,16 +45,16 @@ sf_ast_node_program *sf_parse(
     return program;
 }
 
-const sf_lexer_token *sf_parser_peek(const sf_parser *p) {
+const sf_token *sf_parser_peek(const sf_parser *p) {
     return peek_at(p, p->current);
 }
 
-const sf_lexer_token *sf_parser_peek_next(const sf_parser *p) {
+const sf_token *sf_parser_peek_next(const sf_parser *p) {
     return peek_at(p, p->current + 1);
 }
 
-const sf_lexer_token *sf_parser_advance(sf_parser *p) {
-    const sf_lexer_token *token = sf_parser_peek(p);
+const sf_token *sf_parser_advance(sf_parser *p) {
+    const sf_token *token = sf_parser_peek(p);
 
     if (token->type != SF_TOKEN_TYPE_EOF) {
         p->current++;
@@ -65,7 +63,7 @@ const sf_lexer_token *sf_parser_advance(sf_parser *p) {
     return token;
 }
 
-bool sf_parser_match(sf_parser *p, sf_lexer_token_type type) {
+bool sf_parser_match(sf_parser *p, sf_token_type type) {
     if (sf_parser_peek(p)->type == type) {
         p->current++;
         return true;
@@ -74,15 +72,15 @@ bool sf_parser_match(sf_parser *p, sf_lexer_token_type type) {
     return false;
 }
 
-bool sf_parser_expect(sf_parser *p, sf_lexer_token_type type) {
+bool sf_parser_expect(sf_parser *p, sf_token_type type) {
     if (sf_parser_match(p, type)) {
         return true;
     }
 
-    const sf_lexer_token *got = sf_parser_peek(p);
+    const sf_token *got = sf_parser_peek(p);
 
     if (got->type != SF_TOKEN_TYPE_UNDEFINED) {
-        char found[SF_LEXER_MAX_TOKEN_VALUE_SIZE + 3];
+        char found[SF_TOKEN_VALUE_SIZE + 3];
         describe_token(got, found, sizeof(found));
 
         sf_log(
@@ -96,10 +94,10 @@ bool sf_parser_expect(sf_parser *p, sf_lexer_token_type type) {
     return false;
 }
 
-const sf_lexer_token *sf_parser_expect_identifier(
+const sf_token *sf_parser_expect_identifier(
     sf_parser *p, const char *expected, const char *hint
 ) {
-    const sf_lexer_token *token = sf_parser_peek(p);
+    const sf_token *token = sf_parser_peek(p);
 
     if (token->type != SF_TOKEN_TYPE_IDENTIFIER) {
         sf_parser_report_unexpected(p, token, expected, hint);
@@ -112,7 +110,7 @@ const sf_lexer_token *sf_parser_expect_identifier(
 bool sf_parser_expect_type(
     sf_parser *p, sf_type_kind *type, const char *expected, const char *hint
 ) {
-    const sf_lexer_token *token = sf_parser_peek(p);
+    const sf_token *token = sf_parser_peek(p);
     sf_type_kind value = sf_token_to_type(*token);
 
     if (value == SF_TYPE_KIND_UNRESOLVED) {
@@ -127,13 +125,13 @@ bool sf_parser_expect_type(
 }
 
 void sf_parser_report_unexpected(
-    const sf_parser *p, const sf_lexer_token *got, const char *expected, const char *hint
+    const sf_parser *p, const sf_token *got, const char *expected, const char *hint
 ) {
     if (got->type == SF_TOKEN_TYPE_UNDEFINED) {
         return;
     }
 
-    char found[SF_LEXER_MAX_TOKEN_VALUE_SIZE + 3];
+    char found[SF_TOKEN_VALUE_SIZE + 3];
     describe_token(got, found, sizeof(found));
 
     sf_log(
@@ -197,7 +195,7 @@ void sf_parser_recover_statement(sf_parser *p) {
     }
 }
 
-static const sf_lexer_token *peek_at(const sf_parser *p, size_t idx) {
+static const sf_token *peek_at(const sf_parser *p, size_t idx) {
     if (idx >= p->tokens.count) {
         return &p->tokens.tokens[p->tokens.count - 1];
     }
@@ -205,7 +203,7 @@ static const sf_lexer_token *peek_at(const sf_parser *p, size_t idx) {
     return &p->tokens.tokens[idx];
 }
 
-static void describe_token(const sf_lexer_token *token, char *buf, size_t size) {
+static void describe_token(const sf_token *token, char *buf, size_t size) {
     if (token->type == SF_TOKEN_TYPE_EOF) {
         snprintf(buf, size, "end of file");
         return;
@@ -214,9 +212,7 @@ static void describe_token(const sf_lexer_token *token, char *buf, size_t size) 
     snprintf(buf, size, "%s", token->value);
 }
 
-sf_ast_node_identifier *sf_parser_make_identifier(
-    sf_parser *p, const sf_lexer_token *token
-) {
+sf_ast_node_identifier *sf_parser_make_identifier(sf_parser *p, const sf_token *token) {
     sf_ast_node_identifier *id = sf_new_identifier_node(p->arena, token->span);
 
     if (id == NULL) {
@@ -236,7 +232,7 @@ bool sf_parser_parse_path(sf_parser *p, sf_path *path) {
     }
 
     while (true) {
-        const sf_lexer_token *seg = sf_parser_expect_identifier(
+        const sf_token *seg = sf_parser_expect_identifier(
             p, "a name", "Qualified names are identifiers separated by '::'."
         );
 

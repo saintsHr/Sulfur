@@ -10,10 +10,9 @@
 
 #include "sulfur/io/log.h"
 #include "sulfur/pipeline/backend/codegen/stack.h"
-#include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/midend/ir/ir.h"
-#include "sulfur/utils/string.h"
-#include "sulfur/utils/type.h"
+#include "sulfur/shared/string.h"
+#include "sulfur/shared/type.h"
 
 #define FMT_SIZE 256
 

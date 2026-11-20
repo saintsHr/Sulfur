@@ -8,9 +8,9 @@
 
 #include "sulfur/io/log.h"
 #include "sulfur/shared/arena.h"
-#include "sulfur/utils/operation.h"
-#include "sulfur/utils/string.h"
-#include "sulfur/utils/type.h"
+#include "sulfur/shared/operation.h"
+#include "sulfur/shared/string.h"
+#include "sulfur/shared/type.h"
 
 static char *copy_string(sf_arena *arena, const char *str);
 static void *new_node(sf_arena *arena, size_t size, sf_ast_node_type type, sf_span span);
@@ -169,7 +169,7 @@ sf_ast_node_block *sf_new_block_node(sf_arena *arena, sf_span span) {
 }
 
 sf_ast_node_literal *sf_new_literal_node(
-    sf_arena *arena, const char *value, sf_lexer_token_type token_type, sf_span span
+    sf_arena *arena, const char *value, sf_token_type token_type, sf_span span
 ) {
     sf_ast_node_literal *node =
         new_node(arena, sizeof(sf_ast_node_literal), SF_AST_NODE_TYPE_LITERAL, span);
