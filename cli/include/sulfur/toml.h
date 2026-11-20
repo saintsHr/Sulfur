@@ -37,9 +37,7 @@ typedef struct {
     sf_string_list link_flags;
 } sf_project_cfg;
 
-sf_toml_parse_result sf_toml_parse_project(
-    const char *filename, sf_project_cfg *output
-);
+sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg *output);
 
 void sf_toml_free_project(sf_project_cfg *cfg);
 const char *sf_toml_error_detail(void);

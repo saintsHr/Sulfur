@@ -1,5 +1,5 @@
-#include "sulfur/utils/arena.h"
-#include "sulfur/utils/log.h"
+#include "sulfur/shared/arena.h"
+#include "sulfur/io/log.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -42,8 +42,7 @@ void *sf_arena_alloc(sf_arena *arena, size_t size) {
 }
 
 void *sf_arena_grow_array(
-    sf_arena *arena, void *old_array, size_t old_count, size_t new_count,
-    size_t elem_size
+    sf_arena *arena, void *old_array, size_t old_count, size_t new_count, size_t elem_size
 ) {
     if (elem_size != 0 && new_count > SIZE_MAX / elem_size) {
         return NULL;
@@ -70,8 +69,7 @@ void *sf_arena_grow_array(
 }
 
 void *sf_arena_grow_one(
-    sf_arena *arena, void *items, size_t count, size_t *capacity,
-    size_t elem_size
+    sf_arena *arena, void *items, size_t count, size_t *capacity, size_t elem_size
 ) {
     if (capacity == NULL || elem_size == 0) {
         return NULL;
@@ -91,8 +89,7 @@ void *sf_arena_grow_one(
         return NULL;
     }
 
-    void *grown =
-        sf_arena_grow_array(arena, items, count, new_capacity, elem_size);
+    void *grown = sf_arena_grow_array(arena, items, count, new_capacity, elem_size);
 
     if (grown == NULL) {
         sf_log_out_of_memory("N/A");

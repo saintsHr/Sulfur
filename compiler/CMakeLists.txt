@@ -12,26 +12,33 @@ set(SOURCES
     src/sulfur/driver/main.c
 	src/sulfur/driver/flags.c
 
-	src/sulfur/utils/log.c
-	src/sulfur/utils/type_utils.c
-	src/sulfur/utils/token_utils.c
+	src/sulfur/io/log.c
+	src/sulfur/io/file.c
+
+	src/sulfur/utils/type.c
+	src/sulfur/utils/token.c
 	src/sulfur/utils/string.c
-	src/sulfur/utils/arena.c
-	src/sulfur/utils/file.c
-	src/sulfur/utils/mangle.c
+	src/sulfur/utils/operation.c
+
+	src/sulfur/shared/arena.c
+
+	src/sulfur/pipeline/frontend/preprocessor/preprocessor.c
+
+	src/sulfur/pipeline/frontend/lexer/lexer.c
 
 	src/sulfur/pipeline/frontend/ast/ast.c
-	src/sulfur/pipeline/frontend/lexer/lexer.c
+
 	src/sulfur/pipeline/frontend/parser/parser.c
 	src/sulfur/pipeline/frontend/parser/parser_stmt.c
 	src/sulfur/pipeline/frontend/parser/parser_expr.c
-	src/sulfur/pipeline/frontend/preprocessor/preprocessor.c
+
 	src/sulfur/pipeline/frontend/semantic/semantic.c
 	src/sulfur/pipeline/frontend/semantic/semantic_expr.c
 	src/sulfur/pipeline/frontend/semantic/semantic_const.c
 	src/sulfur/pipeline/frontend/semantic/scope.c
 	src/sulfur/pipeline/frontend/semantic/symbol.c
 	src/sulfur/pipeline/frontend/semantic/namespace.c
+	src/sulfur/pipeline/frontend/semantic/mangle.c
 
 	src/sulfur/pipeline/midend/ir/ir.c
 	src/sulfur/pipeline/midend/ir/optimization.c

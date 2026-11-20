@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sulfur/utils/log.h"
+#include "sulfur/io/log.h"
 
 static void remove_carriage_return(char *str);
 static void remove_comments(char *str);

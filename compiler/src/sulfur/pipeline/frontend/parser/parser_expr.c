@@ -5,10 +5,10 @@
 
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/lexer/lexer.h"
-#include "sulfur/utils/token_utils.h"
+#include "sulfur/utils/token.h"
 
 typedef struct {
-    sf_token_type ops[6];
+    sf_lexer_token_type ops[6];
     size_t op_count;
     bool chainable;
 } sf_binary_level;
@@ -33,27 +33,22 @@ static const sf_binary_level k_binary_levels[] = {
     {{SF_TOKEN_TYPE_STAR, SF_TOKEN_TYPE_SLASH},             2, true},
 };
 
-#define SF_BINARY_LEVEL_COUNT                                                  \
-    (sizeof(k_binary_levels) / sizeof(k_binary_levels[0]))
+#define SF_BINARY_LEVEL_COUNT (sizeof(k_binary_levels) / sizeof(k_binary_levels[0]))
 
-static bool level_has_operator(
-    const sf_binary_level *level, sf_token_type type
-);
+static bool level_has_operator(const sf_binary_level *level, sf_lexer_token_type type);
 
 static sf_ast_node *parse_binary(sf_parser *p, size_t level);
 static sf_ast_node *parse_cast(sf_parser *p);
 static sf_ast_node *parse_unary(sf_parser *p);
 static sf_ast_node *parse_postfix(sf_parser *p);
-static sf_ast_node *parse_call(sf_parser *p, sf_identifier_node *callee);
+static sf_ast_node *parse_call(sf_parser *p, sf_ast_node_identifier *callee);
 static sf_ast_node *parse_primary(sf_parser *p);
 
 sf_ast_node *sf_parse_expression(sf_parser *p) {
     return parse_binary(p, 0);
 }
 
-static bool level_has_operator(
-    const sf_binary_level *level, sf_token_type type
-) {
+static bool level_has_operator(const sf_binary_level *level, sf_lexer_token_type type) {
     for (size_t i = 0; i < level->op_count; i++) {
         if (level->ops[i] == type) {
             return true;
@@ -77,7 +72,7 @@ static sf_ast_node *parse_binary(sf_parser *p, size_t level) {
     }
 
     while (level_has_operator(info, sf_parser_peek(p)->type)) {
-        const sf_token *op_token = sf_parser_advance(p);
+        const sf_lexer_token *op_token = sf_parser_advance(p);
 
         sf_ast_node *right = parse_binary(p, level + 1);
 
@@ -85,15 +80,14 @@ static sf_ast_node *parse_binary(sf_parser *p, size_t level) {
             return NULL;
         }
 
-        sf_ir_operation_type op = sf_token_to_binary_op(*op_token);
+        sf_operation_type op = sf_token_to_binary_op(*op_token);
 
-        if (op == SF_OP_TYPE_UNRESOLVED) {
+        if (op == SF_OPERATION_TYPE_UNRESOLVED) {
             return NULL;
         }
 
-        left = (sf_ast_node *)sf_new_binary_node(
-            p->arena, left, right, op, op_token->span
-        );
+        left =
+            (sf_ast_node *)sf_new_binary_node(p->arena, left, right, op, op_token->span);
 
         if (left == NULL) {
             return NULL;
@@ -116,19 +110,16 @@ static sf_ast_node *parse_cast(sf_parser *p) {
 
     while (sf_parser_peek(p)->type == SF_TOKEN_TYPE_KW_AS) {
         sf_span as_span = sf_parser_advance(p)->span;
-        sf_value_type target_type;
+        sf_type_kind target_type;
 
         if (!sf_parser_expect_type(
-                p, &target_type, "a type keyword after 'as'",
-                "Use any type keyword."
+                p, &target_type, "a type keyword after 'as'", "Use any type keyword."
             )) {
             sf_parser_recover_expression(p);
             return NULL;
         }
 
-        expr = (sf_ast_node *)sf_new_cast_node(
-            p->arena, expr, target_type, as_span
-        );
+        expr = (sf_ast_node *)sf_new_cast_node(p->arena, expr, target_type, as_span);
 
         if (expr == NULL) {
             return NULL;
@@ -139,10 +130,10 @@ static sf_ast_node *parse_cast(sf_parser *p) {
 }
 
 static sf_ast_node *parse_unary(sf_parser *p) {
-    const sf_token *token = sf_parser_peek(p);
-    sf_ir_operation_type op = sf_token_to_unary_op(*token);
+    const sf_lexer_token *token = sf_parser_peek(p);
+    sf_operation_type op = sf_token_to_unary_op(*token);
 
-    if (op == SF_OP_TYPE_UNRESOLVED) {
+    if (op == SF_OPERATION_TYPE_UNRESOLVED) {
         return parse_postfix(p);
     }
 
@@ -166,16 +157,14 @@ static sf_ast_node *parse_postfix(sf_parser *p) {
 
     while (sf_parser_peek(p)->type == SF_TOKEN_TYPE_PLUS_PLUS ||
            sf_parser_peek(p)->type == SF_TOKEN_TYPE_MINUS_MINUS) {
-        const sf_token *op_token = sf_parser_advance(p);
-        sf_ir_operation_type op = sf_token_to_postfix_op(*op_token);
+        const sf_lexer_token *op_token = sf_parser_advance(p);
+        sf_operation_type op = sf_token_to_postfix_op(*op_token);
 
-        if (op == SF_OP_TYPE_UNRESOLVED) {
+        if (op == SF_OPERATION_TYPE_UNRESOLVED) {
             return NULL;
         }
 
-        operand = (sf_ast_node *)sf_new_unary_node(
-            p->arena, operand, op, op_token->span
-        );
+        operand = (sf_ast_node *)sf_new_unary_node(p->arena, operand, op, op_token->span);
 
         if (operand == NULL) {
             return NULL;
@@ -185,12 +174,11 @@ static sf_ast_node *parse_postfix(sf_parser *p) {
     return operand;
 }
 
-static sf_ast_node *parse_call(sf_parser *p, sf_identifier_node *callee) {
+static sf_ast_node *parse_call(sf_parser *p, sf_ast_node_identifier *callee) {
     sf_parser_advance(p);
 
-    sf_func_call_node *call_node = sf_new_func_call_node(
-        p->arena, (sf_ast_node *)callee, callee->base.span
-    );
+    sf_ast_node_func_call *call_node =
+        sf_new_func_call_node(p->arena, (sf_ast_node *)callee, callee->base.span);
     if (call_node == NULL) {
         return NULL;
     }
@@ -234,10 +222,9 @@ static sf_ast_node *parse_primary(sf_parser *p) {
         return expr;
     }
 
-    const sf_token *token = sf_parser_peek(p);
+    const sf_lexer_token *token = sf_parser_peek(p);
 
-    if (token->type == SF_TOKEN_TYPE_INTEGER ||
-        token->type == SF_TOKEN_TYPE_KW_TRUE ||
+    if (token->type == SF_TOKEN_TYPE_INTEGER || token->type == SF_TOKEN_TYPE_KW_TRUE ||
         token->type == SF_TOKEN_TYPE_KW_FALSE) {
         sf_parser_advance(p);
 
@@ -248,7 +235,7 @@ static sf_ast_node *parse_primary(sf_parser *p) {
 
     if (token->type == SF_TOKEN_TYPE_IDENTIFIER ||
         token->type == SF_TOKEN_TYPE_COLON_COLON) {
-        sf_identifier_node *id = sf_new_identifier_node(p->arena, token->span);
+        sf_ast_node_identifier *id = sf_new_identifier_node(p->arena, token->span);
 
         if (id == NULL || !sf_parser_parse_path(p, &id->path)) {
             sf_parser_recover_expression(p);
@@ -263,8 +250,7 @@ static sf_ast_node *parse_primary(sf_parser *p) {
     }
 
     sf_parser_report_unexpected(
-        p, token, "an expression",
-        "Check for a missing or misplaced token nearby."
+        p, token, "an expression", "Check for a missing or misplaced token nearby."
     );
 
     sf_parser_recover_expression(p);

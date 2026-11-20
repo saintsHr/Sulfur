@@ -27,9 +27,7 @@ const char *sf_toml_error_detail(void) {
     return error_detail;
 }
 
-sf_toml_parse_result sf_toml_parse_project(
-    const char *filename, sf_project_cfg *output
-) {
+sf_toml_parse_result sf_toml_parse_project(const char *filename, sf_project_cfg *output) {
     error_detail[0] = '\0';
 
     if (!filename || !output) {
@@ -92,8 +90,7 @@ sf_toml_parse_result sf_toml_parse_project(
     }
 
     result = parse_list(
-        slfr_flags_d, SF_TOML_PARSE_RESULT_SLFR_FLAGS_INVALID,
-        &output->slfr_flags
+        slfr_flags_d, SF_TOML_PARSE_RESULT_SLFR_FLAGS_INVALID, &output->slfr_flags
     );
     if (result != SF_TOML_PARSE_RESULT_OK) {
         goto done;
@@ -107,8 +104,7 @@ sf_toml_parse_result sf_toml_parse_project(
     }
 
     result = parse_list(
-        link_flags_d, SF_TOML_PARSE_RESULT_LINK_FLAGS_INVALID,
-        &output->link_flags
+        link_flags_d, SF_TOML_PARSE_RESULT_LINK_FLAGS_INVALID, &output->link_flags
     );
 
 done:

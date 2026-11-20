@@ -1,6 +1,6 @@
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
+#include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
-#include "sulfur/utils/log.h"
 #include "sulfur/utils/string.h"
 
 #include <stdlib.h>
@@ -18,9 +18,7 @@ void sf_var_symbol_table_init(sf_var_symbol_table *table) {
     table->capacity = 0;
 }
 
-sf_var_symbol *sf_var_symbol_table_lookup(
-    sf_var_symbol_table *table, const char *name
-) {
+sf_var_symbol *sf_var_symbol_table_lookup(sf_var_symbol_table *table, const char *name) {
     for (uint64_t i = 0; i < table->count; i++) {
         if (strcmp(table->symbols[i].name, name) == 0) {
             return &table->symbols[i];
@@ -38,13 +36,10 @@ void sf_var_symbol_table_free(sf_var_symbol_table *table) {
     table->capacity = 0;
 }
 
-void sf_var_symbol_table_insert(
-    sf_var_symbol_table *table, sf_var_symbol symbol
-) {
+void sf_var_symbol_table_insert(sf_var_symbol_table *table, sf_var_symbol symbol) {
     if (table->count >= table->capacity) {
         table->capacity = table->capacity == 0 ? 8 : table->capacity * 2;
-        table->symbols =
-            realloc(table->symbols, table->capacity * sizeof(sf_var_symbol));
+        table->symbols = realloc(table->symbols, table->capacity * sizeof(sf_var_symbol));
     }
 
     table->symbols[table->count++] = symbol;
@@ -82,11 +77,10 @@ bool sf_func_symbol_table_insert(
 ) {
     if (func.qualifiers.is_extern && is_definition(func)) {
         sf_log(
-            "Invalid Definition",
-            "Extern function '%s' cannot be defined here.",
+            "Invalid Definition", "Extern function '%s' cannot be defined here.",
             "Do not define extern functions where it is declared.", filename,
-            SF_LOG_SEMANTIC_INVALID_DEFINITION, func.span,
-            SF_LOG_SEVERITY_ERROR, func.name
+            SF_LOG_CODE_SEMANTIC_INVALID_DEFINITION, func.span, SF_LOG_SEVERITY_ERROR,
+            func.name
         );
 
         return false;
@@ -99,8 +93,8 @@ bool sf_func_symbol_table_insert(
             sf_log(
                 "Redeclaration", "'%s' is already declared.",
                 "Remove the duplicate declaration.", filename,
-                SF_LOG_SEMANTIC_REDECLARATION, func.span,
-                SF_LOG_SEVERITY_WARNING, func.name
+                SF_LOG_CODE_SEMANTIC_REDECLARATION, func.span, SF_LOG_SEVERITY_WARNING,
+                func.name
             );
         }
 
@@ -110,7 +104,7 @@ bool sf_func_symbol_table_insert(
                 "'%s' was previously declared with a different signature.",
                 "Make the return type and parameters match the previous "
                 "declaration.",
-                filename, SF_LOG_SEMANTIC_CONFLICTING_DECLARATION, func.span,
+                filename, SF_LOG_CODE_SEMANTIC_CONFLICTING_DECLARATION, func.span,
                 SF_LOG_SEVERITY_ERROR, func.name
             );
 
@@ -120,9 +114,9 @@ bool sf_func_symbol_table_insert(
         if (is_definition(func) && is_definition(*existing)) {
             sf_log(
                 "Redefinition", "'%s' is already defined.",
-                "Rename the new function, or remove the duplicate definition.",
-                filename, SF_LOG_SEMANTIC_REDEFINITION, func.span,
-                SF_LOG_SEVERITY_ERROR, func.name
+                "Rename the new function, or remove the duplicate definition.", filename,
+                SF_LOG_CODE_SEMANTIC_REDEFINITION, func.span, SF_LOG_SEVERITY_ERROR,
+                func.name
             );
 
             return false;
@@ -202,8 +196,7 @@ static bool has_same_return_type(sf_func_symbol a, sf_func_symbol b) {
 }
 
 static bool has_same_signature(sf_func_symbol a, sf_func_symbol b) {
-    if (has_same_return_type(a, b) && has_same_parameters(a, b) &&
-        has_same_name(a, b)) {
+    if (has_same_return_type(a, b) && has_same_parameters(a, b) && has_same_name(a, b)) {
         return true;
     }
 

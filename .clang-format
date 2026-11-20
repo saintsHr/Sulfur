@@ -9,7 +9,7 @@ IndentCaseLabels: true
 IndentPPDirectives: None
 AccessModifierOffset: -4
 
-ColumnLimit: 80
+ColumnLimit: 90
 
 BreakBeforeBraces: Attach
 InsertBraces: true

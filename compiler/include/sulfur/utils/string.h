@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "sulfur/utils/arena.h"
+#include "sulfur/shared/arena.h"
 
 char *sf_string_dup(const char *str);
 char *sf_string_dup_arena(sf_arena *arena, const char *s);

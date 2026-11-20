@@ -58,7 +58,7 @@ typedef enum {
 
 typedef struct {
     sf_ir_operand_type type;
-    sf_value_type value_type;
+    sf_type_kind value_type;
 
     union {
         size_t temporary_id;
@@ -85,18 +85,12 @@ typedef struct {
     sf_ir_operation *operations;
     size_t operation_count;
     size_t operation_capacity;
-
     sf_parameter *parameters;
     size_t parameter_count;
-
-    sf_value_type return_type;
-
+    sf_type_kind return_type;
     sf_qualifiers qualifiers;
-
     const char *name;
-
     size_t next_temp;
-
     bool defined;
 } sf_ir_function;
 
@@ -110,6 +104,10 @@ typedef struct {
     const char **externs;
     size_t extern_count;
     size_t extern_capacity;
+
+    const char **globals;
+    size_t global_count;
+    size_t global_capacity;
 } sf_ir_program;
 
 typedef struct {
@@ -119,5 +117,5 @@ typedef struct {
     size_t *next_temp;
 } sf_ir_context;
 
-sf_ir_program sf_ir_generate(sf_arena *arena, const sf_program_node *program);
+sf_ir_program sf_ir_generate(sf_arena *arena, const sf_ast_node_program *program);
 void sf_ir_print(const sf_ir_program *program);

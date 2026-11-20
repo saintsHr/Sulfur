@@ -8,6 +8,8 @@
 #include "sulfur/driver/flags.h"
 #include "sulfur/driver/main.h"
 
+#include "sulfur/io/file.h"
+#include "sulfur/io/log.h"
 #include "sulfur/module/module.h"
 #include "sulfur/pipeline/backend/codegen/codegen.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
@@ -17,12 +19,10 @@
 #include "sulfur/pipeline/frontend/semantic/semantic.h"
 #include "sulfur/pipeline/midend/ir/ir.h"
 #include "sulfur/pipeline/midend/ir/optimization.h"
-#include "sulfur/utils/arena.h"
-#include "sulfur/utils/file.h"
-#include "sulfur/utils/log.h"
+#include "sulfur/shared/arena.h"
 
 static bool compilation_run(
-    sf_compilation *compilation, const sf_compiler_options *options
+    sf_compilation *compilation, const sf_compilation_options *options
 );
 
 static void compilation_free(sf_compilation *compilation);
@@ -30,7 +30,7 @@ static void compilation_free(sf_compilation *compilation);
 static void dump_stages(sf_compilation *compilation);
 
 int main(int argc, char *argv[]) {
-    sf_compiler_options options = {
+    sf_compilation_options options = {
         .file_input = "input.slfr",
         .file_output = "output.asm",
         .dump_stages = false,
@@ -51,11 +51,10 @@ int main(int argc, char *argv[]) {
             options.file_input, options.module_paths, options.module_path_count
         ) == NULL) {
         sf_log(
-            "Invalid Module Path.",
-            "'%s' is not inside any module search directory.",
+            "Invalid Module Path.", "'%s' is not inside any module search directory.",
             "Pass the directory containing this file with '-m'.", "N/A",
-            SF_LOG_DRIVER_INVALID_MODULE_PATH, (sf_span){0},
-            SF_LOG_SEVERITY_FATAL, options.file_input
+            SF_LOG_CODE_DRIVER_INVALID_MODULE_PATH, (sf_span){0}, SF_LOG_SEVERITY_FATAL,
+            options.file_input
         );
     }
 
@@ -69,7 +68,7 @@ int main(int argc, char *argv[]) {
 }
 
 static bool compilation_run(
-    sf_compilation *compilation, const sf_compiler_options *options
+    sf_compilation *compilation, const sf_compilation_options *options
 ) {
     compilation->input_source =
         sf_file_read(options->file_input, &compilation->input_size);
@@ -82,16 +81,15 @@ static bool compilation_run(
         compilation->input_source, compilation->input_size, options->file_input
     );
 
-    compilation->tokens =
-        sf_tokenize(compilation->preprocessed, options->file_input);
+    compilation->tokens = sf_lexer_run(compilation->preprocessed, options->file_input);
 
     compilation->ast =
         sf_parse(&compilation->arena, compilation->tokens, options->file_input);
 
     sf_module_resolve(
-        compilation->ast->imports, compilation->ast->import_count,
-        options->file_input, &compilation->modules, options->module_paths,
-        options->module_path_count, &compilation->arena
+        compilation->ast->imports, compilation->ast->import_count, options->file_input,
+        &compilation->modules, options->module_paths, options->module_path_count,
+        &compilation->arena
     );
 
     sf_analyze(
@@ -120,7 +118,7 @@ static bool compilation_run(
 
 static void compilation_free(sf_compilation *compilation) {
     free(compilation->assembly);
-    sf_tokens_free(&compilation->tokens);
+    sf_lexer_token_list_free(&compilation->tokens);
     free(compilation->preprocessed);
     sf_arena_free(&compilation->arena);
     free(compilation->input_source);
@@ -137,7 +135,7 @@ static void dump_stages(sf_compilation *compilation) {
 
     if (compilation->tokens.count > 0) {
         printf("\n[Tokens]:\n\n");
-        sf_tokens_print(&compilation->tokens);
+        sf_lexer_token_list_print(&compilation->tokens);
     }
 
     if (compilation->ast != NULL) {
@@ -145,8 +143,7 @@ static void dump_stages(sf_compilation *compilation) {
         sf_print_ast((sf_ast_node *)compilation->ast);
     }
 
-    if (compilation->ir.function_count > 0 &&
-        compilation->ir.extern_count > 0) {
+    if (compilation->ir.function_count > 0 && compilation->ir.extern_count > 0) {
         printf("\n[IR]:\n\n");
         sf_ir_print(&compilation->ir);
     }

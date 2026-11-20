@@ -4,19 +4,19 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/lexer/lexer.h"
 #include "sulfur/pipeline/frontend/parser/parser_internal.h"
-#include "sulfur/utils/log.h"
-#include "sulfur/utils/token_utils.h"
+#include "sulfur/utils/token.h"
 
-static const sf_token *peek_at(const sf_parser *p, size_t idx);
-static void describe_token(const sf_token *token, char *buf, size_t size);
+static const sf_lexer_token *peek_at(const sf_parser *p, size_t idx);
+static void describe_token(const sf_lexer_token *token, char *buf, size_t size);
 
-sf_program_node *sf_parse(
-    sf_arena *arena, sf_token_list list, const char *filename
+sf_ast_node_program *sf_parse(
+    sf_arena *arena, sf_lexer_token_list list, const char *filename
 ) {
-    sf_program_node *program = sf_new_program_node(arena);
+    sf_ast_node_program *program = sf_new_program_node(arena);
 
     if (program == NULL || list.count == 0) {
         return program;
@@ -34,8 +34,8 @@ sf_program_node *sf_parse(
         sf_ast_node *node = sf_parse_top_level(&parser);
 
         if (node != NULL) {
-            if (node->type == SF_NODE_IMPORT) {
-                sf_program_add_import(arena, program, (sf_import_node *)node);
+            if (node->type == SF_AST_NODE_TYPE_IMPORT) {
+                sf_program_add_import(arena, program, (sf_ast_node_import *)node);
             } else {
                 sf_program_add_statement(arena, program, node);
             }
@@ -47,16 +47,16 @@ sf_program_node *sf_parse(
     return program;
 }
 
-const sf_token *sf_parser_peek(const sf_parser *p) {
+const sf_lexer_token *sf_parser_peek(const sf_parser *p) {
     return peek_at(p, p->current);
 }
 
-const sf_token *sf_parser_peek_next(const sf_parser *p) {
+const sf_lexer_token *sf_parser_peek_next(const sf_parser *p) {
     return peek_at(p, p->current + 1);
 }
 
-const sf_token *sf_parser_advance(sf_parser *p) {
-    const sf_token *token = sf_parser_peek(p);
+const sf_lexer_token *sf_parser_advance(sf_parser *p) {
+    const sf_lexer_token *token = sf_parser_peek(p);
 
     if (token->type != SF_TOKEN_TYPE_EOF) {
         p->current++;
@@ -65,7 +65,7 @@ const sf_token *sf_parser_advance(sf_parser *p) {
     return token;
 }
 
-bool sf_parser_match(sf_parser *p, sf_token_type type) {
+bool sf_parser_match(sf_parser *p, sf_lexer_token_type type) {
     if (sf_parser_peek(p)->type == type) {
         p->current++;
         return true;
@@ -74,32 +74,32 @@ bool sf_parser_match(sf_parser *p, sf_token_type type) {
     return false;
 }
 
-bool sf_parser_expect(sf_parser *p, sf_token_type type) {
+bool sf_parser_expect(sf_parser *p, sf_lexer_token_type type) {
     if (sf_parser_match(p, type)) {
         return true;
     }
 
-    const sf_token *got = sf_parser_peek(p);
+    const sf_lexer_token *got = sf_parser_peek(p);
 
     if (got->type != SF_TOKEN_TYPE_UNDEFINED) {
-        char found[SF_MAX_TOKEN_VALUE_SIZE + 3];
+        char found[SF_LEXER_MAX_TOKEN_VALUE_SIZE + 3];
         describe_token(got, found, sizeof(found));
 
         sf_log(
             "Unexpected Token", "Expected '%s' but found '%s'.",
             "Check for a missing or misplaced token nearby.", p->filename,
-            SF_LOG_PARSER_UNEXPECTED_TOKEN, got->span, SF_LOG_SEVERITY_ERROR,
-            sf_token_type_name(type), found
+            SF_LOG_CODE_PARSER_UNEXPECTED_TOKEN, got->span, SF_LOG_SEVERITY_ERROR,
+            sf_lexer_token_type_name(type), found
         );
     }
 
     return false;
 }
 
-const sf_token *sf_parser_expect_identifier(
+const sf_lexer_token *sf_parser_expect_identifier(
     sf_parser *p, const char *expected, const char *hint
 ) {
-    const sf_token *token = sf_parser_peek(p);
+    const sf_lexer_token *token = sf_parser_peek(p);
 
     if (token->type != SF_TOKEN_TYPE_IDENTIFIER) {
         sf_parser_report_unexpected(p, token, expected, hint);
@@ -110,12 +110,12 @@ const sf_token *sf_parser_expect_identifier(
 }
 
 bool sf_parser_expect_type(
-    sf_parser *p, sf_value_type *type, const char *expected, const char *hint
+    sf_parser *p, sf_type_kind *type, const char *expected, const char *hint
 ) {
-    const sf_token *token = sf_parser_peek(p);
-    sf_value_type value = sf_token_to_type(*token);
+    const sf_lexer_token *token = sf_parser_peek(p);
+    sf_type_kind value = sf_token_to_type(*token);
 
-    if (value == SF_VAL_TYPE_UNRESOLVED) {
+    if (value == SF_TYPE_KIND_UNRESOLVED) {
         sf_parser_report_unexpected(p, token, expected, hint);
         return false;
     }
@@ -127,20 +127,19 @@ bool sf_parser_expect_type(
 }
 
 void sf_parser_report_unexpected(
-    const sf_parser *p, const sf_token *got, const char *expected,
-    const char *hint
+    const sf_parser *p, const sf_lexer_token *got, const char *expected, const char *hint
 ) {
     if (got->type == SF_TOKEN_TYPE_UNDEFINED) {
         return;
     }
 
-    char found[SF_MAX_TOKEN_VALUE_SIZE + 3];
+    char found[SF_LEXER_MAX_TOKEN_VALUE_SIZE + 3];
     describe_token(got, found, sizeof(found));
 
     sf_log(
         "Unexpected Token", "Expected '%s' but found '%s'.", hint, p->filename,
-        SF_LOG_PARSER_UNEXPECTED_TOKEN, got->span, SF_LOG_SEVERITY_ERROR,
-        expected, found
+        SF_LOG_CODE_PARSER_UNEXPECTED_TOKEN, got->span, SF_LOG_SEVERITY_ERROR, expected,
+        found
     );
 }
 
@@ -198,7 +197,7 @@ void sf_parser_recover_statement(sf_parser *p) {
     }
 }
 
-static const sf_token *peek_at(const sf_parser *p, size_t idx) {
+static const sf_lexer_token *peek_at(const sf_parser *p, size_t idx) {
     if (idx >= p->tokens.count) {
         return &p->tokens.tokens[p->tokens.count - 1];
     }
@@ -206,7 +205,7 @@ static const sf_token *peek_at(const sf_parser *p, size_t idx) {
     return &p->tokens.tokens[idx];
 }
 
-static void describe_token(const sf_token *token, char *buf, size_t size) {
+static void describe_token(const sf_lexer_token *token, char *buf, size_t size) {
     if (token->type == SF_TOKEN_TYPE_EOF) {
         snprintf(buf, size, "end of file");
         return;
@@ -215,10 +214,10 @@ static void describe_token(const sf_token *token, char *buf, size_t size) {
     snprintf(buf, size, "%s", token->value);
 }
 
-sf_identifier_node *sf_parser_make_identifier(
-    sf_parser *p, const sf_token *token
+sf_ast_node_identifier *sf_parser_make_identifier(
+    sf_parser *p, const sf_lexer_token *token
 ) {
-    sf_identifier_node *id = sf_new_identifier_node(p->arena, token->span);
+    sf_ast_node_identifier *id = sf_new_identifier_node(p->arena, token->span);
 
     if (id == NULL) {
         return NULL;
@@ -237,12 +236,11 @@ bool sf_parser_parse_path(sf_parser *p, sf_path *path) {
     }
 
     while (true) {
-        const sf_token *seg = sf_parser_expect_identifier(
+        const sf_lexer_token *seg = sf_parser_expect_identifier(
             p, "a name", "Qualified names are identifiers separated by '::'."
         );
 
-        if (seg == NULL ||
-            !sf_path_add_segment(p->arena, path, seg->value, seg->span)) {
+        if (seg == NULL || !sf_path_add_segment(p->arena, path, seg->value, seg->span)) {
             return false;
         }
 

@@ -6,85 +6,75 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/lexer/lexer.h"
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
-#include "sulfur/utils/log.h"
-#include "sulfur/utils/type_utils.h"
+#include "sulfur/utils/operation.h"
+#include "sulfur/utils/type.h"
 
 static bool analyze_binary(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type expected
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind expected
 );
 static bool analyze_binary_operands(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type operand_expected
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind operand_expected
 );
 static bool analyze_logical(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype,
-    sf_value_type rtype
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind ltype, sf_type_kind rtype
 );
-static bool analyze_shift(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype
-);
+static bool analyze_shift(sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind ltype);
 static bool analyze_relational(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype,
-    sf_value_type rtype
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind ltype, sf_type_kind rtype
 );
 static bool analyze_arithmetic(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype,
-    sf_value_type rtype
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind ltype, sf_type_kind rtype
 );
 
-static bool analyze_unary(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
-);
-static bool analyze_negate(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
-);
+static bool analyze_unary(sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected);
+static bool analyze_negate(sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected);
 static bool analyze_negated_literal(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
+    sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected
 );
 static bool analyze_bitwise_not(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
+    sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected
 );
 static bool analyze_increment(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
+    sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected
 );
-static bool analyze_logical_not(sf_semantic *s, sf_unary_node *un);
+static bool analyze_logical_not(sf_semantic *s, sf_ast_node_unary *un);
 
-static bool analyze_cast(sf_semantic *s, sf_cast_node *cast);
+static bool analyze_cast(sf_semantic *s, sf_ast_node_cast *cast);
 static bool analyze_literal(
-    sf_semantic *s, sf_literal_node *lit, sf_value_type expected
+    sf_semantic *s, sf_ast_node_literal *lit, sf_type_kind expected
 );
-static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id);
-static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call);
+static bool analyze_identifier(sf_semantic *s, sf_ast_node_identifier *id);
+static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call);
 
 static bool check_argument_type(
-    sf_value_type resolved, sf_value_type param_type, const char *func_name,
-    size_t index, sf_span span, const char *filename
+    sf_type_kind resolved, sf_type_kind param_type, const char *func_name, size_t index,
+    sf_span span, const char *filename
 );
 
-bool sf_semantic_expr(
-    sf_semantic *s, sf_ast_node *node, sf_value_type expected
-) {
+bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_type_kind expected) {
     switch (node->type) {
-        case SF_NODE_BINARY: {
-            return analyze_binary(s, (sf_binary_node *)node, expected);
+        case SF_AST_NODE_TYPE_BINARY: {
+            return analyze_binary(s, (sf_ast_node_binary *)node, expected);
         }
-        case SF_NODE_UNARY: {
-            return analyze_unary(s, (sf_unary_node *)node, expected);
+        case SF_AST_NODE_TYPE_UNARY: {
+            return analyze_unary(s, (sf_ast_node_unary *)node, expected);
         }
-        case SF_NODE_CAST: {
-            return analyze_cast(s, (sf_cast_node *)node);
+        case SF_AST_NODE_TYPE_CAST: {
+            return analyze_cast(s, (sf_ast_node_cast *)node);
         }
-        case SF_NODE_LITERAL: {
-            return analyze_literal(s, (sf_literal_node *)node, expected);
+        case SF_AST_NODE_TYPE_LITERAL: {
+            return analyze_literal(s, (sf_ast_node_literal *)node, expected);
         }
-        case SF_NODE_IDENTIFIER: {
-            return analyze_identifier(s, (sf_identifier_node *)node);
+        case SF_AST_NODE_TYPE_IDENTIFIER: {
+            return analyze_identifier(s, (sf_ast_node_identifier *)node);
         }
-        case SF_NODE_FUNC_CALL: {
-            return analyze_func_call(s, (sf_func_call_node *)node);
+        case SF_AST_NODE_TYPE_FUNC_CALL: {
+            return analyze_func_call(s, (sf_ast_node_func_call *)node);
         }
         default: {
             return true;
@@ -93,26 +83,26 @@ bool sf_semantic_expr(
 }
 
 static bool analyze_binary(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type expected
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind expected
 ) {
-    sf_value_type operand_expected = expected;
+    sf_type_kind operand_expected = expected;
 
     if (sf_op_is_logical(bin->op)) {
-        operand_expected = SF_VAL_TYPE_BOOL;
+        operand_expected = SF_TYPE_KIND_BOOL;
     } else if (sf_op_is_relational(bin->op)) {
-        operand_expected = SF_VAL_TYPE_UNRESOLVED;
-    } else if (!sf_type_value_is_integer(operand_expected)) {
-        operand_expected = SF_VAL_TYPE_UNRESOLVED;
+        operand_expected = SF_TYPE_KIND_UNRESOLVED;
+    } else if (!sf_type_kind_is_integer(operand_expected)) {
+        operand_expected = SF_TYPE_KIND_UNRESOLVED;
     }
 
     if (!analyze_binary_operands(s, bin, operand_expected)) {
         return false;
     }
 
-    sf_value_type ltype = bin->left->resolved;
-    sf_value_type rtype = bin->right->resolved;
+    sf_type_kind ltype = bin->left->resolved;
+    sf_type_kind rtype = bin->right->resolved;
 
-    if (ltype == SF_VAL_TYPE_UNRESOLVED || rtype == SF_VAL_TYPE_UNRESOLVED) {
+    if (ltype == SF_TYPE_KIND_UNRESOLVED || rtype == SF_TYPE_KIND_UNRESOLVED) {
         return false;
     }
 
@@ -132,13 +122,13 @@ static bool analyze_binary(
 }
 
 static bool analyze_binary_operands(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type operand_expected
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind operand_expected
 ) {
     bool is_relational = sf_op_is_relational(bin->op);
     bool is_shift = sf_op_is_shift(bin->op);
 
-    bool left_is_literal = bin->left->type == SF_NODE_LITERAL;
-    bool right_is_literal = bin->right->type == SF_NODE_LITERAL;
+    bool left_is_literal = bin->left->type == SF_AST_NODE_TYPE_LITERAL;
+    bool right_is_literal = bin->right->type == SF_AST_NODE_TYPE_LITERAL;
 
     bool swap_order = is_relational && left_is_literal && !right_is_literal;
 
@@ -147,9 +137,9 @@ static bool analyze_binary_operands(
             return false;
         }
 
-        sf_value_type left_expected = operand_expected;
+        sf_type_kind left_expected = operand_expected;
 
-        if (bin->right->resolved != SF_VAL_TYPE_UNRESOLVED) {
+        if (bin->right->resolved != SF_TYPE_KIND_UNRESOLVED) {
             left_expected = bin->right->resolved;
         }
 
@@ -160,9 +150,9 @@ static bool analyze_binary_operands(
         return false;
     }
 
-    sf_value_type right_expected = operand_expected;
+    sf_type_kind right_expected = operand_expected;
 
-    if (!is_shift && bin->left->resolved != SF_VAL_TYPE_UNRESOLVED) {
+    if (!is_shift && bin->left->resolved != SF_TYPE_KIND_UNRESOLVED) {
         right_expected = bin->left->resolved;
     }
 
@@ -170,37 +160,30 @@ static bool analyze_binary_operands(
 }
 
 static bool analyze_logical(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype,
-    sf_value_type rtype
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind ltype, sf_type_kind rtype
 ) {
-    if (ltype != SF_VAL_TYPE_BOOL || rtype != SF_VAL_TYPE_BOOL) {
+    if (ltype != SF_TYPE_KIND_BOOL || rtype != SF_TYPE_KIND_BOOL) {
         sf_log(
-            "Type Mismatch",
-            "Cannot perform a logical operation between '%s' and '%s'.",
-            "Only use bool type literals/identifiers on logical operations.",
-            s->filename, SF_LOG_SEMANTIC_TYPE_MISMATCH, bin->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(ltype),
-            sf_type_value_name(rtype)
+            "Type Mismatch", "Cannot perform a logical operation between '%s' and '%s'.",
+            "Only use bool type literals/identifiers on logical operations.", s->filename,
+            SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, bin->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(ltype), sf_type_kind_name(rtype)
         );
 
         return false;
     }
 
-    bin->base.resolved = SF_VAL_TYPE_BOOL;
+    bin->base.resolved = SF_TYPE_KIND_BOOL;
 
-    sf_const_warn(
-        s, &bin->base, "This logical expression always evaluates to '%s'."
-    );
+    sf_const_warn(s, &bin->base, "This logical expression always evaluates to '%s'.");
 
     return true;
 }
 
-static bool analyze_shift(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype
-) {
+static bool analyze_shift(sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind ltype) {
     bin->base.resolved = ltype;
 
-    int64_t width = sf_type_value_width_bits(ltype);
+    int64_t width = sf_type_kind_width_bits(ltype);
     int64_t shift_amount;
 
     if (!sf_const_eval_int(bin->right, &shift_amount)) {
@@ -212,9 +195,9 @@ static bool analyze_shift(
             "Shift Amount out of Range",
             "Shift amount '%lld' is out of range for type '%s' (width %lld).",
             "Use a shift amount between 0 and the type's bit width minus one.",
-            s->filename, SF_LOG_SEMANTIC_LITERAL_OVERFLOW, bin->base.span,
-            SF_LOG_SEVERITY_ERROR, (long long)shift_amount,
-            sf_type_value_name(ltype), (long long)width
+            s->filename, SF_LOG_CODE_SEMANTIC_LITERAL_OVERFLOW, bin->base.span,
+            SF_LOG_SEVERITY_ERROR, (long long)shift_amount, sf_type_kind_name(ltype),
+            (long long)width
         );
 
         return false;
@@ -224,35 +207,31 @@ static bool analyze_shift(
 }
 
 static bool analyze_relational(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype,
-    sf_value_type rtype
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind ltype, sf_type_kind rtype
 ) {
-    if (!sf_type_value_is_same_group(ltype, rtype)) {
+    if (!sf_type_kind_is_same_group(ltype, rtype)) {
         sf_log(
             "Type Mismatch", "Cannot compare '%s' and '%s'.",
             "Cast one of the operands to match the other's type.", s->filename,
-            SF_LOG_SEMANTIC_TYPE_MISMATCH, bin->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(ltype),
-            sf_type_value_name(rtype)
+            SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, bin->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(ltype), sf_type_kind_name(rtype)
         );
 
         return false;
     }
 
-    if (sf_type_value_width_bits(ltype) != sf_type_value_width_bits(rtype)) {
+    if (sf_type_kind_width_bits(ltype) != sf_type_kind_width_bits(rtype)) {
         sf_log(
-            "Type Mismatch",
-            "Cannot compare '%s' and '%s' due to differing widths.",
+            "Type Mismatch", "Cannot compare '%s' and '%s' due to differing widths.",
             "Cast one of the operands to match the other's width.", s->filename,
-            SF_LOG_SEMANTIC_TYPE_MISMATCH, bin->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(ltype),
-            sf_type_value_name(rtype)
+            SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, bin->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(ltype), sf_type_kind_name(rtype)
         );
 
         return false;
     }
 
-    bin->base.resolved = SF_VAL_TYPE_BOOL;
+    bin->base.resolved = SF_TYPE_KIND_BOOL;
 
     sf_const_warn(s, &bin->base, "This comparison always evaluates to '%s'.");
 
@@ -260,45 +239,38 @@ static bool analyze_relational(
 }
 
 static bool analyze_arithmetic(
-    sf_semantic *s, sf_binary_node *bin, sf_value_type ltype,
-    sf_value_type rtype
+    sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind ltype, sf_type_kind rtype
 ) {
-    if (!sf_type_value_is_same_group(ltype, rtype)) {
+    if (!sf_type_kind_is_same_group(ltype, rtype)) {
         sf_log(
             "Type Mismatch", "Cannot mix '%s' and '%s' in the same expression.",
             "Cast one of the operands to match the other's type.", s->filename,
-            SF_LOG_SEMANTIC_TYPE_MISMATCH, bin->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(ltype),
-            sf_type_value_name(rtype)
+            SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, bin->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(ltype), sf_type_kind_name(rtype)
         );
 
         return false;
     }
 
-    if (!sf_type_value_is_integer(ltype)) {
+    if (!sf_type_kind_is_integer(ltype)) {
         sf_log(
-            "Invalid Operand",
-            "Operator '%s' requires integer operands, got '%s'.",
+            "Invalid Operand", "Operator '%s' requires integer operands, got '%s'.",
             "Use a integer operands instead.", s->filename,
-            SF_LOG_SEMANTIC_INVALID_OPERAND, bin->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_operation_name(bin->op),
-            sf_type_value_name(ltype)
+            SF_LOG_CODE_SEMANTIC_INVALID_OPERAND, bin->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_operation_name(bin->op), sf_type_kind_name(ltype)
         );
 
         return false;
     }
 
-    bin->base.resolved = sf_type_value_promote(ltype, rtype);
+    bin->base.resolved = sf_type_kind_promote(ltype, rtype);
 
-    if (bin->op == SF_OP_TYPE_DIV &&
-        sf_const_is_zero(
-            bin->right, sf_type_value_is_signed(bin->base.resolved)
-        )) {
+    if (bin->op == SF_OPERATION_TYPE_DIV &&
+        sf_const_is_zero(bin->right, sf_type_kind_is_signed(bin->base.resolved))) {
         sf_log(
             "Division by Zero", "Constant expression divides by zero.",
             "Ensure the divisor is non-zero.", s->filename,
-            SF_LOG_SEMANTIC_DIVISION_BY_ZERO, bin->base.span,
-            SF_LOG_SEVERITY_ERROR
+            SF_LOG_CODE_SEMANTIC_DIVISION_BY_ZERO, bin->base.span, SF_LOG_SEVERITY_ERROR
         );
 
         return false;
@@ -307,23 +279,21 @@ static bool analyze_arithmetic(
     return sf_const_check_overflow(&bin->base, bin->base.resolved, s->filename);
 }
 
-static bool analyze_unary(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
-) {
+static bool analyze_unary(sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected) {
     switch (un->op) {
-        case SF_OP_TYPE_NEGATE: {
+        case SF_OPERATION_TYPE_NEGATE: {
             return analyze_negate(s, un, expected);
         }
-        case SF_OP_TYPE_BITWISE_NOT: {
+        case SF_OPERATION_TYPE_BITWISE_NOT: {
             return analyze_bitwise_not(s, un, expected);
         }
-        case SF_OP_TYPE_POSTFIX_DECREMENT:
-        case SF_OP_TYPE_POSTFIX_INCREMENT:
-        case SF_OP_TYPE_PREFIX_DECREMENT:
-        case SF_OP_TYPE_PREFIX_INCREMENT: {
+        case SF_OPERATION_TYPE_POSTFIX_DECREMENT:
+        case SF_OPERATION_TYPE_POSTFIX_INCREMENT:
+        case SF_OPERATION_TYPE_PREFIX_DECREMENT:
+        case SF_OPERATION_TYPE_PREFIX_INCREMENT: {
             return analyze_increment(s, un, expected);
         }
-        case SF_OP_TYPE_LOGICAL_NOT: {
+        case SF_OPERATION_TYPE_LOGICAL_NOT: {
             return analyze_logical_not(s, un);
         }
         default: {
@@ -332,39 +302,36 @@ static bool analyze_unary(
     }
 }
 
-static bool analyze_negate(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
-) {
+static bool analyze_negate(sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected) {
     sf_ast_node *operand = un->operand;
 
-    if (operand->type == SF_NODE_LITERAL &&
-        ((sf_literal_node *)operand)->token_type == SF_TOKEN_TYPE_INTEGER) {
+    if (operand->type == SF_AST_NODE_TYPE_LITERAL &&
+        ((sf_ast_node_literal *)operand)->token_type == SF_TOKEN_TYPE_INTEGER) {
         return analyze_negated_literal(s, un, expected);
     }
 
-    sf_value_type pass_down = expected;
+    sf_type_kind pass_down = expected;
 
-    if (!sf_type_value_is_signed(expected)) {
-        pass_down = SF_VAL_TYPE_I64;
+    if (!sf_type_kind_is_signed(expected)) {
+        pass_down = SF_TYPE_KIND_I64;
     }
 
     if (!sf_semantic_expr(s, operand, pass_down)) {
         return false;
     }
 
-    sf_value_type child_type = operand->resolved;
+    sf_type_kind child_type = operand->resolved;
 
-    if (child_type == SF_VAL_TYPE_UNRESOLVED) {
+    if (child_type == SF_TYPE_KIND_UNRESOLVED) {
         return false;
     }
 
-    if (!sf_type_value_is_signed(child_type)) {
+    if (!sf_type_kind_is_signed(child_type)) {
         sf_log(
-            "Invalid Operand",
-            "Operator '-' requires a integer operand, got '%s'.",
+            "Invalid Operand", "Operator '-' requires a integer operand, got '%s'.",
             "Use a integer operand instead.", s->filename,
-            SF_LOG_SEMANTIC_INVALID_OPERAND, un->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(child_type)
+            SF_LOG_CODE_SEMANTIC_INVALID_OPERAND, un->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(child_type)
         );
 
         return false;
@@ -376,41 +343,39 @@ static bool analyze_negate(
 }
 
 static bool analyze_negated_literal(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
+    sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected
 ) {
-    sf_literal_node *lit = (sf_literal_node *)un->operand;
-    sf_value_type target = expected;
+    sf_ast_node_literal *lit = (sf_ast_node_literal *)un->operand;
+    sf_type_kind target = expected;
 
-    if (target != SF_VAL_TYPE_UNRESOLVED && sf_type_value_is_integer(target) &&
-        !sf_type_value_is_signed(target)) {
+    if (target != SF_TYPE_KIND_UNRESOLVED && sf_type_kind_is_integer(target) &&
+        !sf_type_kind_is_signed(target)) {
         sf_log(
             "Negative Literal in Unsigned Context",
             "Cannot assign a negative literal to a variable of unsigned type "
             "'%s'.",
             "Use a signed type, or remove the negation.", s->filename,
-            SF_LOG_SEMANTIC_TYPE_MISMATCH, un->base.span, SF_LOG_SEVERITY_ERROR,
-            sf_type_value_name(target)
+            SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, un->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(target)
         );
 
         return false;
     }
 
-    if (target == SF_VAL_TYPE_UNRESOLVED || !sf_type_value_is_integer(target) ||
-        !sf_type_value_is_signed(target)) {
-        target = SF_VAL_TYPE_I64;
+    if (target == SF_TYPE_KIND_UNRESOLVED || !sf_type_kind_is_integer(target) ||
+        !sf_type_kind_is_signed(target)) {
+        target = SF_TYPE_KIND_I64;
     }
 
     errno = 0;
     uint64_t magnitude = strtoull(lit->value, NULL, 10);
 
-    if (errno == ERANGE ||
-        !sf_type_value_signed_literal_fits_negated(target, magnitude)) {
+    if (errno == ERANGE || !sf_type_kind_signed_literal_fits_negated(target, magnitude)) {
         sf_log(
-            "Integer Literal out of Range",
-            "Literal '-%s' does not fit in type '%s'.",
+            "Integer Literal out of Range", "Literal '-%s' does not fit in type '%s'.",
             "Use a wider type, or cast explicitly if truncation is intended.",
-            s->filename, SF_LOG_SEMANTIC_INVALID_LITERAL, un->base.span,
-            SF_LOG_SEVERITY_ERROR, lit->value, sf_type_value_name(target)
+            s->filename, SF_LOG_CODE_SEMANTIC_INVALID_LITERAL, un->base.span,
+            SF_LOG_SEVERITY_ERROR, lit->value, sf_type_kind_name(target)
         );
 
         return false;
@@ -423,21 +388,20 @@ static bool analyze_negated_literal(
 }
 
 static bool analyze_bitwise_not(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
+    sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected
 ) {
     if (!sf_semantic_expr(s, un->operand, expected)) {
         return false;
     }
 
-    sf_value_type child_type = un->operand->resolved;
+    sf_type_kind child_type = un->operand->resolved;
 
-    if (!sf_type_value_is_integer(child_type)) {
+    if (!sf_type_kind_is_integer(child_type)) {
         sf_log(
-            "Invalid Operand",
-            "Operator '~' requires an integer operand, got '%s'.",
+            "Invalid Operand", "Operator '~' requires an integer operand, got '%s'.",
             "Use a integer operand instead.", s->filename,
-            SF_LOG_SEMANTIC_INVALID_OPERAND, un->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(child_type)
+            SF_LOG_CODE_SEMANTIC_INVALID_OPERAND, un->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(child_type)
         );
 
         return false;
@@ -449,14 +413,13 @@ static bool analyze_bitwise_not(
 }
 
 static bool analyze_increment(
-    sf_semantic *s, sf_unary_node *un, sf_value_type expected
+    sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected
 ) {
-    if (un->operand->type != SF_NODE_IDENTIFIER) {
+    if (un->operand->type != SF_AST_NODE_TYPE_IDENTIFIER) {
         sf_log(
             "Invalid Operand", "Operand of '++'/'--' must be a lvalue.",
             "Only lvalues can be incremented or decremented.", s->filename,
-            SF_LOG_SEMANTIC_INVALID_OPERAND, un->base.span,
-            SF_LOG_SEVERITY_ERROR
+            SF_LOG_CODE_SEMANTIC_INVALID_OPERAND, un->base.span, SF_LOG_SEVERITY_ERROR
         );
 
         return false;
@@ -466,28 +429,27 @@ static bool analyze_increment(
         return false;
     }
 
-    sf_value_type child_type = un->operand->resolved;
+    sf_type_kind child_type = un->operand->resolved;
 
-    if (!sf_type_value_is_integer(child_type)) {
+    if (!sf_type_kind_is_integer(child_type)) {
         sf_log(
             "Invalid Operand",
             "Operator '++'/'--' requires an integer operand, got '%s'.",
             "Use a integer operand instead.", s->filename,
-            SF_LOG_SEMANTIC_INVALID_OPERAND, un->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(child_type)
+            SF_LOG_CODE_SEMANTIC_INVALID_OPERAND, un->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(child_type)
         );
 
         return false;
     }
 
-    sf_identifier_node *id = (sf_identifier_node *)un->operand;
+    sf_ast_node_identifier *id = (sf_ast_node_identifier *)un->operand;
 
     if (id->symbol->qualifiers.is_mutable == false) {
         sf_log(
-            "Invalid Assign",
-            "Cannot increment or decrement an immutable variable.",
+            "Invalid Assign", "Cannot increment or decrement an immutable variable.",
             "Make the variable mutable or dont assign to it.", s->filename,
-            SF_LOG_SEMANTIC_INVALID_ASSIGN, un->base.span, SF_LOG_SEVERITY_ERROR
+            SF_LOG_CODE_SEMANTIC_INVALID_ASSIGN, un->base.span, SF_LOG_SEVERITY_ERROR
         );
 
         return false;
@@ -498,18 +460,17 @@ static bool analyze_increment(
     return true;
 }
 
-static bool analyze_logical_not(sf_semantic *s, sf_unary_node *un) {
-    if (!sf_semantic_expr(s, un->operand, SF_VAL_TYPE_BOOL)) {
+static bool analyze_logical_not(sf_semantic *s, sf_ast_node_unary *un) {
+    if (!sf_semantic_expr(s, un->operand, SF_TYPE_KIND_BOOL)) {
         return false;
     }
 
-    if (un->operand->resolved != SF_VAL_TYPE_BOOL) {
+    if (un->operand->resolved != SF_TYPE_KIND_BOOL) {
         sf_log(
-            "Invalid Operand",
-            "Operator '!' requires a boolean operand, got '%s'.",
+            "Invalid Operand", "Operator '!' requires a boolean operand, got '%s'.",
             "Use a boolean operand instead.", s->filename,
-            SF_LOG_SEMANTIC_INVALID_OPERAND, un->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(un->operand->resolved)
+            SF_LOG_CODE_SEMANTIC_INVALID_OPERAND, un->base.span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(un->operand->resolved)
         );
 
         return false;
@@ -517,39 +478,38 @@ static bool analyze_logical_not(sf_semantic *s, sf_unary_node *un) {
 
     sf_const_warn(s, &un->base, "This expression always evaluates to '%s'.");
 
-    un->base.resolved = SF_VAL_TYPE_BOOL;
+    un->base.resolved = SF_TYPE_KIND_BOOL;
 
     return true;
 }
 
-static bool analyze_cast(sf_semantic *s, sf_cast_node *cast) {
-    if (!sf_semantic_expr(s, cast->operand, SF_VAL_TYPE_UNRESOLVED)) {
+static bool analyze_cast(sf_semantic *s, sf_ast_node_cast *cast) {
+    if (!sf_semantic_expr(s, cast->operand, SF_TYPE_KIND_UNRESOLVED)) {
         return false;
     }
 
-    sf_value_type from_type = cast->operand->resolved;
-    sf_value_type to_type = cast->target_type;
+    sf_type_kind from_type = cast->operand->resolved;
+    sf_type_kind to_type = cast->target_type;
 
-    if (from_type == SF_VAL_TYPE_UNRESOLVED) {
+    if (from_type == SF_TYPE_KIND_UNRESOLVED) {
         return false;
     }
 
     if (from_type == to_type) {
         sf_log(
-            "Useless Cast", "The expression already has type '%s'.",
-            "Remove the cast.", s->filename, SF_LOG_SEMANTIC_USELESS_CAST,
-            cast->base.span, SF_LOG_SEVERITY_WARNING,
-            sf_type_value_name(to_type)
+            "Useless Cast", "The expression already has type '%s'.", "Remove the cast.",
+            s->filename, SF_LOG_CODE_SEMANTIC_USELESS_CAST, cast->base.span,
+            SF_LOG_SEVERITY_WARNING, sf_type_kind_name(to_type)
         );
     }
 
-    if (!sf_type_value_is_castable(from_type, to_type)) {
+    if (!sf_type_kind_is_castable(from_type, to_type)) {
         sf_log(
             "Invalid Cast", "Cannot cast '%s' to '%s'.",
             "These types are not compatible for casting.", s->filename,
-            SF_LOG_SEMANTIC_INVALID_EXPLICIT_CAST, cast->base.span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(from_type),
-            sf_type_value_name(to_type)
+            SF_LOG_CODE_SEMANTIC_INVALID_EXPLICIT_CAST, cast->base.span,
+            SF_LOG_SEVERITY_ERROR, sf_type_kind_name(from_type),
+            sf_type_kind_name(to_type)
         );
 
         return false;
@@ -561,11 +521,11 @@ static bool analyze_cast(sf_semantic *s, sf_cast_node *cast) {
 }
 
 static bool analyze_literal(
-    sf_semantic *s, sf_literal_node *lit, sf_value_type expected
+    sf_semantic *s, sf_ast_node_literal *lit, sf_type_kind expected
 ) {
     if (lit->token_type == SF_TOKEN_TYPE_KW_TRUE ||
         lit->token_type == SF_TOKEN_TYPE_KW_FALSE) {
-        lit->base.resolved = SF_VAL_TYPE_BOOL;
+        lit->base.resolved = SF_TYPE_KIND_BOOL;
         return true;
     }
 
@@ -573,10 +533,10 @@ static bool analyze_literal(
         return true;
     }
 
-    sf_value_type target = expected;
+    sf_type_kind target = expected;
 
-    if (target == SF_VAL_TYPE_UNRESOLVED || !sf_type_value_is_integer(target)) {
-        target = SF_VAL_TYPE_I64;
+    if (target == SF_TYPE_KIND_UNRESOLVED || !sf_type_kind_is_integer(target)) {
+        target = SF_TYPE_KIND_I64;
     }
 
     errno = 0;
@@ -584,23 +544,21 @@ static bool analyze_literal(
 
     if (errno == ERANGE) {
         sf_log(
-            "Integer Literal out of Range",
-            "Literal '%s' is too large to represent.",
+            "Integer Literal out of Range", "Literal '%s' is too large to represent.",
             "This value does not fit in any integer type.", s->filename,
-            SF_LOG_SEMANTIC_LITERAL_OVERFLOW, lit->base.span,
-            SF_LOG_SEVERITY_ERROR, lit->value
+            SF_LOG_CODE_SEMANTIC_LITERAL_OVERFLOW, lit->base.span, SF_LOG_SEVERITY_ERROR,
+            lit->value
         );
 
         return false;
     }
 
-    if (!sf_type_value_uint_literal_fits(target, raw)) {
+    if (!sf_type_kind_unsigned_literal_fits(target, raw)) {
         sf_log(
-            "Integer Literal out of Range",
-            "Literal '%s' does not fit in type '%s'.",
+            "Integer Literal out of Range", "Literal '%s' does not fit in type '%s'.",
             "Use a wider type, or cast explicitly if truncation is intended.",
-            s->filename, SF_LOG_SEMANTIC_LITERAL_OVERFLOW, lit->base.span,
-            SF_LOG_SEVERITY_ERROR, lit->value, sf_type_value_name(target)
+            s->filename, SF_LOG_CODE_SEMANTIC_LITERAL_OVERFLOW, lit->base.span,
+            SF_LOG_SEVERITY_ERROR, lit->value, sf_type_kind_name(target)
         );
 
         return false;
@@ -611,7 +569,7 @@ static bool analyze_literal(
     return true;
 }
 
-static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
+static bool analyze_identifier(sf_semantic *s, sf_ast_node_identifier *id) {
     const char *name = sf_path_simple_name(&id->path);
 
     if (name == NULL) {
@@ -627,11 +585,9 @@ static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
 
     if (!sym->initialized) {
         sf_log(
-            "Uninitialized Variable",
-            "'%s' may be used before being initialized.",
-            "Assign a value to the variable in every path before using it.",
-            s->filename, SF_LOG_SEMANTIC_UNINITIALIZED, id->base.span,
-            SF_LOG_SEVERITY_ERROR, name
+            "Uninitialized Variable", "'%s' may be used before being initialized.",
+            "Assign a value to the variable in every path before using it.", s->filename,
+            SF_LOG_CODE_SEMANTIC_UNINITIALIZED, id->base.span, SF_LOG_SEVERITY_ERROR, name
         );
 
         return false;
@@ -645,8 +601,8 @@ static bool analyze_identifier(sf_semantic *s, sf_identifier_node *id) {
     return true;
 }
 
-static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
-    sf_identifier_node *callee = (sf_identifier_node *)call->callee;
+static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
+    sf_ast_node_identifier *callee = (sf_ast_node_identifier *)call->callee;
 
     const sf_func_symbol *sym = sf_semantic_resolve_func(s, &callee->path);
 
@@ -664,23 +620,21 @@ static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
 
         if (closest != NULL) {
             sf_log(
-                "Undeclared Function",
-                "Function '%s' is not declared until this call.",
-                "Did you mean '%s'?", s->filename, SF_LOG_SEMANTIC_UNDECLARED,
+                "Undeclared Function", "Function '%s' is not declared until this call.",
+                "Did you mean '%s'?", s->filename, SF_LOG_CODE_SEMANTIC_UNDECLARED,
                 callee->base.span, SF_LOG_SEVERITY_ERROR, shown, closest
             );
         } else {
             sf_log(
-                "Undeclared Function",
-                "Function '%s' is not declared until this call.",
+                "Undeclared Function", "Function '%s' is not declared until this call.",
                 "Declare the function before calling.", s->filename,
-                SF_LOG_SEMANTIC_UNDECLARED, callee->base.span,
-                SF_LOG_SEVERITY_ERROR, shown
+                SF_LOG_CODE_SEMANTIC_UNDECLARED, callee->base.span, SF_LOG_SEVERITY_ERROR,
+                shown
             );
         }
 
         for (size_t i = 0; i < call->argument_count; i++) {
-            sf_semantic_expr(s, call->arguments[i], SF_VAL_TYPE_UNRESOLVED);
+            sf_semantic_expr(s, call->arguments[i], SF_TYPE_KIND_UNRESOLVED);
         }
 
         return false;
@@ -692,15 +646,15 @@ static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
         sf_log(
             "Invalid Call", "Function '%s' must not be called.",
             "The entry point cannot be called directly.", s->filename,
-            SF_LOG_SEMANTIC_INVALID_CALL, callee->base.span,
-            SF_LOG_SEVERITY_ERROR, sym->name
+            SF_LOG_CODE_SEMANTIC_INVALID_CALL, callee->base.span, SF_LOG_SEVERITY_ERROR,
+            sym->name
         );
 
         ok = false;
     }
 
     for (size_t i = 0; i < call->argument_count; i++) {
-        sf_value_type expected = SF_VAL_TYPE_UNRESOLVED;
+        sf_type_kind expected = SF_TYPE_KIND_UNRESOLVED;
         bool has_param = i < sym->parameter_count;
 
         if (has_param) {
@@ -714,17 +668,15 @@ static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
             continue;
         }
 
-        if (has_param &&
-            !check_argument_type(
-                arg->resolved, expected, sym->name, i, arg->span, s->filename
-            )) {
+        if (has_param && !check_argument_type(
+                             arg->resolved, expected, sym->name, i, arg->span, s->filename
+                         )) {
             ok = false;
         } else if (
-            has_param && arg->resolved != SF_VAL_TYPE_UNRESOLVED &&
+            has_param && arg->resolved != SF_TYPE_KIND_UNRESOLVED &&
             arg->resolved != expected
         ) {
-            sf_cast_node *cast =
-                sf_new_cast_node(s->arena, arg, expected, arg->span);
+            sf_ast_node_cast *cast = sf_new_cast_node(s->arena, arg, expected, arg->span);
 
             cast->base.resolved = expected;
             call->arguments[i] = (sf_ast_node *)cast;
@@ -735,10 +687,9 @@ static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
         sf_log(
             "Wrong Argument Count",
             "Function '%s' expects %zu arguments, but %zu were provided.",
-            "Pass exactly the number of arguments the function declares.",
-            s->filename, SF_LOG_SEMANTIC_ARGUMENT_COUNT, callee->base.span,
-            SF_LOG_SEVERITY_ERROR, sym->name, sym->parameter_count,
-            call->argument_count
+            "Pass exactly the number of arguments the function declares.", s->filename,
+            SF_LOG_CODE_SEMANTIC_ARGUMENT_COUNT, callee->base.span, SF_LOG_SEVERITY_ERROR,
+            sym->name, sym->parameter_count, call->argument_count
         );
 
         ok = false;
@@ -753,36 +704,34 @@ static bool analyze_func_call(sf_semantic *s, sf_func_call_node *call) {
 }
 
 static bool check_argument_type(
-    sf_value_type resolved, sf_value_type param_type, const char *func_name,
-    size_t index, sf_span span, const char *filename
+    sf_type_kind resolved, sf_type_kind param_type, const char *func_name, size_t index,
+    sf_span span, const char *filename
 ) {
-    if (resolved == SF_VAL_TYPE_UNRESOLVED) {
+    if (resolved == SF_TYPE_KIND_UNRESOLVED) {
         return true;
     }
 
-    if (!sf_type_value_is_same_group(resolved, param_type)) {
+    if (!sf_type_kind_is_same_group(resolved, param_type)) {
         sf_log(
             "Type Mismatch",
             "Argument %zu of '%s' expects '%s', but this expression has "
             "Type '%s'.",
-            "Make sure the argument matches the parameter type, or cast it.",
-            filename, SF_LOG_SEMANTIC_TYPE_MISMATCH, span,
-            SF_LOG_SEVERITY_ERROR, index + 1, func_name,
-            sf_type_value_name(param_type), sf_type_value_name(resolved)
+            "Make sure the argument matches the parameter type, or cast it.", filename,
+            SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, span, SF_LOG_SEVERITY_ERROR, index + 1,
+            func_name, sf_type_kind_name(param_type), sf_type_kind_name(resolved)
         );
 
         return false;
     }
 
-    if (sf_type_value_width_bytes(resolved) >
-        sf_type_value_width_bytes(param_type)) {
+    if (sf_type_kind_width_bytes(resolved) > sf_type_kind_width_bytes(param_type)) {
         sf_log(
             "Narrowing Conversion",
             "Cannot implicitly narrow '%s' to '%s' in argument %zu of '%s'.",
-            "Cast the argument explicitly, or change the parameter type.",
-            filename, SF_LOG_SEMANTIC_INVALID_IMPLICIT_CAST, span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(resolved),
-            sf_type_value_name(param_type), index + 1, func_name
+            "Cast the argument explicitly, or change the parameter type.", filename,
+            SF_LOG_CODE_SEMANTIC_INVALID_IMPLICIT_CAST, span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(resolved), sf_type_kind_name(param_type), index + 1,
+            func_name
         );
 
         return false;

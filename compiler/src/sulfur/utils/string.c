@@ -32,11 +32,8 @@ char *sf_string_dup_arena(sf_arena *arena, const char *str) {
     return copy;
 }
 
-bool sf_string_push(
-    const char *src, char **dst, size_t *len, size_t *capacity
-) {
-    if (src == NULL || dst == NULL || *dst == NULL || len == NULL ||
-        capacity == NULL) {
+bool sf_string_push(const char *src, char **dst, size_t *len, size_t *capacity) {
+    if (src == NULL || dst == NULL || *dst == NULL || len == NULL || capacity == NULL) {
         return false;
     }
 
@@ -49,8 +46,7 @@ bool sf_string_push(
     size_t needed = *len + src_len + 1;
 
     if (needed > *capacity) {
-        size_t new_capacity =
-            *capacity > 0 ? *capacity : SF_STRING_MIN_CAPACITY;
+        size_t new_capacity = *capacity > 0 ? *capacity : SF_STRING_MIN_CAPACITY;
 
         while (new_capacity < needed) {
             if (new_capacity > SIZE_MAX / 2) {

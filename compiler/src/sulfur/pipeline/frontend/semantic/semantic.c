@@ -5,27 +5,28 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
+#include "sulfur/pipeline/frontend/semantic/mangle.h"
 #include "sulfur/pipeline/frontend/semantic/namespace.h"
 #include "sulfur/pipeline/frontend/semantic/scope.h"
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
-#include "sulfur/utils/arena.h"
-#include "sulfur/utils/log.h"
-#include "sulfur/utils/mangle.h"
-#include "sulfur/utils/span.h"
+#include "sulfur/shared/arena.h"
+#include "sulfur/shared/span.h"
+#include "sulfur/utils/operation.h"
 #include "sulfur/utils/string.h"
-#include "sulfur/utils/type_utils.h"
+#include "sulfur/utils/type.h"
 
 static void analyze_statement(sf_semantic *semantic, sf_ast_node *node);
-static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var);
-static void analyze_var_assign(sf_semantic *semantic, sf_var_assign_node *asg);
-static void analyze_block(sf_semantic *semantic, sf_block_node *block);
-static void analyze_if(sf_semantic *semantic, sf_if_node *if_stmt);
-static void analyze_while(sf_semantic *semantic, sf_while_node *while_stmt);
-static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func);
-static void analyze_return(sf_semantic *semantic, sf_return_node *ret);
-static void analyze_namespace(sf_semantic *semantic, sf_namespace_node *ns);
+static void analyze_var_decl(sf_semantic *semantic, sf_ast_node_var_decl *var);
+static void analyze_var_assign(sf_semantic *semantic, sf_ast_node_var_assign *asg);
+static void analyze_block(sf_semantic *semantic, sf_ast_node_block *block);
+static void analyze_if(sf_semantic *semantic, sf_ast_node_if *if_stmt);
+static void analyze_while(sf_semantic *semantic, sf_ast_node_while *while_stmt);
+static void analyze_func_decl(sf_semantic *semantic, sf_ast_node_func_decl *func);
+static void analyze_return(sf_semantic *semantic, sf_ast_node_return *ret);
+static void analyze_namespace(sf_semantic *semantic, sf_ast_node_namespace *ns);
 
 static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym);
 static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym);
@@ -34,42 +35,35 @@ static bool analyze_var_sym_attr(sf_semantic *semantic, sf_var_symbol sym);
 static bool analyze_func_sym_attr(sf_semantic *semantic, sf_func_symbol sym);
 
 static bool analyze_program(
-    sf_arena *arena, sf_module_list *modules, sf_program_node *program,
+    sf_arena *arena, sf_module_list *modules, sf_ast_node_program *program,
     const char *filename, sf_func_symbol_table *funcs,
-    const sf_compiler_options *options, bool is_root
+    const sf_compilation_options *options, bool is_root
 );
 static bool analyze_module(
     sf_arena *arena, sf_module_list *modules, size_t index,
-    const sf_compiler_options *options
+    const sf_compilation_options *options
 );
 static void import_public_symbols(sf_semantic *semantic, const sf_module *dep);
 
 static bool check_assignment_type(
-    sf_value_type resolved, sf_value_type target, sf_span span,
-    const char *filename
+    sf_type_kind resolved, sf_type_kind target, sf_span span, const char *filename
 );
 static bool check_return_type(
-    sf_value_type resolved, sf_value_type target, const char *func_name,
-    sf_span span, const char *filename
+    sf_type_kind resolved, sf_type_kind target, const char *func_name, sf_span span,
+    const char *filename
 );
 static void check_entry(sf_semantic *semantic);
-static void check_entry_qualifiers(
-    sf_semantic *semantic, const sf_func_symbol *entry
-);
-static void check_entry_parameters(
-    sf_semantic *semantic, const sf_func_symbol *entry
-);
-static void check_entry_return(
-    sf_semantic *semantic, const sf_func_symbol *entry
-);
+static void check_entry_qualifiers(sf_semantic *semantic, const sf_func_symbol *entry);
+static void check_entry_parameters(sf_semantic *semantic, const sf_func_symbol *entry);
+static void check_entry_return(sf_semantic *semantic, const sf_func_symbol *entry);
 
 static bool stmt_always_returns(sf_ast_node *node);
 static bool has_no_effect(sf_ast_node *node);
 static bool shadows_parameter(sf_semantic *semantic, const char *name);
 
 bool sf_analyze(
-    sf_arena *arena, sf_program_node *program, const char *filename,
-    const sf_compiler_options *options, sf_module_list *modules
+    sf_arena *arena, sf_ast_node_program *program, const char *filename,
+    const sf_compilation_options *options, sf_module_list *modules
 ) {
     sf_func_symbol_table funcs;
     sf_func_symbol_table_init(&funcs);
@@ -90,9 +84,9 @@ bool sf_analyze(
 }
 
 static bool analyze_program(
-    sf_arena *arena, sf_module_list *modules, sf_program_node *program,
+    sf_arena *arena, sf_module_list *modules, sf_ast_node_program *program,
     const char *filename, sf_func_symbol_table *funcs,
-    const sf_compiler_options *options, bool is_root
+    const sf_compilation_options *options, bool is_root
 ) {
     sf_scope scope;
     scope_init(&scope);
@@ -109,7 +103,7 @@ static bool analyze_program(
     bool ok = true;
 
     for (size_t i = 0; i < program->import_count; i++) {
-        sf_import_node *imp = program->imports[i];
+        sf_ast_node_import *imp = program->imports[i];
 
         if (!imp->resolved) {
             ok = false;
@@ -140,7 +134,7 @@ static bool analyze_program(
 
 static bool analyze_module(
     sf_arena *arena, sf_module_list *modules, size_t index,
-    const sf_compiler_options *options
+    const sf_compilation_options *options
 ) {
     sf_module *mod = &modules->modules[index];
 
@@ -155,8 +149,8 @@ static bool analyze_module(
             sf_log(
                 "Cyclic Import", "Module '%s' is part of an import cycle.",
                 "Remove the circular import.", mod->filename,
-                SF_LOG_SEMANTIC_CYCLIC_IMPORT, (sf_span){0},
-                SF_LOG_SEVERITY_ERROR, mod->filename
+                SF_LOG_CODE_SEMANTIC_CYCLIC_IMPORT, (sf_span){0}, SF_LOG_SEVERITY_ERROR,
+                mod->filename
             );
             return false;
         }
@@ -198,15 +192,13 @@ static void import_public_symbols(sf_semantic *semantic, const sf_module *dep) {
     }
 }
 
-void sf_semantic_report_undeclared(
-    const sf_semantic *s, const char *name, sf_span span
-) {
+void sf_semantic_report_undeclared(const sf_semantic *s, const char *name, sf_span span) {
     const char *closest = scope_find_closest(s->scope, name);
 
     if (closest != NULL) {
         sf_log(
             "Undeclared Symbol", "'%s' is not declared in this scope.",
-            "Did you mean '%s'?", s->filename, SF_LOG_SEMANTIC_UNDECLARED, span,
+            "Did you mean '%s'?", s->filename, SF_LOG_CODE_SEMANTIC_UNDECLARED, span,
             SF_LOG_SEVERITY_ERROR, name, closest
         );
 
@@ -215,59 +207,57 @@ void sf_semantic_report_undeclared(
 
     sf_log(
         "Undeclared Symbol", "'%s' is not declared in this scope.",
-        "Check for typos, or declare the variable before using it.",
-        s->filename, SF_LOG_SEMANTIC_UNDECLARED, span, SF_LOG_SEVERITY_ERROR,
-        name
+        "Check for typos, or declare the variable before using it.", s->filename,
+        SF_LOG_CODE_SEMANTIC_UNDECLARED, span, SF_LOG_SEVERITY_ERROR, name
     );
 }
 
 static void analyze_statement(sf_semantic *semantic, sf_ast_node *node) {
     switch (node->type) {
-        case SF_NODE_VAR_DECL: {
-            analyze_var_decl(semantic, (sf_var_decl_node *)node);
+        case SF_AST_NODE_TYPE_VAR_DECL: {
+            analyze_var_decl(semantic, (sf_ast_node_var_decl *)node);
             break;
         }
-        case SF_NODE_VAR_ASSIGN: {
-            analyze_var_assign(semantic, (sf_var_assign_node *)node);
+        case SF_AST_NODE_TYPE_VAR_ASSIGN: {
+            analyze_var_assign(semantic, (sf_ast_node_var_assign *)node);
             break;
         }
-        case SF_NODE_BLOCK: {
-            analyze_block(semantic, (sf_block_node *)node);
+        case SF_AST_NODE_TYPE_BLOCK: {
+            analyze_block(semantic, (sf_ast_node_block *)node);
             break;
         }
-        case SF_NODE_IF: {
-            analyze_if(semantic, (sf_if_node *)node);
+        case SF_AST_NODE_TYPE_IF: {
+            analyze_if(semantic, (sf_ast_node_if *)node);
             break;
         }
-        case SF_NODE_WHILE: {
-            analyze_while(semantic, (sf_while_node *)node);
+        case SF_AST_NODE_TYPE_WHILE: {
+            analyze_while(semantic, (sf_ast_node_while *)node);
             break;
         }
-        case SF_NODE_FUNC_DECL: {
-            analyze_func_decl(semantic, (sf_func_decl_node *)node);
+        case SF_AST_NODE_TYPE_FUNC_DECL: {
+            analyze_func_decl(semantic, (sf_ast_node_func_decl *)node);
             break;
         }
-        case SF_NODE_FUNC_CALL: {
-            sf_semantic_expr(semantic, node, SF_VAL_TYPE_UNRESOLVED);
+        case SF_AST_NODE_TYPE_FUNC_CALL: {
+            sf_semantic_expr(semantic, node, SF_TYPE_KIND_UNRESOLVED);
             break;
         }
-        case SF_NODE_RETURN: {
-            analyze_return(semantic, (sf_return_node *)node);
+        case SF_AST_NODE_TYPE_RETURN: {
+            analyze_return(semantic, (sf_ast_node_return *)node);
             break;
         }
-        case SF_NODE_NAMESPACE: {
-            analyze_namespace(semantic, (sf_namespace_node *)node);
+        case SF_AST_NODE_TYPE_NAMESPACE: {
+            analyze_namespace(semantic, (sf_ast_node_namespace *)node);
             break;
         }
         default: {
-            sf_semantic_expr(semantic, node, SF_VAL_TYPE_UNRESOLVED);
+            sf_semantic_expr(semantic, node, SF_TYPE_KIND_UNRESOLVED);
 
             if (has_no_effect(node)) {
                 sf_log(
-                    "Unused Expression",
-                    "The result of this expression is discarded.",
+                    "Unused Expression", "The result of this expression is discarded.",
                     "Assign the result to a variable, or remove the statement.",
-                    semantic->filename, SF_LOG_SEMANTIC_UNUSED_EXPRESSION,
+                    semantic->filename, SF_LOG_CODE_SEMANTIC_UNUSED_EXPRESSION,
                     node->span, SF_LOG_SEVERITY_WARNING
                 );
             }
@@ -277,7 +267,7 @@ static void analyze_statement(sf_semantic *semantic, sf_ast_node *node) {
     }
 }
 
-static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
+static void analyze_var_decl(sf_semantic *semantic, sf_ast_node_var_decl *var) {
     sf_var_symbol sym = {
         .name = var->name,
         .type = var->var_type,
@@ -287,11 +277,11 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
         .attributes = var->attributes,
     };
 
-    if (sym.type == SF_VAL_TYPE_VOID) {
+    if (sym.type == SF_TYPE_KIND_VOID) {
         sf_log(
             "Invalid Type", "Variables cannot be 'void'.",
             "Give the variable '%s' a valid type.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_TYPE, var->base.span, SF_LOG_SEVERITY_ERROR,
+            SF_LOG_CODE_SEMANTIC_INVALID_TYPE, var->base.span, SF_LOG_SEVERITY_ERROR,
             var->name
         );
 
@@ -301,9 +291,9 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
     if (shadows_parameter(semantic, sym.name)) {
         sf_log(
             "Redeclaration", "'%s' shadows a parameter of function '%s'.",
-            "Rename the variable, or remove the declaration.",
-            semantic->filename, SF_LOG_SEMANTIC_REDECLARATION, var->base.span,
-            SF_LOG_SEVERITY_ERROR, var->name, semantic->current_func->name
+            "Rename the variable, or remove the declaration.", semantic->filename,
+            SF_LOG_CODE_SEMANTIC_REDECLARATION, var->base.span, SF_LOG_SEVERITY_ERROR,
+            var->name, semantic->current_func->name
         );
 
         return;
@@ -322,8 +312,7 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
         }
 
         if (!check_assignment_type(
-                var->value->resolved, var->var_type, var->base.span,
-                semantic->filename
+                var->value->resolved, var->var_type, var->base.span, semantic->filename
             )) {
             return;
         }
@@ -338,7 +327,7 @@ static void analyze_var_decl(sf_semantic *semantic, sf_var_decl_node *var) {
     }
 }
 
-static void analyze_var_assign(sf_semantic *semantic, sf_var_assign_node *asg) {
+static void analyze_var_assign(sf_semantic *semantic, sf_ast_node_var_assign *asg) {
     const char *name = sf_path_simple_name(&asg->path);
 
     if (name == NULL) {
@@ -367,9 +356,9 @@ static void analyze_var_assign(sf_semantic *semantic, sf_var_assign_node *asg) {
     if (sym->qualifiers.is_mutable == false) {
         sf_log(
             "Invalid Assign", "Variable '%s' is not mutable.",
-            "Make the variable mutable or dont assign values to it.",
-            semantic->filename, SF_LOG_SEMANTIC_INVALID_ASSIGN, asg->base.span,
-            SF_LOG_SEVERITY_ERROR, name
+            "Make the variable mutable or dont assign values to it.", semantic->filename,
+            SF_LOG_CODE_SEMANTIC_INVALID_ASSIGN, asg->base.span, SF_LOG_SEVERITY_ERROR,
+            name
         );
     }
 
@@ -377,7 +366,7 @@ static void analyze_var_assign(sf_semantic *semantic, sf_var_assign_node *asg) {
     asg->base.resolved = sym->type;
 }
 
-static void analyze_block(sf_semantic *semantic, sf_block_node *block) {
+static void analyze_block(sf_semantic *semantic, sf_ast_node_block *block) {
     scope_push(semantic->scope);
 
     for (uint32_t i = 0; i < block->statement_count; i++) {
@@ -387,19 +376,18 @@ static void analyze_block(sf_semantic *semantic, sf_block_node *block) {
     scope_pop(semantic->scope);
 }
 
-static void analyze_if(sf_semantic *semantic, sf_if_node *if_stmt) {
-    if (!sf_semantic_expr(semantic, if_stmt->condition, SF_VAL_TYPE_BOOL)) {
+static void analyze_if(sf_semantic *semantic, sf_ast_node_if *if_stmt) {
+    if (!sf_semantic_expr(semantic, if_stmt->condition, SF_TYPE_KIND_BOOL)) {
         return;
     }
 
-    if (if_stmt->condition->resolved != SF_VAL_TYPE_BOOL) {
+    if (if_stmt->condition->resolved != SF_TYPE_KIND_BOOL) {
         sf_log(
             "Type Mismatch",
             "'if' condition should always be a boolean expression, found '%s'.",
             "Check for typos and missing operands.", semantic->filename,
-            SF_LOG_SEMANTIC_TYPE_MISMATCH, if_stmt->condition->span,
-            SF_LOG_SEVERITY_ERROR,
-            sf_type_value_name(if_stmt->condition->resolved)
+            SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, if_stmt->condition->span,
+            SF_LOG_SEVERITY_ERROR, sf_type_kind_name(if_stmt->condition->resolved)
         );
 
         return;
@@ -435,20 +423,19 @@ static void analyze_if(sf_semantic *semantic, sf_if_node *if_stmt) {
     scope_flow_free(&after_else);
 }
 
-static void analyze_while(sf_semantic *semantic, sf_while_node *while_stmt) {
-    if (!sf_semantic_expr(semantic, while_stmt->condition, SF_VAL_TYPE_BOOL)) {
+static void analyze_while(sf_semantic *semantic, sf_ast_node_while *while_stmt) {
+    if (!sf_semantic_expr(semantic, while_stmt->condition, SF_TYPE_KIND_BOOL)) {
         return;
     }
 
-    if (while_stmt->condition->resolved != SF_VAL_TYPE_BOOL) {
+    if (while_stmt->condition->resolved != SF_TYPE_KIND_BOOL) {
         sf_log(
             "Type Mismatch",
             "While condition should always be a boolean expression, found "
             "'%s'.",
             "Check for typos and missing operands.", semantic->filename,
-            SF_LOG_SEMANTIC_TYPE_MISMATCH, while_stmt->condition->span,
-            SF_LOG_SEVERITY_ERROR,
-            sf_type_value_name(while_stmt->condition->resolved)
+            SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, while_stmt->condition->span,
+            SF_LOG_SEVERITY_ERROR, sf_type_kind_name(while_stmt->condition->resolved)
         );
 
         return;
@@ -462,7 +449,7 @@ static void analyze_while(sf_semantic *semantic, sf_while_node *while_stmt) {
     scope_flow_free(&before);
 }
 
-static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
+static void analyze_func_decl(sf_semantic *semantic, sf_ast_node_func_decl *func) {
     char qname[SF_QNAME_MAX];
     sf_path_segment self = {.span = func->base.span, .name = func->name};
 
@@ -472,8 +459,8 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
         sf_log(
             "Name too Long", "The qualified name of function '%s' is too long.",
             "Shorten the function or namespace names.", semantic->filename,
-            SF_LOG_SEMANTIC_NAME_TOO_LONG, func->base.span,
-            SF_LOG_SEVERITY_ERROR, func->name
+            SF_LOG_CODE_SEMANTIC_NAME_TOO_LONG, func->base.span, SF_LOG_SEVERITY_ERROR,
+            func->name
         );
 
         return;
@@ -508,12 +495,12 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
     for (size_t i = 0; i < func->parameter_count; i++) {
         sf_parameter param = func->parameters[i];
 
-        if (param.type == SF_VAL_TYPE_VOID) {
+        if (param.type == SF_TYPE_KIND_VOID) {
             sf_log(
                 "Invalid Type", "Parameters cannot be 'void'.",
                 "Give the parameter '%s' a valid type.", semantic->filename,
-                SF_LOG_SEMANTIC_INVALID_TYPE, func->base.span,
-                SF_LOG_SEVERITY_ERROR, param.name
+                SF_LOG_CODE_SEMANTIC_INVALID_TYPE, func->base.span, SF_LOG_SEVERITY_ERROR,
+                param.name
             );
         }
 
@@ -522,7 +509,7 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
                 sf_log(
                     "Redeclaration", "Parameter '%s' is already declared.",
                     "Rename one of the parameters.", semantic->filename,
-                    SF_LOG_SEMANTIC_REDECLARATION, func->base.span,
+                    SF_LOG_CODE_SEMANTIC_REDECLARATION, func->base.span,
                     SF_LOG_SEVERITY_ERROR, param.name
                 );
                 break;
@@ -545,7 +532,7 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
     for (size_t i = 0; i < func->parameter_count; i++) {
         sf_parameter param = func->parameters[i];
 
-        if (param.type == SF_VAL_TYPE_VOID) {
+        if (param.type == SF_TYPE_KIND_VOID) {
             continue;
         }
 
@@ -563,62 +550,58 @@ static void analyze_func_decl(sf_semantic *semantic, sf_func_decl_node *func) {
         func->parameters[i].id = param_id;
     }
 
-    sf_func_decl_node *previous = semantic->current_func;
+    sf_ast_node_func_decl *previous = semantic->current_func;
     semantic->current_func = func;
 
     analyze_statement(semantic, func->body);
 
     semantic->current_func = previous;
 
-    if (func->return_type != SF_VAL_TYPE_VOID &&
-        !stmt_always_returns(func->body)) {
+    if (func->return_type != SF_TYPE_KIND_VOID && !stmt_always_returns(func->body)) {
         sf_log(
             "Missing Return",
             "Function '%s' does not return a value of type '%s' in all paths.",
             "Check all paths for missing returns.", semantic->filename,
-            SF_LOG_SEMANTIC_MISSING_RETURN, func->base.span,
-            SF_LOG_SEVERITY_ERROR, func->name,
-            sf_type_value_name(func->return_type)
+            SF_LOG_CODE_SEMANTIC_MISSING_RETURN, func->base.span, SF_LOG_SEVERITY_ERROR,
+            func->name, sf_type_kind_name(func->return_type)
         );
     }
 
     scope_pop(semantic->scope);
 }
 
-static void analyze_return(sf_semantic *semantic, sf_return_node *ret) {
-    sf_func_decl_node *func = semantic->current_func;
+static void analyze_return(sf_semantic *semantic, sf_ast_node_return *ret) {
+    sf_ast_node_func_decl *func = semantic->current_func;
 
     if (func == NULL) {
         sf_log(
-            "Return Outside Function",
-            "'return' cannot be used outside of a function",
-            "Move this return inside a function body, or remove it.",
-            semantic->filename, SF_LOG_SEMANTIC_RETURN_OUTSIDE_FUNCTION,
-            ret->base.span, SF_LOG_SEVERITY_ERROR
+            "Return Outside Function", "'return' cannot be used outside of a function",
+            "Move this return inside a function body, or remove it.", semantic->filename,
+            SF_LOG_CODE_SEMANTIC_RETURN_OUTSIDE_FUNCTION, ret->base.span,
+            SF_LOG_SEVERITY_ERROR
         );
 
         return;
     }
 
     if (ret->value == NULL) {
-        if (func->return_type != SF_VAL_TYPE_VOID) {
+        if (func->return_type != SF_TYPE_KIND_VOID) {
             sf_log(
                 "Missing Return Value",
                 "Function '%s' expects a return value of type '%s', but this "
                 "'return' provides none.",
                 "Return a value of the expected type, or change the "
                 "function's return type to 'void'.",
-                semantic->filename, SF_LOG_SEMANTIC_NO_VALUE_RETURN,
-                ret->base.span, SF_LOG_SEVERITY_ERROR, func->name,
-                sf_type_value_name(func->return_type)
+                semantic->filename, SF_LOG_CODE_SEMANTIC_NO_VALUE_RETURN, ret->base.span,
+                SF_LOG_SEVERITY_ERROR, func->name, sf_type_kind_name(func->return_type)
             );
         }
 
         return;
     }
 
-    if (func->return_type == SF_VAL_TYPE_VOID) {
-        if (!sf_semantic_expr(semantic, ret->value, SF_VAL_TYPE_UNRESOLVED)) {
+    if (func->return_type == SF_TYPE_KIND_VOID) {
+        if (!sf_semantic_expr(semantic, ret->value, SF_TYPE_KIND_UNRESOLVED)) {
             return;
         }
 
@@ -628,9 +611,8 @@ static void analyze_return(sf_semantic *semantic, sf_return_node *ret) {
             "'return' provides a value of type '%s'.",
             "Remove the returned value, or give the function a non-void "
             "return type.",
-            semantic->filename, SF_LOG_SEMANTIC_VOID_RETURN_VALUE,
-            ret->base.span, SF_LOG_SEVERITY_ERROR, func->name,
-            sf_type_value_name(ret->value->resolved)
+            semantic->filename, SF_LOG_CODE_SEMANTIC_VOID_RETURN_VALUE, ret->base.span,
+            SF_LOG_SEVERITY_ERROR, func->name, sf_type_kind_name(ret->value->resolved)
         );
 
         return;
@@ -651,7 +633,7 @@ static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym) {
         sf_log(
             "Invalid Qualifier", "Variables cannot be public.",
             "Remove the invalid qualifier.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR
+            SF_LOG_CODE_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR
         );
 
         return false;
@@ -661,7 +643,7 @@ static bool analyze_var_sym_qual(sf_semantic *semantic, sf_var_symbol sym) {
         sf_log(
             "Invalid Qualifier", "Variables cannot be extern.",
             "Remove the invalid qualifier.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR
+            SF_LOG_CODE_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR
         );
 
         return false;
@@ -675,7 +657,7 @@ static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym) {
         sf_log(
             "Invalid Qualifier", "Function '%s' cannot be mutable.",
             "Remove the invalid qualifier.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR,
+            SF_LOG_CODE_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR,
             sym.name
         );
 
@@ -684,10 +666,9 @@ static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym) {
 
     if (sym.qualifiers.is_extern && sym.qualifiers.is_public) {
         sf_log(
-            "Invalid Qualifier",
-            "Function '%s' cannot be both public and extern.",
+            "Invalid Qualifier", "Function '%s' cannot be both public and extern.",
             "Remove one of the qualifiers.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR,
+            SF_LOG_CODE_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR,
             sym.name
         );
 
@@ -699,7 +680,7 @@ static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym) {
             "Invalid Qualifier",
             "Extern function '%s' cannot be declared inside a namespace.",
             "Declare the extern function at the top level.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR,
+            SF_LOG_CODE_SEMANTIC_INVALID_QUALIFIER, sym.span, SF_LOG_SEVERITY_ERROR,
             sym.name
         );
 
@@ -712,10 +693,9 @@ static bool analyze_func_sym_qual(sf_semantic *semantic, sf_func_symbol sym) {
 static bool analyze_var_sym_attr(sf_semantic *semantic, sf_var_symbol sym) {
     if (sym.attributes.no_mangle) {
         sf_log(
-            "Invalid Attribute",
-            "Variable '%s' cannot have 'no_mangle' attribute.",
+            "Invalid Attribute", "Variable '%s' cannot have 'no_mangle' attribute.",
             "Remove the invalid attribute.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_ATTRIBUTE, sym.span, SF_LOG_SEVERITY_ERROR,
+            SF_LOG_CODE_SEMANTIC_INVALID_ATTRIBUTE, sym.span, SF_LOG_SEVERITY_ERROR,
             sym.name
         );
 
@@ -733,33 +713,30 @@ static bool analyze_func_sym_attr(sf_semantic *semantic, sf_func_symbol sym) {
 }
 
 static bool check_assignment_type(
-    sf_value_type resolved, sf_value_type target, sf_span span,
-    const char *filename
+    sf_type_kind resolved, sf_type_kind target, sf_span span, const char *filename
 ) {
-    if (resolved == SF_VAL_TYPE_UNRESOLVED) {
+    if (resolved == SF_TYPE_KIND_UNRESOLVED) {
         return true;
     }
 
-    if (!sf_type_value_is_same_group(resolved, target)) {
+    if (!sf_type_kind_is_same_group(resolved, target)) {
         sf_log(
             "Type Mismatch", "Cannot assign '%s' to a variable of type '%s'.",
             "Make sure the expression type matches the variable type, or cast "
             "it.",
-            filename, SF_LOG_SEMANTIC_TYPE_MISMATCH, span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(resolved),
-            sf_type_value_name(target)
+            filename, SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(resolved), sf_type_kind_name(target)
         );
 
         return false;
     }
 
-    if (sf_type_value_width_bits(resolved) > sf_type_value_width_bits(target)) {
+    if (sf_type_kind_width_bits(resolved) > sf_type_kind_width_bits(target)) {
         sf_log(
             "Narrowing Conversion", "Cannot implicitly narrow '%s' to '%s'.",
-            "Cast the value explicitly, or use a wider variable type.",
-            filename, SF_LOG_SEMANTIC_INVALID_IMPLICIT_CAST, span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(resolved),
-            sf_type_value_name(target)
+            "Cast the value explicitly, or use a wider variable type.", filename,
+            SF_LOG_CODE_SEMANTIC_INVALID_IMPLICIT_CAST, span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(resolved), sf_type_kind_name(target)
         );
 
         return false;
@@ -769,37 +746,35 @@ static bool check_assignment_type(
 }
 
 static bool check_return_type(
-    sf_value_type resolved, sf_value_type target, const char *func_name,
-    sf_span span, const char *filename
+    sf_type_kind resolved, sf_type_kind target, const char *func_name, sf_span span,
+    const char *filename
 ) {
-    if (resolved == SF_VAL_TYPE_UNRESOLVED) {
+    if (resolved == SF_TYPE_KIND_UNRESOLVED) {
         return true;
     }
 
-    if (!sf_type_value_is_same_group(resolved, target)) {
+    if (!sf_type_kind_is_same_group(resolved, target)) {
         sf_log(
             "Type Mismatch",
             "Function '%s' expects to return '%s', but this expression has "
             "type '%s'.",
             "Make sure the returned expression matches the function's return "
             "type, or cast it.",
-            filename, SF_LOG_SEMANTIC_TYPE_MISMATCH, span,
-            SF_LOG_SEVERITY_ERROR, func_name, sf_type_value_name(target),
-            sf_type_value_name(resolved)
+            filename, SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, span, SF_LOG_SEVERITY_ERROR,
+            func_name, sf_type_kind_name(target), sf_type_kind_name(resolved)
         );
 
         return false;
     }
 
-    if (sf_type_value_width_bits(resolved) > sf_type_value_width_bits(target)) {
+    if (sf_type_kind_width_bits(resolved) > sf_type_kind_width_bits(target)) {
         sf_log(
             "Narrowing Conversion",
             "Cannot implicitly narrow '%s' to '%s' when returning from "
             "function '%s'.",
-            "Cast the value explicitly, or change the function's return type.",
-            filename, SF_LOG_SEMANTIC_INVALID_IMPLICIT_CAST, span,
-            SF_LOG_SEVERITY_ERROR, sf_type_value_name(resolved),
-            sf_type_value_name(target), func_name
+            "Cast the value explicitly, or change the function's return type.", filename,
+            SF_LOG_CODE_SEMANTIC_INVALID_IMPLICIT_CAST, span, SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(resolved), sf_type_kind_name(target), func_name
         );
 
         return false;
@@ -814,11 +789,10 @@ static void check_entry(sf_semantic *semantic) {
 
     if (entry == NULL) {
         sf_log(
-            "Missing Entry Point",
-            "The program does not define a '%s' function.",
-            "Define a valid function as the program entry point.",
-            semantic->filename, SF_LOG_SEMANTIC_NO_ENTRY_POINT, (sf_span){0},
-            SF_LOG_SEVERITY_ERROR, SF_SEMANTIC_ENTRY_NAME
+            "Missing Entry Point", "The program does not define a '%s' function.",
+            "Define a valid function as the program entry point.", semantic->filename,
+            SF_LOG_CODE_SEMANTIC_NO_ENTRY_POINT, (sf_span){0}, SF_LOG_SEVERITY_ERROR,
+            SF_SEMANTIC_ENTRY_NAME
         );
 
         return;
@@ -829,15 +803,13 @@ static void check_entry(sf_semantic *semantic) {
     check_entry_qualifiers(semantic, entry);
 }
 
-static void check_entry_qualifiers(
-    sf_semantic *semantic, const sf_func_symbol *entry
-) {
+static void check_entry_qualifiers(sf_semantic *semantic, const sf_func_symbol *entry) {
     if (!entry->qualifiers.is_public) {
         sf_log(
             "Invalid Qualifiers", "The entry function '%s' must be public.",
             "Make the '%s' function public.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_RETURN_TYPE, entry->span,
-            SF_LOG_SEVERITY_ERROR, entry->name, entry->name
+            SF_LOG_CODE_SEMANTIC_INVALID_RETURN_TYPE, entry->span, SF_LOG_SEVERITY_ERROR,
+            entry->name, entry->name
         );
     }
 
@@ -845,36 +817,30 @@ static void check_entry_qualifiers(
         sf_log(
             "Invalid Qualifiers", "The entry function '%s' must not be extern.",
             "Remove the extern qualifier.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_RETURN_TYPE, entry->span,
-            SF_LOG_SEVERITY_ERROR, entry->name
+            SF_LOG_CODE_SEMANTIC_INVALID_RETURN_TYPE, entry->span, SF_LOG_SEVERITY_ERROR,
+            entry->name
         );
     }
 }
 
-static void check_entry_parameters(
-    sf_semantic *semantic, const sf_func_symbol *entry
-) {
+static void check_entry_parameters(sf_semantic *semantic, const sf_func_symbol *entry) {
     if (entry->parameter_count > 0) {
         sf_log(
-            "Invalid Parameters",
-            "The '%s' function must not have any parameters.",
+            "Invalid Parameters", "The '%s' function must not have any parameters.",
             "Remove all parameters from the function.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_PARAMETERS, entry->span,
-            SF_LOG_SEVERITY_ERROR, entry->name
+            SF_LOG_CODE_SEMANTIC_INVALID_PARAMETERS, entry->span, SF_LOG_SEVERITY_ERROR,
+            entry->name
         );
     }
 }
 
-static void check_entry_return(
-    sf_semantic *semantic, const sf_func_symbol *entry
-) {
-    if (entry->return_type != SF_VAL_TYPE_I32) {
+static void check_entry_return(sf_semantic *semantic, const sf_func_symbol *entry) {
+    if (entry->return_type != SF_TYPE_KIND_I32) {
         sf_log(
             "Invalid Return Type", "The '%s' function must return '%s'.",
             "Change the funtion return type.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_RETURN_TYPE, entry->span,
-            SF_LOG_SEVERITY_ERROR, entry->name,
-            sf_type_value_name(SF_VAL_TYPE_I32)
+            SF_LOG_CODE_SEMANTIC_INVALID_RETURN_TYPE, entry->span, SF_LOG_SEVERITY_ERROR,
+            entry->name, sf_type_kind_name(SF_TYPE_KIND_I32)
         );
     }
 }
@@ -885,11 +851,11 @@ static bool stmt_always_returns(sf_ast_node *node) {
     }
 
     switch (node->type) {
-        case SF_NODE_RETURN: {
+        case SF_AST_NODE_TYPE_RETURN: {
             return true;
         }
-        case SF_NODE_BLOCK: {
-            sf_block_node *block = (sf_block_node *)node;
+        case SF_AST_NODE_TYPE_BLOCK: {
+            sf_ast_node_block *block = (sf_ast_node_block *)node;
 
             for (size_t i = 0; i < block->statement_count; i++) {
                 if (stmt_always_returns(block->statements[i])) {
@@ -899,8 +865,8 @@ static bool stmt_always_returns(sf_ast_node *node) {
 
             return false;
         }
-        case SF_NODE_IF: {
-            sf_if_node *if_stmt = (sf_if_node *)node;
+        case SF_AST_NODE_TYPE_IF: {
+            sf_ast_node_if *if_stmt = (sf_ast_node_if *)node;
 
             if (if_stmt->branch_else == NULL) {
                 return false;
@@ -921,25 +887,25 @@ static bool has_no_effect(sf_ast_node *node) {
     }
 
     switch (node->type) {
-        case SF_NODE_LITERAL:
-        case SF_NODE_IDENTIFIER: {
+        case SF_AST_NODE_TYPE_LITERAL:
+        case SF_AST_NODE_TYPE_IDENTIFIER: {
             return true;
         }
-        case SF_NODE_BINARY: {
-            sf_binary_node *ex = (sf_binary_node *)node;
+        case SF_AST_NODE_TYPE_BINARY: {
+            sf_ast_node_binary *ex = (sf_ast_node_binary *)node;
             return has_no_effect(ex->left) && has_no_effect(ex->right);
         }
-        case SF_NODE_UNARY: {
-            sf_unary_node *un = (sf_unary_node *)node;
+        case SF_AST_NODE_TYPE_UNARY: {
+            sf_ast_node_unary *un = (sf_ast_node_unary *)node;
 
-            if (sf_type_is_increment_or_decrement(un->op)) {
+            if (sf_operation_is_increment_or_decrement(un->op)) {
                 return false;
             }
 
             return has_no_effect(un->operand);
         }
-        case SF_NODE_CAST: {
-            sf_cast_node *cast = (sf_cast_node *)node;
+        case SF_AST_NODE_TYPE_CAST: {
+            sf_ast_node_cast *cast = (sf_ast_node_cast *)node;
             return has_no_effect(cast->operand);
         }
         default: {
@@ -949,7 +915,7 @@ static bool has_no_effect(sf_ast_node *node) {
 }
 
 static bool shadows_parameter(sf_semantic *semantic, const char *name) {
-    sf_func_decl_node *func = semantic->current_func;
+    sf_ast_node_func_decl *func = semantic->current_func;
 
     if (func == NULL) {
         return false;
@@ -964,14 +930,12 @@ static bool shadows_parameter(sf_semantic *semantic, const char *name) {
     return false;
 }
 
-static void analyze_namespace(sf_semantic *semantic, sf_namespace_node *ns) {
+static void analyze_namespace(sf_semantic *semantic, sf_ast_node_namespace *ns) {
     if (semantic->scope->depth > 1) {
         sf_log(
-            "Invalid Namespace",
-            "Namespaces can only be declared at the top level.",
+            "Invalid Namespace", "Namespaces can only be declared at the top level.",
             "Move the namespace.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_NAMESPACE, ns->base.span,
-            SF_LOG_SEVERITY_ERROR
+            SF_LOG_CODE_SEMANTIC_INVALID_NAMESPACE, ns->base.span, SF_LOG_SEVERITY_ERROR
         );
 
         return;
@@ -985,11 +949,9 @@ static void analyze_namespace(sf_semantic *semantic, sf_namespace_node *ns) {
 
     if (!sf_namespace_push_path(&semantic->ns, &ns->path)) {
         sf_log(
-            "Namespace too Deep",
-            "Namespace nesting exceeds the maximum depth.",
+            "Namespace too Deep", "Namespace nesting exceeds the maximum depth.",
             "Flatten the namespace hierarchy.", semantic->filename,
-            SF_LOG_SEMANTIC_INVALID_NAMESPACE, ns->base.span,
-            SF_LOG_SEVERITY_ERROR
+            SF_LOG_CODE_SEMANTIC_INVALID_NAMESPACE, ns->base.span, SF_LOG_SEVERITY_ERROR
         );
 
         return;
@@ -999,8 +961,8 @@ static void analyze_namespace(sf_semantic *semantic, sf_namespace_node *ns) {
         sf_ast_node *item = ns->items[i];
 
         switch (item->type) {
-            case SF_NODE_FUNC_DECL:
-            case SF_NODE_NAMESPACE: {
+            case SF_AST_NODE_TYPE_FUNC_DECL:
+            case SF_AST_NODE_TYPE_NAMESPACE: {
                 analyze_statement(semantic, item);
                 break;
             }
@@ -1009,9 +971,9 @@ static void analyze_namespace(sf_semantic *semantic, sf_namespace_node *ns) {
                 sf_log(
                     "Invalid Namespace",
                     "Only top-level statements can be inside a namespace.",
-                    "Move this statement out of the namespace.",
-                    semantic->filename, SF_LOG_SEMANTIC_INVALID_NAMESPACE,
-                    item->span, SF_LOG_SEVERITY_ERROR
+                    "Move this statement out of the namespace.", semantic->filename,
+                    SF_LOG_CODE_SEMANTIC_INVALID_NAMESPACE, item->span,
+                    SF_LOG_SEVERITY_ERROR
                 );
                 break;
             }

@@ -1,4 +1,4 @@
-#include "sulfur/utils/file.h"
+#include "sulfur/io/file.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "sulfur/utils/log.h"
+#include "sulfur/io/log.h"
 
 char *sf_file_read(const char *filename, size_t *size) {
     FILE *file = fopen(filename, "rb");
@@ -16,7 +16,7 @@ char *sf_file_read(const char *filename, size_t *size) {
             "File Open Failed.", "Unable to open file '%s' for reading.",
             "Verify that the file exists, the path is correct, and read "
             "permissions are granted.",
-            filename, SF_LOG_DRIVER_CANNOT_OPEN_FILE, (sf_span){0},
+            filename, SF_LOG_CODE_DRIVER_CANNOT_OPEN_FILE, (sf_span){0},
             SF_LOG_SEVERITY_FATAL, filename
         );
 
@@ -60,7 +60,7 @@ bool sf_file_write(const char *filename, const char *content) {
             "File Open Failed.", "Unable to open file '%s' for writing.",
             "Verify that the destination path is valid, the directory exists, "
             "and write permissions are granted.",
-            filename, SF_LOG_DRIVER_CANNOT_OPEN_FILE, (sf_span){0},
+            filename, SF_LOG_CODE_DRIVER_CANNOT_OPEN_FILE, (sf_span){0},
             SF_LOG_SEVERITY_FATAL, filename
         );
 

@@ -6,11 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sulfur/utils/log.h"
+#include "sulfur/io/log.h"
+#include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/utils/string.h"
-#include "sulfur/utils/type_utils.h"
+#include "sulfur/utils/type.h"
 
-static const sf_stack_map_size_t k_initial_capacity = 8;
+static const sf_stack_map_size k_initial_capacity = 8;
 
 enum {
     k_temporary_name_size = 16
@@ -18,29 +19,25 @@ enum {
 
 static bool ensure_capacity(sf_stack_map *map);
 static void add_entry(
-    sf_stack_map *map, const char *name, sf_value_type type,
-    sf_stack_offset_size_t *next_offset
+    sf_stack_map *map, const char *name, sf_type_kind type,
+    sf_stack_offset_size *next_offset
 );
-static sf_stack_offset_size_t next_aligned_offset(
-    sf_stack_offset_size_t current, uint8_t size
+static sf_stack_offset_size next_aligned_offset(
+    sf_stack_offset_size current, uint8_t size
 );
 
-sf_stack_offset_size_t sf_stack_lookup(
-    const sf_stack_map *map, const char *name
-) {
+sf_stack_offset_size sf_stack_lookup(const sf_stack_map *map, const char *name) {
     const sf_stack_entry *entry = sf_stack_lookup_entry(map, name);
 
     return entry != NULL ? entry->offset : 0;
 }
 
-sf_stack_entry *sf_stack_lookup_entry(
-    const sf_stack_map *map, const char *name
-) {
+sf_stack_entry *sf_stack_lookup_entry(const sf_stack_map *map, const char *name) {
     if (map == NULL || name == NULL) {
         return NULL;
     }
 
-    for (sf_stack_map_size_t i = 0; i < map->count; i++) {
+    for (sf_stack_map_size i = 0; i < map->entry_count; i++) {
         if (strcmp(map->entries[i].name, name) == 0) {
             return &map->entries[i];
         }
@@ -58,11 +55,11 @@ void sf_stack_push(sf_stack_map *map, sf_stack_entry entry) {
         return;
     }
 
-    map->entries[map->count++] = entry;
+    map->entries[map->entry_count++] = entry;
 }
 
 void sf_stack_register_operand(
-    sf_stack_map *map, sf_ir_operand op, sf_stack_offset_size_t *next_offset
+    sf_stack_map *map, sf_ir_operand op, sf_stack_offset_size *next_offset
 ) {
     switch (op.type) {
         case SF_IR_OPERAND_TYPE_VARIABLE: {
@@ -91,7 +88,7 @@ void sf_stack_populate(
         return;
     }
 
-    sf_stack_offset_size_t next_offset = 0;
+    sf_stack_offset_size next_offset = 0;
 
     for (size_t i = 0; i < param_count; i++) {
         sf_stack_register_operand(
@@ -126,27 +123,26 @@ void sf_stack_free(sf_stack_map *map) {
         return;
     }
 
-    for (sf_stack_map_size_t i = 0; i < map->count; i++) {
+    for (sf_stack_map_size i = 0; i < map->entry_count; i++) {
         free(map->entries[i].name);
     }
 
     free(map->entries);
 
     map->entries = NULL;
-    map->count = 0;
-    map->capacity = 0;
+    map->entry_count = 0;
+    map->entry_capacity = 0;
 }
 
 static bool ensure_capacity(sf_stack_map *map) {
-    if (map->count < map->capacity) {
+    if (map->entry_count < map->entry_capacity) {
         return true;
     }
 
-    sf_stack_map_size_t new_capacity =
-        map->capacity == 0 ? k_initial_capacity : map->capacity * 2;
+    sf_stack_map_size new_capacity =
+        map->entry_capacity == 0 ? k_initial_capacity : map->entry_capacity * 2;
 
-    sf_stack_entry *grown =
-        realloc(map->entries, new_capacity * sizeof(sf_stack_entry));
+    sf_stack_entry *grown = realloc(map->entries, new_capacity * sizeof(sf_stack_entry));
 
     if (grown == NULL) {
         sf_log_out_of_memory("N/A");
@@ -155,20 +151,20 @@ static bool ensure_capacity(sf_stack_map *map) {
     }
 
     map->entries = grown;
-    map->capacity = new_capacity;
+    map->entry_capacity = new_capacity;
 
     return true;
 }
 
 static void add_entry(
-    sf_stack_map *map, const char *name, sf_value_type type,
-    sf_stack_offset_size_t *next_offset
+    sf_stack_map *map, const char *name, sf_type_kind type,
+    sf_stack_offset_size *next_offset
 ) {
     if (map == NULL || name == NULL) {
         return;
     }
 
-    uint8_t size = sf_type_value_width_bytes(type);
+    uint8_t size = sf_type_kind_width_bytes(type);
 
     if (size == 0) {
         return;
@@ -201,11 +197,11 @@ static void add_entry(
     );
 }
 
-static sf_stack_offset_size_t next_aligned_offset(
-    sf_stack_offset_size_t current, uint8_t size
+static sf_stack_offset_size next_aligned_offset(
+    sf_stack_offset_size current, uint8_t size
 ) {
     uint64_t position = (uint64_t)(-current) + size;
     position = (position + size - 1) / size * size;
 
-    return -(sf_stack_offset_size_t)position;
+    return -(sf_stack_offset_size)position;
 }

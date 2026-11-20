@@ -1,9 +1,9 @@
-#include "sulfur/utils/mangle.h"
+#include "sulfur/pipeline/frontend/semantic/mangle.h"
 
 #include <stdio.h>
 #include <string.h>
 
-#include "sulfur/utils/log.h"
+#include "sulfur/io/log.h"
 
 static const char k_empty_name[] = "";
 
@@ -30,9 +30,7 @@ const char *sf_mangle_variable(sf_arena *arena, const char *name, size_t id) {
     return mangled;
 }
 
-const char *sf_mangle_function(
-    sf_arena *arena, const char *name, bool keep_name
-) {
+const char *sf_mangle_function(sf_arena *arena, const char *name, bool keep_name) {
     if (keep_name) {
         return name;
     }
@@ -43,8 +41,7 @@ const char *sf_mangle_function(
 
     const char *head = "_SF_";
 
-    size_t capacity =
-        strlen(head) + strlen(name) + count_segments(name) * 21 + 1;
+    size_t capacity = strlen(head) + strlen(name) + count_segments(name) * 21 + 1;
     char *result = sf_arena_alloc(arena, capacity);
 
     if (result == NULL) {
@@ -80,8 +77,7 @@ const char *sf_mangle_function(
 static size_t count_segments(const char *name) {
     size_t count = 1;
 
-    for (const char *p = strstr(name, "::"); p != NULL;
-         p = strstr(p + 2, "::")) {
+    for (const char *p = strstr(name, "::"); p != NULL; p = strstr(p + 2, "::")) {
         count++;
     }
 

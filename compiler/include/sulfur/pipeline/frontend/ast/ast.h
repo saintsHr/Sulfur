@@ -5,311 +5,235 @@
 #include <stdint.h>
 
 #include "sulfur/pipeline/frontend/lexer/lexer.h"
-#include "sulfur/utils/arena.h"
-#include "sulfur/utils/span.h"
+#include "sulfur/shared/arena.h"
+#include "sulfur/shared/operation.h"
+#include "sulfur/shared/path.h"
+#include "sulfur/shared/span.h"
+#include "sulfur/shared/type.h"
 
 typedef struct sf_var_symbol sf_var_symbol;
 
-typedef enum {
-    SF_NODE_PROGRAM,
-    SF_NODE_VAR_DECL,
-    SF_NODE_BINARY,
-    SF_NODE_UNARY,
-    SF_NODE_CAST,
-    SF_NODE_LITERAL,
-    SF_NODE_IDENTIFIER,
-    SF_NODE_VAR_ASSIGN,
-    SF_NODE_BLOCK,
-    SF_NODE_IF,
-    SF_NODE_WHILE,
-    SF_NODE_FUNC_DECL,
-    SF_NODE_FUNC_CALL,
-    SF_NODE_RETURN,
-    SF_NODE_IMPORT,
-    SF_NODE_NAMESPACE
-} sf_node_type;
+typedef enum sf_ast_node_type {
+    SF_AST_NODE_TYPE_PROGRAM,
+    SF_AST_NODE_TYPE_VAR_DECL,
+    SF_AST_NODE_TYPE_BINARY,
+    SF_AST_NODE_TYPE_UNARY,
+    SF_AST_NODE_TYPE_CAST,
+    SF_AST_NODE_TYPE_LITERAL,
+    SF_AST_NODE_TYPE_IDENTIFIER,
+    SF_AST_NODE_TYPE_VAR_ASSIGN,
+    SF_AST_NODE_TYPE_BLOCK,
+    SF_AST_NODE_TYPE_IF,
+    SF_AST_NODE_TYPE_WHILE,
+    SF_AST_NODE_TYPE_FUNC_DECL,
+    SF_AST_NODE_TYPE_FUNC_CALL,
+    SF_AST_NODE_TYPE_RETURN,
+    SF_AST_NODE_TYPE_IMPORT,
+    SF_AST_NODE_TYPE_NAMESPACE
+} sf_ast_node_type;
 
-typedef enum {
-    SF_VAL_TYPE_UNRESOLVED,
-
-    SF_VAL_TYPE_I8,
-    SF_VAL_TYPE_I16,
-    SF_VAL_TYPE_I32,
-    SF_VAL_TYPE_I64,
-
-    SF_VAL_TYPE_U8,
-    SF_VAL_TYPE_U16,
-    SF_VAL_TYPE_U32,
-    SF_VAL_TYPE_U64,
-
-    SF_VAL_TYPE_BOOL,
-
-    SF_VAL_TYPE_VOID
-} sf_value_type;
-
-typedef enum {
-    SF_OP_TYPE_UNRESOLVED,
-
-    SF_OP_TYPE_ADD,
-    SF_OP_TYPE_SUB,
-    SF_OP_TYPE_DIV,
-    SF_OP_TYPE_MUL,
-    SF_OP_TYPE_NEGATE,
-
-    SF_OP_TYPE_BITWISE_AND,
-    SF_OP_TYPE_BITWISE_OR,
-    SF_OP_TYPE_BITWISE_XOR,
-    SF_OP_TYPE_BITWISE_NOT,
-    SF_OP_TYPE_BITWISE_RSHIFT,
-    SF_OP_TYPE_BITWISE_LSHIFT,
-
-    SF_OP_TYPE_RELATIONAL_EQUAL,
-    SF_OP_TYPE_RELATIONAL_NOT_EQUAL,
-    SF_OP_TYPE_RELATIONAL_LESS,
-    SF_OP_TYPE_RELATIONAL_LESS_EQUAL,
-    SF_OP_TYPE_RELATIONAL_GREATER,
-    SF_OP_TYPE_RELATIONAL_GREATER_EQUAL,
-
-    SF_OP_TYPE_LOGICAL_OR,
-    SF_OP_TYPE_LOGICAL_AND,
-    SF_OP_TYPE_LOGICAL_NOT,
-
-    SF_OP_TYPE_PREFIX_INCREMENT,
-    SF_OP_TYPE_POSTFIX_INCREMENT,
-    SF_OP_TYPE_PREFIX_DECREMENT,
-    SF_OP_TYPE_POSTFIX_DECREMENT
-} sf_ir_operation_type;
-
-typedef struct {
-    sf_node_type type;
-    sf_value_type resolved;
+typedef struct sf_ast_node {
+    sf_ast_node_type type;
     sf_span span;
+    sf_type_kind resolved;
 } sf_ast_node;
 
-typedef struct {
-    sf_span span;
-    const char *name;
-} sf_path_segment;
-
-typedef struct {
-    sf_path_segment *segments;
-    size_t segment_count;
-    size_t segment_capacity;
-    bool is_global;
-} sf_path;
-
-typedef struct {
+typedef struct sf_ast_node_literal {
     sf_ast_node base;
-    sf_token_type token_type;
-    char *value;
-} sf_literal_node;
+    sf_lexer_token_type token_type;
+    const char *value;
+} sf_ast_node_literal;
 
-typedef struct {
+typedef struct sf_ast_node_identifier {
     sf_ast_node base;
     sf_path path;
     size_t depth;
     size_t id;
     sf_var_symbol *symbol;
-} sf_identifier_node;
+} sf_ast_node_identifier;
 
-typedef struct {
+typedef struct sf_ast_node_binary {
     sf_ast_node base;
     sf_ast_node *left;
     sf_ast_node *right;
-    sf_ir_operation_type op;
-} sf_binary_node;
+    sf_operation_type op;
+} sf_ast_node_binary;
 
-typedef struct {
+typedef struct sf_ast_node_unary {
     sf_ast_node base;
     sf_ast_node *operand;
-    sf_ir_operation_type op;
-} sf_unary_node;
+    sf_operation_type op;
+} sf_ast_node_unary;
 
-typedef struct {
+typedef struct sf_qualifiers {
     bool is_mutable;
     bool is_public;
     bool is_extern;
 } sf_qualifiers;
 
-typedef struct {
+typedef struct sf_attributes {
     bool no_mangle;
 } sf_attributes;
 
-typedef struct {
+typedef struct sf_ast_node_var_decl {
     sf_ast_node base;
     sf_qualifiers qualifiers;
     sf_attributes attributes;
-    sf_value_type var_type;
-    char *name;
+    sf_type_kind var_type;
+    const char *name;
     size_t id;
     sf_ast_node *value;
-} sf_var_decl_node;
+} sf_ast_node_var_decl;
 
-typedef struct {
+typedef struct sf_ast_node_var_assign {
     sf_ast_node base;
     sf_path path;
     sf_ast_node *value;
     size_t id;
-} sf_var_assign_node;
+} sf_ast_node_var_assign;
 
-typedef struct {
+typedef struct sf_ast_node_block {
     sf_ast_node base;
     sf_ast_node **statements;
     size_t statement_count;
     size_t statement_capacity;
-} sf_block_node;
+} sf_ast_node_block;
 
-typedef struct {
+typedef struct sf_ast_node_cast {
     sf_ast_node base;
     sf_ast_node *operand;
-    sf_value_type target_type;
-} sf_cast_node;
+    sf_type_kind target_type;
+} sf_ast_node_cast;
 
-typedef struct {
+typedef struct sf_ast_node_if {
     sf_ast_node base;
     sf_ast_node *condition;
     sf_ast_node *branch_then;
     sf_ast_node *branch_else;
-} sf_if_node;
+} sf_ast_node_if;
 
-typedef struct {
+typedef struct sf_ast_node_while {
     sf_ast_node base;
     sf_ast_node *condition;
     sf_ast_node *branch_do;
-} sf_while_node;
+} sf_ast_node_while;
 
-typedef struct {
-    sf_value_type type;
+typedef struct sf_parameter {
+    sf_type_kind type;
     const char *name;
     size_t id;
     sf_qualifiers qualifiers;
 } sf_parameter;
 
-typedef struct {
+typedef struct sf_ast_node_func_decl {
     sf_ast_node base;
-    char *name;
+    const char *name;
     const char *link_name;
     sf_qualifiers qualifiers;
     sf_attributes attributes;
     sf_parameter *parameters;
     size_t parameter_count;
     size_t parameter_capacity;
-    sf_value_type return_type;
+    sf_type_kind return_type;
     sf_ast_node *body;
-} sf_func_decl_node;
+} sf_ast_node_func_decl;
 
-typedef struct {
+typedef struct sf_ast_node_func_call {
     sf_ast_node base;
-
     sf_ast_node *callee;
-
     const char *link_name;
-
     sf_ast_node **arguments;
     size_t argument_count;
     size_t argument_capacity;
-} sf_func_call_node;
+} sf_ast_node_func_call;
 
-typedef struct {
+typedef struct sf_ast_node_return {
     sf_ast_node base;
     sf_ast_node *value;
-} sf_return_node;
+} sf_ast_node_return;
 
-typedef struct {
+typedef struct sf_ast_node_import {
     sf_ast_node base;
-    char *path;
+    const char *path;
     size_t module_index;
     bool resolved;
-} sf_import_node;
+} sf_ast_node_import;
 
-typedef struct {
+typedef struct sf_ast_node_namespace {
     sf_ast_node base;
     sf_path path;
     sf_ast_node **items;
     size_t item_count;
     size_t item_capacity;
-} sf_namespace_node;
+} sf_ast_node_namespace;
 
-typedef struct {
+typedef struct sf_ast_node_program {
     sf_ast_node base;
     sf_ast_node **statements;
     size_t statement_count;
     size_t statement_capacity;
-
-    sf_import_node **imports;
+    sf_ast_node_import **imports;
     size_t import_count;
     size_t import_capacity;
-} sf_program_node;
+} sf_ast_node_program;
 
 const char *sf_path_simple_name(const sf_path *path);
 
 void sf_print_ast(const sf_ast_node *root);
 
 void sf_program_add_statement(
-    sf_arena *arena, sf_program_node *program, sf_ast_node *stmt
+    sf_arena *arena, sf_ast_node_program *program, sf_ast_node *stmt
 );
 void sf_program_add_import(
-    sf_arena *arena, sf_program_node *program, sf_import_node *import
+    sf_arena *arena, sf_ast_node_program *program, sf_ast_node_import *import
 );
-void sf_block_add_statement(
-    sf_arena *arena, sf_block_node *block, sf_ast_node *stmt
-);
+void sf_block_add_statement(sf_arena *arena, sf_ast_node_block *block, sf_ast_node *stmt);
 void sf_function_add_parameter(
-    sf_arena *arena, sf_func_decl_node *function, sf_parameter param
+    sf_arena *arena, sf_ast_node_func_decl *function, sf_parameter param
 );
 void sf_call_add_argument(
-    sf_arena *arena, sf_func_call_node *call, sf_ast_node *argument
+    sf_arena *arena, sf_ast_node_func_call *call, sf_ast_node *argument
 );
-void sf_namespace_add_item(
-    sf_arena *arena, sf_namespace_node *namespace, sf_ast_node *item
-);
-bool sf_path_add_segment(
-    sf_arena *arena, sf_path *path, const char *name, sf_span span
-);
+void sf_namespace_add_item(sf_arena *arena, sf_ast_node_namespace *ns, sf_ast_node *item);
+bool sf_path_add_segment(sf_arena *arena, sf_path *path, const char *name, sf_span span);
 
-sf_program_node *sf_new_program_node(sf_arena *arena);
-sf_block_node *sf_new_block_node(sf_arena *arena, sf_span span);
-sf_literal_node *sf_new_literal_node(
-    sf_arena *arena, const char *value, sf_token_type tokenType, sf_span span
+sf_ast_node_program *sf_new_program_node(sf_arena *arena);
+sf_ast_node_block *sf_new_block_node(sf_arena *arena, sf_span span);
+sf_ast_node_literal *sf_new_literal_node(
+    sf_arena *arena, const char *value, sf_lexer_token_type token_type, sf_span span
 );
-sf_identifier_node *sf_new_identifier_node(sf_arena *arena, sf_span span);
-sf_binary_node *sf_new_binary_node(
-    sf_arena *arena, sf_ast_node *left, sf_ast_node *right,
-    sf_ir_operation_type op, sf_span span
-);
-sf_var_decl_node *sf_new_var_decl_node(
-    sf_arena *arena, const char *name, sf_value_type type, sf_ast_node *value,
-    sf_qualifiers qualifiers, sf_attributes attributes, sf_span span
-);
-sf_var_assign_node *sf_new_var_assign_node(
-    sf_arena *arena, sf_ast_node *value, sf_span span
-);
-sf_unary_node *sf_new_unary_node(
-    sf_arena *arena, sf_ast_node *operand, sf_ir_operation_type op, sf_span span
-);
-sf_cast_node *sf_new_cast_node(
-    sf_arena *arena, sf_ast_node *operand, sf_value_type target_type,
+sf_ast_node_identifier *sf_new_identifier_node(sf_arena *arena, sf_span span);
+sf_ast_node_binary *sf_new_binary_node(
+    sf_arena *arena, sf_ast_node *left, sf_ast_node *right, sf_operation_type op,
     sf_span span
 );
-sf_if_node *sf_new_if_node(
+sf_ast_node_var_decl *sf_new_var_decl_node(
+    sf_arena *arena, const char *name, sf_type_kind type, sf_ast_node *value,
+    sf_qualifiers qualifiers, sf_attributes attributes, sf_span span
+);
+sf_ast_node_var_assign *sf_new_var_assign_node(
+    sf_arena *arena, sf_ast_node *value, sf_span span
+);
+sf_ast_node_unary *sf_new_unary_node(
+    sf_arena *arena, sf_ast_node *operand, sf_operation_type op, sf_span span
+);
+sf_ast_node_cast *sf_new_cast_node(
+    sf_arena *arena, sf_ast_node *operand, sf_type_kind target_type, sf_span span
+);
+sf_ast_node_if *sf_new_if_node(
     sf_arena *arena, sf_ast_node *condition, sf_ast_node *branch_then,
     sf_ast_node *branch_else, sf_span span
 );
-sf_while_node *sf_new_while_node(
-    sf_arena *arena, sf_ast_node *condition, sf_ast_node *branch_do,
-    sf_span span
+sf_ast_node_while *sf_new_while_node(
+    sf_arena *arena, sf_ast_node *condition, sf_ast_node *branch_do, sf_span span
 );
-sf_func_decl_node *sf_new_func_decl_node(
-    sf_arena *arena, const char *name, sf_value_type return_type,
-    sf_qualifiers qualifiers, sf_attributes attributes, sf_span span
+sf_ast_node_func_decl *sf_new_func_decl_node(
+    sf_arena *arena, const char *name, sf_type_kind return_type, sf_qualifiers qualifiers,
+    sf_attributes attributes, sf_span span
 );
-sf_return_node *sf_new_return_node(
-    sf_arena *arena, sf_ast_node *value, sf_span span
-);
-sf_func_call_node *sf_new_func_call_node(
+sf_ast_node_return *sf_new_return_node(sf_arena *arena, sf_ast_node *value, sf_span span);
+sf_ast_node_func_call *sf_new_func_call_node(
     sf_arena *arena, sf_ast_node *callee, sf_span span
 );
-sf_import_node *sf_new_import_node(
-    sf_arena *arena, const char *path, sf_span span
-);
-sf_namespace_node *sf_new_namespace_node(sf_arena *arena, sf_span span);
+sf_ast_node_import *sf_new_import_node(sf_arena *arena, const char *path, sf_span span);
+sf_ast_node_namespace *sf_new_namespace_node(sf_arena *arena, sf_span span);

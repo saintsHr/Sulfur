@@ -4,7 +4,7 @@
 
 typedef struct sf_var_symbol {
     const char *name;
-    sf_value_type type;
+    sf_type_kind type;
     bool initialized;
     size_t depth;
     size_t id;
@@ -22,7 +22,7 @@ typedef struct {
 typedef struct {
     char *name;
     const char *link_name;
-    sf_value_type return_type;
+    sf_type_kind return_type;
     sf_parameter *parameters;
     size_t parameter_count;
     bool defined;
@@ -41,13 +41,9 @@ typedef struct {
 } sf_func_symbol_table;
 
 void sf_var_symbol_table_init(sf_var_symbol_table *table);
-sf_var_symbol *sf_var_symbol_table_lookup(
-    sf_var_symbol_table *table, const char *name
-);
+sf_var_symbol *sf_var_symbol_table_lookup(sf_var_symbol_table *table, const char *name);
 void sf_var_symbol_table_free(sf_var_symbol_table *table);
-void sf_var_symbol_table_insert(
-    sf_var_symbol_table *table, sf_var_symbol symbol
-);
+void sf_var_symbol_table_insert(sf_var_symbol_table *table, sf_var_symbol symbol);
 
 void sf_func_symbol_table_init(sf_func_symbol_table *table);
 sf_func_symbol *sf_func_symbol_table_lookup(

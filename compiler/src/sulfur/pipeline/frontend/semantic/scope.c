@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sulfur/utils/log.h"
+#include "sulfur/io/log.h"
 #include "sulfur/utils/string.h"
 
 void scope_init(sf_scope *scope) {
@@ -58,8 +58,7 @@ void scope_pop(sf_scope *scope) {
 
 sf_var_symbol *scope_lookup(sf_scope *scope, const char *name) {
     for (size_t i = scope->depth; i > 0; i--) {
-        sf_var_symbol *symbol =
-            sf_var_symbol_table_lookup(&scope->stack[i - 1], name);
+        sf_var_symbol *symbol = sf_var_symbol_table_lookup(&scope->stack[i - 1], name);
 
         if (symbol != NULL) {
             return symbol;
@@ -74,16 +73,15 @@ void scope_insert(sf_scope *scope, sf_var_symbol symbol, const char *filename) {
         return;
     }
 
-    sf_var_symbol *sym = sf_var_symbol_table_lookup(
-        &scope->stack[scope->depth - 1], symbol.name
-    );
+    sf_var_symbol *sym =
+        sf_var_symbol_table_lookup(&scope->stack[scope->depth - 1], symbol.name);
 
     if (sym != NULL) {
         sf_log(
             "Symbol Redefinition", "'%s' is already declared in this scope.",
-            "Rename the new variable, or remove the duplicate declaration.",
-            filename, SF_LOG_SEMANTIC_REDECLARATION, symbol.span,
-            SF_LOG_SEVERITY_ERROR, symbol.name
+            "Rename the new variable, or remove the duplicate declaration.", filename,
+            SF_LOG_CODE_SEMANTIC_REDECLARATION, symbol.span, SF_LOG_SEVERITY_ERROR,
+            symbol.name
         );
 
         return;

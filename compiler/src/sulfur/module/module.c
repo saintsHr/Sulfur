@@ -6,33 +6,30 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "sulfur/io/file.h"
+#include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/lexer/lexer.h"
 #include "sulfur/pipeline/frontend/parser/parser.h"
 #include "sulfur/pipeline/frontend/preprocessor/preprocessor.h"
-#include "sulfur/utils/arena.h"
-#include "sulfur/utils/file.h"
-#include "sulfur/utils/log.h"
+#include "sulfur/shared/arena.h"
 #include "sulfur/utils/string.h"
 
-static bool find_module_index(
-    sf_module_list *list, const char *filename, size_t *index
-);
+static bool find_module_index(sf_module_list *list, const char *filename, size_t *index);
 
 static bool add_module(
     sf_arena *arena, sf_module_list *list, sf_module module, size_t *index
 );
 
 static void resolve_import(
-    sf_import_node *import, const char *importer_filename,
-    sf_module_list *modules, const char **module_paths,
-    size_t module_path_count, sf_arena *arena
+    sf_ast_node_import *import, const char *importer_filename, sf_module_list *modules,
+    const char **module_paths, size_t module_path_count, sf_arena *arena
 );
 
 static void resolve_imports(
-    sf_import_node **imports, size_t import_count,
-    const char *importer_filename, sf_module_list *modules,
-    const char **module_paths, size_t module_path_count, sf_arena *arena
+    sf_ast_node_import **imports, size_t import_count, const char *importer_filename,
+    sf_module_list *modules, const char **module_paths, size_t module_path_count,
+    sf_arena *arena
 );
 
 static char *join_path(const char *directory, const char *filename);
@@ -45,9 +42,9 @@ static char *find_module_path(
 );
 
 void sf_module_resolve(
-    sf_import_node **imports, size_t import_count,
-    const char *importer_filename, sf_module_list *modules,
-    const char **module_paths, size_t module_path_count, sf_arena *arena
+    sf_ast_node_import **imports, size_t import_count, const char *importer_filename,
+    sf_module_list *modules, const char **module_paths, size_t module_path_count,
+    sf_arena *arena
 ) {
     resolve_imports(
         imports, import_count, importer_filename, modules, module_paths,
@@ -82,9 +79,7 @@ const char *sf_module_name_from_path(
     return NULL;
 }
 
-static bool find_module_index(
-    sf_module_list *list, const char *filename, size_t *index
-) {
+static bool find_module_index(sf_module_list *list, const char *filename, size_t *index) {
     for (size_t i = 0; i < list->module_count; i++) {
         if (strcmp(list->modules[i].filename, filename) == 0) {
             *index = i;
@@ -117,22 +112,20 @@ static bool add_module(
 }
 
 static void resolve_imports(
-    sf_import_node **imports, size_t import_count,
-    const char *importer_filename, sf_module_list *modules,
-    const char **module_paths, size_t module_path_count, sf_arena *arena
+    sf_ast_node_import **imports, size_t import_count, const char *importer_filename,
+    sf_module_list *modules, const char **module_paths, size_t module_path_count,
+    sf_arena *arena
 ) {
     for (size_t i = 0; i < import_count; i++) {
         resolve_import(
-            imports[i], importer_filename, modules, module_paths,
-            module_path_count, arena
+            imports[i], importer_filename, modules, module_paths, module_path_count, arena
         );
     }
 }
 
 static void resolve_import(
-    sf_import_node *import, const char *importer_filename,
-    sf_module_list *modules, const char **module_paths,
-    size_t module_path_count, sf_arena *arena
+    sf_ast_node_import *import, const char *importer_filename, sf_module_list *modules,
+    const char **module_paths, size_t module_path_count, sf_arena *arena
 ) {
     char *filename =
         find_module_path(import->path, module_paths, module_path_count, arena);
@@ -141,7 +134,7 @@ static void resolve_import(
         sf_log(
             "Module Not Found.", "Unable to find module '%s'.",
             "Check the import path and configured module search directories.",
-            importer_filename, SF_LOG_MODULE_NOT_FOUND, import->base.span,
+            importer_filename, SF_LOG_CODE_MODULE_NOT_FOUND, import->base.span,
             SF_LOG_SEVERITY_ERROR, import->path
         );
 
@@ -173,13 +166,13 @@ static void resolve_import(
 
     char *input = NULL;
     char *preprocessed = NULL;
-    sf_token_list tokens = {0};
-    sf_program_node *ast = NULL;
+    sf_lexer_token_list tokens = {0};
+    sf_ast_node_program *ast = NULL;
     size_t input_size = 0;
 
     input = sf_file_read(filename, &input_size);
     preprocessed = sf_preprocess(input, input_size, filename);
-    tokens = sf_tokenize(preprocessed, filename);
+    tokens = sf_lexer_run(preprocessed, filename);
     ast = sf_parse(arena, tokens, filename);
     modules->modules[module_index].ast = ast;
 
@@ -190,7 +183,7 @@ static void resolve_import(
 
     modules->modules[module_index].state = SF_MODULE_STATE_LOADED;
 
-    sf_tokens_free(&tokens);
+    sf_lexer_token_list_free(&tokens);
     free(preprocessed);
     free(input);
 }
@@ -210,9 +203,7 @@ static char *join_path(const char *directory, const char *filename) {
         return NULL;
     }
 
-    snprintf(
-        path, size, "%s%s%s", directory, needs_separator ? "/" : "", filename
-    );
+    snprintf(path, size, "%s%s%s", directory, needs_separator ? "/" : "", filename);
 
     return path;
 }

@@ -100,15 +100,13 @@ bool sf_delete_folder(const char *path) {
     int first_errno = 0;
 
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 ||
-            strcmp(entry->d_name, "..") == 0) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
 
         char fullpath[PATH_MAX];
 
-        int len =
-            snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
+        int len = snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
 
         if (len < 0 || (size_t)len >= sizeof(fullpath)) {
             errno = ENAMETOOLONG;
@@ -309,8 +307,7 @@ bool collect_slfr_files(const char *dir_path, sf_files *files) {
     int first_errno = 0;
 
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 ||
-            strcmp(entry->d_name, "..") == 0) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
 
@@ -342,9 +339,8 @@ bool collect_slfr_files(const char *dir_path, sf_files *files) {
 
             free(path);
         } else if (S_ISREG(st.st_mode) && has_slfr_extension(entry->d_name)) {
-            char **new_paths = realloc(
-                files->paths, (files->count + 1) * sizeof(*files->paths)
-            );
+            char **new_paths =
+                realloc(files->paths, (files->count + 1) * sizeof(*files->paths));
 
             if (new_paths == NULL) {
                 keep_errno(&first_errno);

@@ -1,4 +1,4 @@
-#include "sulfur/utils/log.h"
+#include "sulfur/io/log.h"
 #include "sulfur/utils/string.h"
 
 #include <stdarg.h>
@@ -30,16 +30,10 @@ static size_t g_error_count = 0;
 static void emit_log(sf_log_info info, va_list *args);
 
 static const char *severity_label(sf_log_severity sev);
-static void format_message(
-    char *buf, size_t size, const char *fmt, va_list *args
-);
-static const char *find_line(
-    const char *content, size_t target_line, size_t *out_len
-);
+static void format_message(char *buf, size_t size, const char *fmt, va_list *args);
+static const char *find_line(const char *content, size_t target_line, size_t *out_len);
 
-static void print_source_snippet(
-    sf_span span, const char *content, const char *msg
-);
+static void print_source_snippet(sf_span span, const char *content, const char *msg);
 static void print_highlighted_line(
     const char *line_num, const char *line, size_t line_len, size_t col_start,
     size_t col_end
@@ -58,7 +52,7 @@ void sf_log_set_source(const char *filename, const char *content) {
 
 void sf_log(
     const char *title, const char *desc, const char *hint, const char *file,
-    sf_log_error_code_num code, sf_span span, sf_log_severity sev, ...
+    sf_log_code code, sf_span span, sf_log_severity severity, ...
 ) {
     sf_log_info info = {
         .title = title,
@@ -67,11 +61,11 @@ void sf_log(
         .file = file,
         .code = code,
         .span = span,
-        .sev = sev,
+        .sev = severity,
     };
 
     va_list args;
-    va_start(args, sev);
+    va_start(args, severity);
     emit_log(info, &args);
     va_end(args);
 }
@@ -107,34 +101,27 @@ static void emit_log(sf_log_info info, va_list *args) {
 
     printf(
         "%s " SF_LOG_COLOR_BRIGHT_BLACK "[0x%04x]" SF_LOG_COLOR_RESET ": %s\n",
-        severity_label(info.sev), (unsigned int)info.code, title
+        severity_label(info.sev), (uint16_t)info.code, title
     );
 
     if (info.span.line > 0) {
         printf(
-            SF_LOG_COLOR_BRIGHT_BLUE "  --> from: " SF_LOG_COLOR_RESET
-                                     "%s:%zu:%zu\n",
+            SF_LOG_COLOR_BRIGHT_BLUE "  --> from: " SF_LOG_COLOR_RESET "%s:%zu:%zu\n",
             file, info.span.line, info.span.col
         );
 
-        print_source_snippet(
-            info.span, load_source(info.file), info.desc ? desc : NULL
-        );
+        print_source_snippet(info.span, load_source(info.file), info.desc ? desc : NULL);
     } else if (info.desc) {
         printf("  %s\n", desc);
     }
 
     if (info.hint) {
-        printf(
-            SF_LOG_COLOR_BRIGHT_GREEN "  --> hint: " SF_LOG_COLOR_RESET "%s\n",
-            hint
-        );
+        printf(SF_LOG_COLOR_BRIGHT_GREEN "  --> hint: " SF_LOG_COLOR_RESET "%s\n", hint);
     }
 
     printf("\n");
 
-    if (info.sev == SF_LOG_SEVERITY_ERROR ||
-        info.sev == SF_LOG_SEVERITY_FATAL) {
+    if (info.sev == SF_LOG_SEVERITY_ERROR || info.sev == SF_LOG_SEVERITY_FATAL) {
         g_error_count++;
     }
 
@@ -175,9 +162,7 @@ __attribute__((format(printf, 3, 0))) static void format_message(
     vsnprintf(buf, size, fmt, *args);
 }
 
-static const char *find_line(
-    const char *content, size_t target_line, size_t *out_len
-) {
+static const char *find_line(const char *content, size_t target_line, size_t *out_len) {
     if (content == NULL) {
         return NULL;
     }
@@ -200,9 +185,7 @@ static const char *find_line(
     return p;
 }
 
-static void print_source_snippet(
-    sf_span span, const char *content, const char *msg
-) {
+static void print_source_snippet(sf_span span, const char *content, const char *msg) {
     if (span.line == 0 || content == NULL) {
         return;
     }
@@ -228,9 +211,7 @@ static void print_source_snippet(
         col_end = line_len;
     }
 
-    printf(
-        SF_LOG_COLOR_BRIGHT_BLUE "%*s| \n" SF_LOG_COLOR_RESET, gutter + 1, ""
-    );
+    printf(SF_LOG_COLOR_BRIGHT_BLUE "%*s| \n" SF_LOG_COLOR_RESET, gutter + 1, "");
     print_highlighted_line(line_num, line, line_len, col_start, col_end);
     print_underline(gutter, line, line_len, span.col, carets, msg);
     printf(SF_LOG_COLOR_BRIGHT_BLUE "%*s |\n" SF_LOG_COLOR_RESET, gutter, "");
@@ -246,8 +227,8 @@ static void print_highlighted_line(
 
     if (col_end > col_start) {
         printf(
-            SF_LOG_COLOR_BRIGHT_RED "%.*s" SF_LOG_COLOR_RESET,
-            (int)(col_end - col_start), line + col_start
+            SF_LOG_COLOR_BRIGHT_RED "%.*s" SF_LOG_COLOR_RESET, (int)(col_end - col_start),
+            line + col_start
         );
     }
 
@@ -325,6 +306,6 @@ void sf_log_out_of_memory(const char *filename) {
     sf_log(
         "Insufficient Memory.", "Cannot allocate memory for compiling.",
         "Free some memory and try again.", filename,
-        SF_LOG_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
+        SF_LOG_CODE_GENERAL_INSUFFICIENT_MEMORY, (sf_span){0}, SF_LOG_SEVERITY_FATAL
     );
 }

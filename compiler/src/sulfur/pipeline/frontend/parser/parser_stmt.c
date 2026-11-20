@@ -5,11 +5,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/lexer/lexer.h"
-#include "sulfur/utils/log.h"
 #include "sulfur/utils/string.h"
-#include "sulfur/utils/token_utils.h"
+#include "sulfur/utils/token.h"
 
 #define IMPORT_PATH_SIZE 512
 
@@ -32,20 +32,19 @@ static sf_qualifiers parse_qualifiers(sf_parser *p);
 static sf_attributes parse_attributes(sf_parser *p);
 static sf_ast_node *parse_import(sf_parser *p);
 
-static void report_repeated_qual(const sf_parser *p, sf_token token);
-static void report_repeated_attr(const sf_parser *p, sf_token token);
+static void report_repeated_qual(const sf_parser *p, sf_lexer_token token);
+static void report_repeated_attr(const sf_parser *p, sf_lexer_token token);
 
 static void skip_invalid_import(sf_parser *p);
-static sf_identifier_node *clone_path_identifier(
-    sf_parser *p, const sf_var_assign_node *assign
+static sf_ast_node_identifier *clone_path_identifier(
+    sf_parser *p, const sf_ast_node_var_assign *assign
 );
 static bool path_followed_by_assign(const sf_parser *p);
 
 sf_ast_node *sf_parse_top_level(sf_parser *p) {
-    const sf_token *token = sf_parser_peek(p);
+    const sf_lexer_token *token = sf_parser_peek(p);
 
-    if (sf_token_is_fn(*token) || sf_token_is_qual(*token) ||
-        sf_token_is_attr(*token)) {
+    if (sf_token_is_fn(*token) || sf_token_is_qual(*token) || sf_token_is_attr(*token)) {
         sf_ast_node *node = parse_decl(p);
 
         if (node == NULL) {
@@ -72,8 +71,8 @@ sf_ast_node *sf_parse_top_level(sf_parser *p) {
 
     sf_log(
         "Unexpected Token", "Token not allowed in top-level.",
-        "Follow the language grammar.", p->filename,
-        SF_LOG_PARSER_UNEXPECTED_TOKEN, token->span, SF_LOG_SEVERITY_ERROR
+        "Follow the language grammar.", p->filename, SF_LOG_CODE_PARSER_UNEXPECTED_TOKEN,
+        token->span, SF_LOG_SEVERITY_ERROR
     );
 
     sf_parser_recover_top_level(p);
@@ -82,10 +81,9 @@ sf_ast_node *sf_parse_top_level(sf_parser *p) {
 }
 
 sf_ast_node *sf_parse_statement(sf_parser *p) {
-    const sf_token *token = sf_parser_peek(p);
+    const sf_lexer_token *token = sf_parser_peek(p);
 
-    if (sf_token_is_type(*token) || sf_token_is_fn(*token) ||
-        sf_token_is_qual(*token)) {
+    if (sf_token_is_type(*token) || sf_token_is_fn(*token) || sf_token_is_qual(*token)) {
         return parse_decl(p);
     }
 
@@ -196,7 +194,7 @@ static sf_ast_node *parse_decl(sf_parser *p) {
     sf_attributes attr = parse_attributes(p);
     sf_qualifiers quals = parse_qualifiers(p);
 
-    const sf_token *token = sf_parser_peek(p);
+    const sf_lexer_token *token = sf_parser_peek(p);
 
     if (sf_token_is_fn(*token)) {
         return parse_func_decl(p, quals, attr);
@@ -217,16 +215,14 @@ static sf_ast_node *parse_decl(sf_parser *p) {
 static sf_ast_node *parse_var_decl(
     sf_parser *p, sf_qualifiers qualifiers, sf_attributes attr
 ) {
-    sf_value_type type;
+    sf_type_kind type;
 
-    if (!sf_parser_expect_type(
-            p, &type, "a type keyword", "Use any type keyword."
-        )) {
+    if (!sf_parser_expect_type(p, &type, "a type keyword", "Use any type keyword.")) {
         sf_parser_recover_statement(p);
         return NULL;
     }
 
-    const sf_token *name_token = sf_parser_expect_identifier(
+    const sf_lexer_token *name_token = sf_parser_expect_identifier(
         p, "an identifier",
         "Variable names cannot be reserved keywords, symbols, or numbers."
     );
@@ -253,13 +249,12 @@ static sf_ast_node *parse_var_decl(
     }
 
     return (sf_ast_node *)sf_new_var_decl_node(
-        p->arena, name_token->value, type, value, qualifiers, attr,
-        name_token->span
+        p->arena, name_token->value, type, value, qualifiers, attr, name_token->span
     );
 }
 
 static sf_ast_node *parse_var_assign(sf_parser *p) {
-    sf_var_assign_node *assign =
+    sf_ast_node_var_assign *assign =
         sf_new_var_assign_node(p->arena, NULL, sf_parser_peek(p)->span);
 
     if (assign == NULL || !sf_parser_parse_path(p, &assign->path)) {
@@ -267,7 +262,7 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
         return NULL;
     }
 
-    const sf_token *op_token = sf_parser_advance(p);
+    const sf_lexer_token *op_token = sf_parser_advance(p);
 
     sf_ast_node *rhs = sf_parse_expression(p);
 
@@ -279,13 +274,13 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
     sf_ast_node *value = rhs;
 
     if (op_token->type != SF_TOKEN_TYPE_EQUAL) {
-        sf_ir_operation_type op = sf_token_to_binary_op(*op_token);
+        sf_operation_type op = sf_token_to_binary_op(*op_token);
 
-        if (op == SF_OP_TYPE_UNRESOLVED) {
+        if (op == SF_OPERATION_TYPE_UNRESOLVED) {
             return NULL;
         }
 
-        sf_identifier_node *lhs = clone_path_identifier(p, assign);
+        sf_ast_node_identifier *lhs = clone_path_identifier(p, assign);
 
         if (lhs == NULL) {
             return NULL;
@@ -311,7 +306,7 @@ static sf_ast_node *parse_var_assign(sf_parser *p) {
 }
 
 static sf_ast_node *parse_if(sf_parser *p) {
-    const sf_token *token = sf_parser_advance(p);
+    const sf_lexer_token *token = sf_parser_advance(p);
 
     sf_ast_node *condition = sf_parse_expression(p);
 
@@ -348,7 +343,7 @@ static sf_ast_node *parse_if(sf_parser *p) {
 }
 
 static sf_ast_node *parse_while(sf_parser *p) {
-    const sf_token *token = sf_parser_advance(p);
+    const sf_lexer_token *token = sf_parser_advance(p);
 
     sf_ast_node *condition = sf_parse_expression(p);
 
@@ -364,27 +359,24 @@ static sf_ast_node *parse_while(sf_parser *p) {
         return NULL;
     }
 
-    return (sf_ast_node *)sf_new_while_node(
-        p->arena, condition, branch_do, token->span
-    );
+    return (sf_ast_node *)sf_new_while_node(p->arena, condition, branch_do, token->span);
 }
 
 static sf_ast_node *parse_func_decl(
     sf_parser *p, sf_qualifiers qualifiers, sf_attributes attr
 ) {
-    const sf_token *fn_token = sf_parser_advance(p);
+    const sf_lexer_token *fn_token = sf_parser_advance(p);
 
-    const sf_token *name_token = sf_parser_expect_identifier(
-        p, "a function name", "Follow the language syntax."
-    );
+    const sf_lexer_token *name_token =
+        sf_parser_expect_identifier(p, "a function name", "Follow the language syntax.");
 
     if (name_token == NULL) {
         sf_parser_recover_statement(p);
         return NULL;
     }
 
-    sf_func_decl_node *func = sf_new_func_decl_node(
-        p->arena, name_token->value, SF_VAL_TYPE_UNRESOLVED, qualifiers, attr,
+    sf_ast_node_func_decl *func = sf_new_func_decl_node(
+        p->arena, name_token->value, SF_TYPE_KIND_UNRESOLVED, qualifiers, attr,
         fn_token->span
     );
 
@@ -401,7 +393,7 @@ static sf_ast_node *parse_func_decl(
         while (true) {
             sf_qualifiers param_qualifiers = parse_qualifiers(p);
 
-            sf_value_type param_type;
+            sf_type_kind param_type;
 
             if (!sf_parser_expect_type(
                     p, &param_type, "a type name", "Follow the language syntax."
@@ -410,7 +402,7 @@ static sf_ast_node *parse_func_decl(
                 return NULL;
             }
 
-            const sf_token *param_name_token = sf_parser_expect_identifier(
+            const sf_lexer_token *param_name_token = sf_parser_expect_identifier(
                 p, "an identifier", "Follow the language syntax."
             );
 
@@ -419,8 +411,7 @@ static sf_ast_node *parse_func_decl(
                 return NULL;
             }
 
-            char *param_name =
-                sf_string_dup_arena(p->arena, param_name_token->value);
+            char *param_name = sf_string_dup_arena(p->arena, param_name_token->value);
 
             if (param_name == NULL) {
                 sf_log_out_of_memory(p->filename);
@@ -448,7 +439,7 @@ static sf_ast_node *parse_func_decl(
         return NULL;
     }
 
-    const sf_token *ret_token = sf_parser_peek(p);
+    const sf_lexer_token *ret_token = sf_parser_peek(p);
 
     if (sf_token_is_type(*ret_token)) {
         func->return_type = sf_token_to_type(*ret_token);
@@ -457,18 +448,17 @@ static sf_ast_node *parse_func_decl(
         ret_token->type == SF_TOKEN_TYPE_LBRACE ||
         ret_token->type == SF_TOKEN_TYPE_SEMICOLON
     ) {
-        func->return_type = SF_VAL_TYPE_VOID;
+        func->return_type = SF_TYPE_KIND_VOID;
     } else {
         sf_parser_report_unexpected(
-            p, ret_token, "'{', ';', or type name",
-            "Follow the language syntax."
+            p, ret_token, "'{', ';', or type name", "Follow the language syntax."
         );
 
         sf_parser_recover_statement(p);
         return NULL;
     }
 
-    const sf_token *end_token = sf_parser_peek(p);
+    const sf_lexer_token *end_token = sf_parser_peek(p);
 
     if (end_token->type == SF_TOKEN_TYPE_LBRACE) {
         sf_ast_node *block = parse_block(p);
@@ -495,7 +485,7 @@ static sf_ast_node *parse_func_decl(
 }
 
 static sf_ast_node *parse_return(sf_parser *p) {
-    const sf_token *token = sf_parser_advance(p);
+    const sf_lexer_token *token = sf_parser_advance(p);
     sf_ast_node *value = NULL;
 
     if (sf_parser_peek(p)->type != SF_TOKEN_TYPE_SEMICOLON) {
@@ -516,7 +506,7 @@ static sf_ast_node *parse_return(sf_parser *p) {
 }
 
 static sf_ast_node *parse_block(sf_parser *p) {
-    sf_block_node *block = sf_new_block_node(p->arena, sf_parser_peek(p)->span);
+    sf_ast_node_block *block = sf_new_block_node(p->arena, sf_parser_peek(p)->span);
 
     if (block == NULL) {
         return NULL;
@@ -553,48 +543,41 @@ static sf_ast_node *parse_namespace(sf_parser *p) {
     if (sf_parser_peek(p)->type == SF_TOKEN_TYPE_COLON_COLON) {
         sf_log(
             "Invalid Namespace", "Namespace names cannot start with '::'.",
-            "Remove the leading '::'.", p->filename,
-            SF_LOG_PARSER_INVALID_NAMESPACE, sf_parser_peek(p)->span,
-            SF_LOG_SEVERITY_ERROR
+            "Remove the leading '::'.", p->filename, SF_LOG_CODE_PARSER_INVALID_NAMESPACE,
+            sf_parser_peek(p)->span, SF_LOG_SEVERITY_ERROR
         );
 
         sf_parser_advance(p);
     }
 
-    const sf_token *token_seg = sf_parser_expect_identifier(
-        p, "a namespace name",
-        "Namespace names are identifiers separated by '::'."
+    const sf_lexer_token *token_seg = sf_parser_expect_identifier(
+        p, "a namespace name", "Namespace names are identifiers separated by '::'."
     );
 
     if (token_seg == NULL) {
         return NULL;
     }
 
-    sf_namespace_node *ns = sf_new_namespace_node(p->arena, token_seg->span);
+    sf_ast_node_namespace *ns = sf_new_namespace_node(p->arena, token_seg->span);
 
     if (ns == NULL) {
         return NULL;
     }
 
-    if (!sf_path_add_segment(
-            p->arena, &ns->path, token_seg->value, token_seg->span
-        )) {
+    if (!sf_path_add_segment(p->arena, &ns->path, token_seg->value, token_seg->span)) {
         return NULL;
     }
 
     while (sf_parser_match(p, SF_TOKEN_TYPE_COLON_COLON)) {
-        const sf_token *token = sf_parser_expect_identifier(
-            p, "a name after '::'",
-            "Namespace names are identifiers separated by '::'."
+        const sf_lexer_token *token = sf_parser_expect_identifier(
+            p, "a name after '::'", "Namespace names are identifiers separated by '::'."
         );
 
         if (token == NULL) {
             return NULL;
         }
 
-        if (!sf_path_add_segment(
-                p->arena, &ns->path, token->value, token->span
-            )) {
+        if (!sf_path_add_segment(p->arena, &ns->path, token->value, token->span)) {
             return NULL;
         }
     }
@@ -605,7 +588,7 @@ static sf_ast_node *parse_namespace(sf_parser *p) {
 
     while (sf_parser_peek(p)->type != SF_TOKEN_TYPE_RBRACE &&
            sf_parser_peek(p)->type != SF_TOKEN_TYPE_EOF) {
-        const sf_token *token = sf_parser_peek(p);
+        const sf_lexer_token *token = sf_parser_peek(p);
         size_t start = p->current;
         sf_ast_node *item = NULL;
 
@@ -615,7 +598,7 @@ static sf_ast_node *parse_namespace(sf_parser *p) {
             sf_log(
                 "Invalid Import", "Imports are not allowed inside namespaces.",
                 "Move the import somewhere else or remove it.", p->filename,
-                SF_LOG_PARSER_INVALID_IMPORT, token->span, SF_LOG_SEVERITY_ERROR
+                SF_LOG_CODE_PARSER_INVALID_IMPORT, token->span, SF_LOG_SEVERITY_ERROR
             );
 
             skip_invalid_import(p);
@@ -637,7 +620,7 @@ static sf_qualifiers parse_qualifiers(sf_parser *p) {
     sf_qualifiers quals = {0};
 
     while (true) {
-        const sf_token *token = sf_parser_peek(p);
+        const sf_lexer_token *token = sf_parser_peek(p);
 
         switch (token->type) {
             case SF_TOKEN_TYPE_KW_MUT: {
@@ -680,7 +663,7 @@ static sf_attributes parse_attributes(sf_parser *p) {
     sf_attributes attr = {0};
 
     while (sf_parser_match(p, SF_TOKEN_TYPE_AT)) {
-        const sf_token *token = sf_parser_expect_identifier(
+        const sf_lexer_token *token = sf_parser_expect_identifier(
             p, "an identifier",
             "attributes must start with '@' followed by a valid attribute name"
         );
@@ -702,7 +685,7 @@ static sf_attributes parse_attributes(sf_parser *p) {
         sf_log(
             "Invalid Attribute", "'%s' is not a valid attribute.",
             "Remove or replace this attribute.", p->filename,
-            SF_LOG_PARSER_INVALID_ATTRIBUTE, token->span, SF_LOG_SEVERITY_ERROR,
+            SF_LOG_CODE_PARSER_INVALID_ATTRIBUTE, token->span, SF_LOG_SEVERITY_ERROR,
             token->value
         );
     }
@@ -711,7 +694,7 @@ static sf_attributes parse_attributes(sf_parser *p) {
 }
 
 static sf_ast_node *parse_import(sf_parser *p) {
-    const sf_token *token_import = sf_parser_peek(p);
+    const sf_lexer_token *token_import = sf_parser_peek(p);
 
     if (!sf_parser_expect(p, SF_TOKEN_TYPE_KW_IMPORT)) {
         return NULL;
@@ -723,7 +706,7 @@ static sf_ast_node *parse_import(sf_parser *p) {
     bool expect_identifier = true;
 
     while (true) {
-        const sf_token *token = sf_parser_peek(p);
+        const sf_lexer_token *token = sf_parser_peek(p);
 
         if (token->type == SF_TOKEN_TYPE_SEMICOLON) {
             if (expect_identifier) {
@@ -795,27 +778,25 @@ static sf_ast_node *parse_import(sf_parser *p) {
 
     memcpy(path + path_len, extension, extension_len + 1);
 
-    return (sf_ast_node *)sf_new_import_node(
-        p->arena, path, token_import->span
-    );
+    return (sf_ast_node *)sf_new_import_node(p->arena, path, token_import->span);
 }
 
-static void report_repeated_qual(const sf_parser *p, sf_token token) {
+static void report_repeated_qual(const sf_parser *p, sf_lexer_token token) {
     sf_log(
         "Repeated Qualifier",
         "Declaration has 2 or more occurencies of the '%s' qualifier.",
         "Remove all duplicated qualifiers.", p->filename,
-        SF_LOG_PARSER_REPEATED_QUALIFIER, token.span, SF_LOG_SEVERITY_WARNING,
-        sf_token_type_name(token.type)
+        SF_LOG_CODE_PARSER_REPEATED_QUALIFIER, token.span, SF_LOG_SEVERITY_WARNING,
+        sf_lexer_token_type_name(token.type)
     );
 }
 
-static void report_repeated_attr(const sf_parser *p, sf_token token) {
+static void report_repeated_attr(const sf_parser *p, sf_lexer_token token) {
     sf_log(
         "Repeated Attribute",
         "Declaration has 2 or more occurencies of the '%s' attribute.",
         "Remove all duplicated attributes.", p->filename,
-        SF_LOG_PARSER_REPEATED_ATTRIBUTE, token.span, SF_LOG_SEVERITY_WARNING,
+        SF_LOG_CODE_PARSER_REPEATED_ATTRIBUTE, token.span, SF_LOG_SEVERITY_WARNING,
         token.value
     );
 }
@@ -834,11 +815,10 @@ static void skip_invalid_import(sf_parser *p) {
     }
 }
 
-static sf_identifier_node *clone_path_identifier(
-    sf_parser *p, const sf_var_assign_node *assign
+static sf_ast_node_identifier *clone_path_identifier(
+    sf_parser *p, const sf_ast_node_var_assign *assign
 ) {
-    sf_identifier_node *id =
-        sf_new_identifier_node(p->arena, assign->base.span);
+    sf_ast_node_identifier *id = sf_new_identifier_node(p->arena, assign->base.span);
 
     if (id == NULL) {
         return NULL;
@@ -859,7 +839,7 @@ static sf_identifier_node *clone_path_identifier(
 
 static bool path_followed_by_assign(const sf_parser *p) {
     size_t i = p->current;
-    const sf_token *t = p->tokens.tokens;
+    const sf_lexer_token *t = p->tokens.tokens;
 
     if (t[i].type == SF_TOKEN_TYPE_COLON_COLON) {
         i++;
