@@ -98,6 +98,7 @@ static bool analyze_program(
         .current_func = NULL,
         .filename = filename,
         .arena = arena,
+        .options = options
     };
 
     bool ok = true;
@@ -122,7 +123,7 @@ static bool analyze_program(
         analyze_statement(&semantic, program->statements[i]);
     }
 
-    if (is_root) {
+    if (is_root && !options->no_entry) {
         check_entry(&semantic);
     }
 
@@ -479,10 +480,11 @@ static void analyze_func_decl(sf_semantic *semantic, sf_ast_node_func_decl *func
         .attributes = func->attributes,
     };
 
-    sym.link_name = sf_mangle_function(
-        semantic->arena, qualified,
-        func->qualifiers.is_extern || func->attributes.no_mangle
-    );
+    bool is_main = strcmp(SF_SEMANTIC_ENTRY_NAME, func->name) == 0;
+    bool keep_name = func->qualifiers.is_extern || func->attributes.no_mangle ||
+                     (is_main && !semantic->options->no_entry);
+
+    sym.link_name = sf_mangle_function(semantic->arena, qualified, keep_name);
     func->link_name = sym.link_name;
 
     if (analyze_func_sym_qual(semantic, sym) == false) {

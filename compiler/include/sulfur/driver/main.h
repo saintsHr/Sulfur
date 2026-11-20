@@ -26,6 +26,7 @@ typedef struct sf_compilation_options {
     const char *file_output;
     bool dump_stages;
     bool is_module;
+    bool no_entry;
     const char **module_paths;
     size_t module_path_count;
     size_t module_path_capacity;

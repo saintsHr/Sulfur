@@ -35,10 +35,6 @@ const char *sf_mangle_function(sf_arena *arena, const char *name, bool keep_name
         return name;
     }
 
-    if (strcmp(name, "main") == 0) {
-        return name;
-    }
-
     const char *head = "_SF_";
 
     size_t capacity = strlen(head) + strlen(name) + count_segments(name) * 21 + 1;

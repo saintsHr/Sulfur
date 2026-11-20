@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "sulfur/driver/main.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/semantic/namespace.h"
 #include "sulfur/pipeline/frontend/semantic/scope.h"
@@ -19,6 +20,7 @@ typedef struct {
     sf_ast_node_func_decl *current_func;
     const char *filename;
     sf_arena *arena;
+    const sf_compilation_options *options;
 } sf_semantic;
 
 bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_type_kind expected);

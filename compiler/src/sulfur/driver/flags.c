@@ -14,13 +14,13 @@ void sf_flags_parse(int argc, char **argv, sf_compilation_options *options) {
         const char *this_arg = argv[i];
         const char *next_arg = has_next ? argv[i + 1] : NULL;
 
-        if (strcmp(this_arg, FLAGS_INPUT_FILE) == 0) {
+        if (strcmp(this_arg, FLAGS_STR_INPUT_FILE) == 0) {
             if (!has_next || next_arg[0] == '-') {
                 sf_log(
                     "No Input File.", "No input file was provided after '%s'.",
                     "Provide a filename after '%s',or remove the flag.", "N/A",
                     SF_LOG_CODE_DRIVER_NO_INPUT_FILE, (sf_span){0}, SF_LOG_SEVERITY_FATAL,
-                    FLAGS_INPUT_FILE, FLAGS_INPUT_FILE
+                    FLAGS_STR_INPUT_FILE, FLAGS_STR_INPUT_FILE
                 );
 
                 return;
@@ -31,13 +31,13 @@ void sf_flags_parse(int argc, char **argv, sf_compilation_options *options) {
             continue;
         }
 
-        if (strcmp(this_arg, FLAGS_OUTPUT_FILE) == 0) {
+        if (strcmp(this_arg, FLAGS_STR_OUTPUT_FILE) == 0) {
             if (!has_next || next_arg[0] == '-') {
                 sf_log(
                     "No Output File.", "No output file was provided after '%s'.",
                     "Provide a filename after '%s', or remove the flag.", "N/A",
                     SF_LOG_CODE_DRIVER_NO_OUTPUT_FILE, (sf_span){0},
-                    SF_LOG_SEVERITY_FATAL, FLAGS_OUTPUT_FILE, FLAGS_OUTPUT_FILE
+                    SF_LOG_SEVERITY_FATAL, FLAGS_STR_OUTPUT_FILE, FLAGS_STR_OUTPUT_FILE
                 );
 
                 return;
@@ -48,13 +48,13 @@ void sf_flags_parse(int argc, char **argv, sf_compilation_options *options) {
             continue;
         }
 
-        if (strcmp(this_arg, FLAGS_DUMP_STAGES) == 0) {
+        if (strcmp(this_arg, FLAGS_STR_DUMP_STAGES) == 0) {
             options->dump_stages = true;
 
             continue;
         }
 
-        if (strcmp(this_arg, FLAGS_MODULE_PATH) == 0) {
+        if (strcmp(this_arg, FLAGS_STR_MODULE_PATH) == 0) {
             size_t added = 0;
 
             while (has_next && argv[i + 1][0] != '-') {
@@ -74,7 +74,7 @@ void sf_flags_parse(int argc, char **argv, sf_compilation_options *options) {
                     "No module search directories were provided after '%s'.",
                     "Provide at least one directory after '%s'.", "N/A",
                     SF_LOG_CODE_DRIVER_NO_MODULE_PATH, (sf_span){0},
-                    SF_LOG_SEVERITY_FATAL, FLAGS_MODULE_PATH, FLAGS_MODULE_PATH
+                    SF_LOG_SEVERITY_FATAL, FLAGS_STR_MODULE_PATH, FLAGS_STR_MODULE_PATH
                 );
 
                 return;
@@ -83,8 +83,13 @@ void sf_flags_parse(int argc, char **argv, sf_compilation_options *options) {
             continue;
         }
 
-        if (strcmp(this_arg, FLAGS_MODULE) == 0) {
+        if (strcmp(this_arg, FLAGS_STR_MODULE) == 0) {
             options->is_module = true;
+            continue;
+        }
+
+        if (strcmp(this_arg, FLAGS_STR_NO_ENTRY) == 0) {
+            options->no_entry = true;
             continue;
         }
 

@@ -21,3 +21,7 @@ Provided a folder, the compiler looks for modules inside it.
 ## `--dump-stages`
 
 Prints all compilation stages to the terminal, allowing you to inspect the compilation pipeline and debug the compiler's behavior.
+
+## `--no-entry`
+
+Disables all special behaviour for entry point function during compilation.
