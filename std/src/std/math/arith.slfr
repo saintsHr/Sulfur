@@ -1,4 +1,4 @@
-namespace std::math {
+namespace std::math::arith {
 
 pub fn pow(mut i64 base, mut u64 exp) i64 {
     mut i64 result = 1;
