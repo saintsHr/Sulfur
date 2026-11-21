@@ -786,8 +786,6 @@ static sf_ir_operand generate_call(
     sf_arena *arena, sf_ir_context *context, sf_ast_node_func_call *call,
     sf_ir_operand *hint
 ) {
-    assert(call->link_name != NULL);
-
     sf_ir_operand func_operand = {
         .type = SF_IR_OPERAND_TYPE_FUNCTION,
         .function_name = call->link_name,

@@ -27,7 +27,6 @@ typedef struct {
 static const sf_token_spelling k_symbols[] = {
     {SF_TOKEN_TYPE_LEFT_SHIFT_EQUAL,  "<<="},
     {SF_TOKEN_TYPE_RIGHT_SHIFT_EQUAL, ">>="},
-
     {SF_TOKEN_TYPE_PLUS_PLUS,         "++" },
     {SF_TOKEN_TYPE_MINUS_MINUS,       "--" },
     {SF_TOKEN_TYPE_PLUS_EQUAL,        "+=" },
@@ -46,7 +45,6 @@ static const sf_token_spelling k_symbols[] = {
     {SF_TOKEN_TYPE_LEFT_SHIFT,        "<<" },
     {SF_TOKEN_TYPE_RIGHT_SHIFT,       ">>" },
     {SF_TOKEN_TYPE_COLON_COLON,       "::" },
-
     {SF_TOKEN_TYPE_PLUS,              "+"  },
     {SF_TOKEN_TYPE_MINUS,             "-"  },
     {SF_TOKEN_TYPE_STAR,              "*"  },
@@ -59,7 +57,6 @@ static const sf_token_spelling k_symbols[] = {
     {SF_TOKEN_TYPE_PIPE,              "|"  },
     {SF_TOKEN_TYPE_CARET,             "^"  },
     {SF_TOKEN_TYPE_TILDE,             "~"  },
-
     {SF_TOKEN_TYPE_SEMICOLON,         ";"  },
     {SF_TOKEN_TYPE_LPAREN,            "("  },
     {SF_TOKEN_TYPE_RPAREN,            ")"  },
@@ -121,11 +118,18 @@ static bool undefined_run_continues(const sf_lexer *lx, bool number);
 static sf_token read_number(sf_lexer *lx);
 static sf_token read_identifier(sf_lexer *lx);
 static sf_token read_symbol(sf_lexer *lx);
+static sf_token read_char(sf_lexer *lx);
 static int digit_value(char c, int base);
 static sf_token_type resolve_keyword(const char *value);
 static const sf_token_spelling *find_symbol(const char *text);
 static const char *find_spelling(
     const sf_token_spelling *table, size_t count, sf_token_type type
+);
+static bool lexer_report_invalid_char(
+    sf_lexer *lx, sf_span span, const char *message, const char *hint
+);
+static sf_token lexer_invalid_char(
+    sf_lexer *lx, size_t start_pos, sf_span span, const char *message, const char *hint
 );
 
 sf_token_list sf_lexer_run(const char *input, const char *filename) {
@@ -165,6 +169,8 @@ sf_token_list sf_lexer_run(const char *input, const char *filename) {
             tk = read_number(&lx);
         } else if (is_ident_start(c)) {
             tk = read_identifier(&lx);
+        } else if (c == '\'') {
+            tk = read_char(&lx);
         } else {
             tk = read_symbol(&lx);
         }
@@ -241,7 +247,7 @@ static char lexer_next(const sf_lexer *lx) {
 
 static void lexer_advance(sf_lexer *lx, size_t count) {
     lx->pos += count;
-    lx->col += (uint32_t)count;
+    lx->col += count;
 }
 
 static sf_span lexer_span_here(const sf_lexer *lx) {
@@ -282,6 +288,10 @@ static bool list_add(sf_token_list *list, sf_token token) {
 
 static bool lexer_emit(sf_lexer *lx, sf_token token, size_t start_pos, size_t start_col) {
     if (token.type == SF_TOKEN_TYPE_UNDEFINED) {
+        if (lx->input[start_pos] == '\'') {
+            return list_add(&lx->list, token);
+        }
+
         return lexer_report_undefined(lx, start_pos, start_col);
     }
 
@@ -446,6 +456,101 @@ static sf_token read_symbol(sf_lexer *lx) {
     return tk;
 }
 
+static sf_token read_char(sf_lexer *lx) {
+    sf_span span = lexer_span_here(lx);
+    sf_token tk = make_token(SF_TOKEN_TYPE_CHAR, span);
+
+    size_t start_pos = lx->pos;
+
+    lexer_advance(lx, 1); // Opening quote
+
+    char c = lexer_current(lx);
+
+    if (c == '\0' || c == '\n') {
+        return lexer_invalid_char(
+            lx, start_pos, span, "Unterminated character literal.",
+            "Add a closing single quote."
+        );
+    }
+
+    if (c == '\'') {
+        return lexer_invalid_char(
+            lx, start_pos, span, "Empty character literal.",
+            "A character literal must contain exactly one byte."
+        );
+    }
+
+    uint8_t value;
+
+    if (c == '\\') {
+        lexer_advance(lx, 1);
+
+        c = lexer_current(lx);
+
+        if (c == '\0' || c == '\n') {
+            return lexer_invalid_char(
+                lx, start_pos, span, "Unterminated character literal.",
+                "Add a valid escape sequence and a closing single quote."
+            );
+        }
+
+        switch (c) {
+            case '0':
+                value = '\0';
+                break;
+            case 'n':
+                value = '\n';
+                break;
+            case 'r':
+                value = '\r';
+                break;
+            case 't':
+                value = '\t';
+                break;
+            case '\\':
+                value = '\\';
+                break;
+            case '\'':
+                value = '\'';
+                break;
+
+            default:
+                return lexer_invalid_char(
+                    lx, start_pos, span, "Invalid escape sequence in character literal.",
+                    "Use a supported escape sequence."
+                );
+        }
+
+        lexer_advance(lx, 1);
+    } else {
+        if ((unsigned char)c >= 0x80) {
+            return lexer_invalid_char(
+                lx, start_pos, span, "Character literal must contain exactly one byte.",
+                "UTF-8 multibyte characters cannot be represented by u8 "
+                "character literals."
+            );
+        }
+
+        value = (uint8_t)c;
+        lexer_advance(lx, 1);
+    }
+
+    if (lexer_current(lx) != '\'') {
+        return lexer_invalid_char(
+            lx, start_pos, span, "Multiple characters in character literal.",
+            "A character literal must contain exactly one byte."
+        );
+    }
+
+    lexer_advance(lx, 1);
+
+    snprintf(tk.value, SF_TOKEN_VALUE_SIZE, "%u", (unsigned)value);
+
+    tk.span.len = (uint8_t)(lx->pos - start_pos);
+
+    return tk;
+}
+
 static sf_token_type resolve_keyword(const char *value) {
     for (size_t i = 0; i < sizeof(k_keywords) / sizeof(k_keywords[0]); i++) {
         if (strcmp(value, k_keywords[i].text) == 0) {
@@ -476,4 +581,46 @@ static const char *find_spelling(
     }
 
     return NULL;
+}
+
+static bool lexer_report_invalid_char(
+    sf_lexer *lx, sf_span span, const char *message, const char *hint
+) {
+    char value[SF_TOKEN_VALUE_SIZE] = {0};
+
+    size_t len = span.len;
+
+    if (len >= sizeof(value)) {
+        len = sizeof(value) - 1;
+    }
+
+    memcpy(value, lx->input + lx->pos - span.len, len);
+
+    sf_log(
+        "Invalid Character Literal", message, hint, lx->filename,
+        SF_LOG_CODE_LEXER_UNDEFINED_TOKEN, span, SF_LOG_SEVERITY_ERROR, value
+    );
+
+    return true;
+}
+
+static sf_token lexer_invalid_char(
+    sf_lexer *lx, size_t start_pos, sf_span span, const char *message, const char *hint
+) {
+    while (lexer_current(lx) != '\0' && lexer_current(lx) != '\n' &&
+           lexer_current(lx) != '\'') {
+        lexer_advance(lx, 1);
+    }
+
+    if (lexer_current(lx) == '\'') {
+        lexer_advance(lx, 1);
+    }
+
+    size_t len = lx->pos - start_pos;
+
+    span.len = (uint8_t)(len > UINT8_MAX ? UINT8_MAX : len);
+
+    lexer_report_invalid_char(lx, span, message, hint);
+
+    return make_token(SF_TOKEN_TYPE_UNDEFINED, span);
 }
