@@ -26,29 +26,35 @@ char *sf_file_read(const char *filename, size_t *size) {
     fseek(file, 0, SEEK_END);
     size_t read_size = (size_t)ftell(file);
     rewind(file);
-    *size = read_size;
 
     char *content = malloc(read_size + 2);
 
     if (content == NULL) {
         fclose(file);
-
         sf_log_out_of_memory("N/A");
-
         return NULL;
     }
 
     size_t read_result = fread(content, sizeof(char), read_size, file);
-    if (read_result < read_size || read_result == 0) {
+
+    if (read_result < read_size) {
+        free(content);
+        fclose(file);
         return NULL;
     }
 
     if (read_size == 0 || content[read_size - 1] != '\n') {
         content[read_size++] = '\n';
     }
+
     content[read_size] = '\0';
 
     fclose(file);
+
+    if (size != NULL) {
+        *size = read_size;
+    }
+
     return content;
 }
 

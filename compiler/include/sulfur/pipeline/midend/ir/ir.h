@@ -64,7 +64,6 @@ typedef enum {
 typedef struct {
     sf_ir_operand_type type;
     sf_type_kind value_type;
-
     union {
         size_t temporary_id;
         size_t label_id;
@@ -122,5 +121,5 @@ typedef struct {
     size_t *next_temp;
 } sf_ir_context;
 
-sf_ir_program sf_ir_generate(sf_arena *arena, const sf_ast_node_program *program);
+sf_ir_program sf_ir_run(sf_arena *arena, const sf_ast_node_program *program);
 void sf_ir_print(const sf_ir_program *program);

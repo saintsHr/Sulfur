@@ -105,7 +105,7 @@ static bool has_global(const sf_ir_program *ir, const char *name);
 static void collect_externs(sf_arena *arena, sf_ir_program *ir);
 static void collect_globals(sf_arena *arena, sf_ir_program *ir);
 
-sf_ir_program sf_ir_generate(sf_arena *arena, const sf_ast_node_program *program) {
+sf_ir_program sf_ir_run(sf_arena *arena, const sf_ast_node_program *program) {
     sf_ir_program ir = {0};
     sf_ir_context ctx = {0};
 

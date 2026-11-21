@@ -48,6 +48,7 @@ option(ENABLE_SANITIZERS "Enable sanitizers" OFF)
 # ------------------------------------------------------------------------------
 
 add_compile_options(
+    -Werror
     -Wall
     -Wextra
     -Wpedantic

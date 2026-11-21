@@ -144,7 +144,7 @@ static const char *counter_register(uint8_t size);
 static const char *register_to_string(sf_register reg);
 static const char *prefix_to_string(sf_size_prefix prefix);
 
-char *sf_generate_assembly(
+char *sf_codegen_run(
     const sf_ir_program *program, const sf_compilation_options *options
 ) {
     if (program == NULL || options == NULL) {
@@ -159,19 +159,29 @@ char *sf_generate_assembly(
     }
     buff[0] = '\0';
 
-    sf_string_push("bits 64\n\n", &buff, &len, &capacity);
+    if (program->extern_count > 0 || program->global_count > 0 ||
+        program->function_count > 0) {
+        sf_string_push("bits 64\n", &buff, &len, &capacity);
+    }
 
+    if (program->extern_count > 0) {
+        sf_string_push("\n", &buff, &len, &capacity);
+    }
     for (size_t i = 0; i < program->extern_count; i++) {
         emitf(&buff, &len, &capacity, "extern %s\n", program->externs[i]);
     }
 
+    if (program->global_count > 0) {
+        sf_string_push("\n", &buff, &len, &capacity);
+    }
     for (size_t i = 0; i < program->global_count; i++) {
         emitf(&buff, &len, &capacity, "global %s\n", program->globals[i]);
     }
 
-    sf_string_push("\n", &buff, &len, &capacity);
-    sf_string_push("section .text\n", &buff, &len, &capacity);
-
+    if (program->function_count > 0) {
+        sf_string_push("\n", &buff, &len, &capacity);
+        sf_string_push("section .text\n", &buff, &len, &capacity);
+    }
     for (size_t i = 0; i < program->function_count; i++) {
         emit_function(&buff, &len, &capacity, &program->functions[i]);
     }
