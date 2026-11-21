@@ -1,0 +1,9 @@
+extern fn sfrt_put_char(u8 c);
+
+namespace std::io::console {
+
+pub fn putchar(u8 c) {
+    sfrt_put_char(c);
+}
+
+}

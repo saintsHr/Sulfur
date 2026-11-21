@@ -166,24 +166,26 @@ char *sf_codegen_run(
 
     if (program->extern_count > 0) {
         sf_string_push("\n", &buff, &len, &capacity);
-    }
-    for (size_t i = 0; i < program->extern_count; i++) {
-        emitf(&buff, &len, &capacity, "extern %s\n", program->externs[i]);
-    }
 
+        for (size_t i = 0; i < program->extern_count; i++) {
+            emitf(&buff, &len, &capacity, "extern %s\n", program->externs[i]);
+        }
+    }
     if (program->global_count > 0) {
         sf_string_push("\n", &buff, &len, &capacity);
-    }
-    for (size_t i = 0; i < program->global_count; i++) {
-        emitf(&buff, &len, &capacity, "global %s\n", program->globals[i]);
+
+        for (size_t i = 0; i < program->global_count; i++) {
+            emitf(&buff, &len, &capacity, "global %s\n", program->globals[i]);
+        }
     }
 
     if (program->function_count > 0) {
         sf_string_push("\n", &buff, &len, &capacity);
         sf_string_push("section .text\n", &buff, &len, &capacity);
-    }
-    for (size_t i = 0; i < program->function_count; i++) {
-        emit_function(&buff, &len, &capacity, &program->functions[i]);
+
+        for (size_t i = 0; i < program->function_count; i++) {
+            emit_function(&buff, &len, &capacity, &program->functions[i]);
+        }
     }
 
     return buff;

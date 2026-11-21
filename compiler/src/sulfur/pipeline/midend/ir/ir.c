@@ -99,11 +99,14 @@ static void print_operations(const sf_ir_operation *operations, size_t count);
 static const char *binary_symbol(sf_ir_opcode opcode);
 static const char *unary_symbol(sf_ir_opcode opcode);
 
+static bool has_definition(const sf_ir_program *ir, const char *name);
 static bool has_extern(const sf_ir_program *ir, const char *name);
 static bool has_global(const sf_ir_program *ir, const char *name);
 
 static void collect_externs(sf_arena *arena, sf_ir_program *ir);
 static void collect_globals(sf_arena *arena, sf_ir_program *ir);
+
+static void add_extern(sf_arena *arena, sf_ir_program *ir, const char *name);
 
 sf_ir_program sf_ir_run(sf_arena *arena, const sf_ast_node_program *program) {
     sf_ir_program ir = {0};
@@ -863,6 +866,22 @@ static bool ends_with_return(const sf_ir_function *func) {
     return false;
 }
 
+static bool has_definition(const sf_ir_program *ir, const char *name) {
+    if (name == NULL) {
+        return false;
+    }
+
+    for (size_t i = 0; i < ir->function_count; i++) {
+        const sf_ir_function *func = &ir->functions[i];
+
+        if (func->defined && strcmp(func->name, name) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static bool has_extern(const sf_ir_program *ir, const char *name) {
     for (size_t i = 0; i < ir->extern_count; i++) {
         if (strcmp(ir->externs[i], name) == 0) {
@@ -886,27 +905,23 @@ static void collect_externs(sf_arena *arena, sf_ir_program *ir) {
     for (size_t f = 0; f < ir->function_count; f++) {
         const sf_ir_function *func = &ir->functions[f];
 
-        if (!func->qualifiers.is_extern || has_extern(ir, func->name)) {
-            continue;
+        if (func->qualifiers.is_extern) {
+            add_extern(arena, ir, func->name);
         }
+    }
 
-        if (ir->extern_count >= ir->extern_capacity) {
-            size_t cap = ir->extern_capacity == 0 ? 8 : ir->extern_capacity * 2;
+    for (size_t f = 0; f < ir->function_count; f++) {
+        const sf_ir_function *func = &ir->functions[f];
 
-            const char **grown = sf_arena_grow_array(
-                arena, ir->externs, ir->extern_count, cap, sizeof(char *)
-            );
+        for (size_t i = 0; i < func->operation_count; i++) {
+            const sf_ir_operation *op = &func->operations[i];
 
-            if (grown == NULL) {
-                sf_log_out_of_memory("N/A");
-                return;
+            if (op->opcode != SF_IR_OPCODE_CALL) {
+                continue;
             }
 
-            ir->externs = grown;
-            ir->extern_capacity = cap;
+            add_extern(arena, ir, op->operand2.function_name);
         }
-
-        ir->externs[ir->extern_count++] = func->name;
     }
 }
 
@@ -936,4 +951,28 @@ static void collect_globals(sf_arena *arena, sf_ir_program *ir) {
 
         ir->globals[ir->global_count++] = func->name;
     }
+}
+
+static void add_extern(sf_arena *arena, sf_ir_program *ir, const char *name) {
+    if (name == NULL || has_extern(ir, name) || has_definition(ir, name)) {
+        return;
+    }
+
+    if (ir->extern_count >= ir->extern_capacity) {
+        size_t cap = ir->extern_capacity == 0 ? 8 : ir->extern_capacity * 2;
+
+        const char **grown = sf_arena_grow_array(
+            arena, ir->externs, ir->extern_count, cap, sizeof(char *)
+        );
+
+        if (grown == NULL) {
+            sf_log_out_of_memory("N/A");
+            return;
+        }
+
+        ir->externs = grown;
+        ir->extern_capacity = cap;
+    }
+
+    ir->externs[ir->extern_count++] = name;
 }
