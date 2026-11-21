@@ -18,7 +18,7 @@
 #include "sulfur/pipeline/frontend/preprocessor/preprocessor.h"
 #include "sulfur/pipeline/frontend/semantic/semantic.h"
 #include "sulfur/pipeline/midend/ir/ir.h"
-#include "sulfur/pipeline/midend/ir/optimization.h"
+#include "sulfur/pipeline/midend/optimization/optimization.h"
 #include "sulfur/shared/arena.h"
 
 static bool compilation_run(
@@ -77,14 +77,14 @@ static bool compilation_run(
 
     sf_arena_init(&compilation->arena);
 
-    compilation->preprocessed = sf_preprocess(
+    compilation->preprocessed = sf_preprocessor_run(
         compilation->input_source, compilation->input_size, options->file_input
     );
 
     compilation->tokens = sf_lexer_run(compilation->preprocessed, options->file_input);
 
     compilation->ast =
-        sf_parse(&compilation->arena, compilation->tokens, options->file_input);
+        sf_parser_run(&compilation->arena, compilation->tokens, options->file_input);
 
     sf_module_resolve(
         compilation->ast->imports, compilation->ast->import_count, options->file_input,
@@ -92,16 +92,17 @@ static bool compilation_run(
         &compilation->arena
     );
 
-    sf_analyze(
+    sf_semantic_run(
         &compilation->arena, compilation->ast, options->file_input, options,
         &compilation->modules
     );
 
-    compilation->ir = sf_ir_generate(&compilation->arena, compilation->ast);
+    compilation->ir = sf_ir_run(&compilation->arena, compilation->ast);
 
-    sf_optimize(&compilation->ir);
+    compilation->ir_optimized =
+        sf_optimization_run(&compilation->ir, SF_OPTIMIZATION_LEVEL_O0);
 
-    compilation->assembly = sf_generate_assembly(&compilation->ir, options);
+    compilation->assembly = sf_codegen_run(&compilation->ir_optimized, options);
 
     if (options->dump_stages) {
         dump_stages(compilation);
@@ -125,33 +126,21 @@ static void compilation_free(sf_compilation *compilation) {
 }
 
 static void dump_stages(sf_compilation *compilation) {
-    printf("\n ---------------- \n");
+    printf("\n[Source]:\n\n");
+    printf("%s", compilation->input_source);
 
-    if (compilation->input_source != NULL) {
-        printf("\n[Source]:\n\n");
+    printf("\n[Tokens]:\n\n");
+    sf_token_list_print(&compilation->tokens);
 
-        printf("%s", compilation->input_source);
-    }
+    printf("\n[AST]:\n\n");
+    sf_print_ast((sf_ast_node *)compilation->ast);
 
-    if (compilation->tokens.count > 0) {
-        printf("\n[Tokens]:\n\n");
-        sf_token_list_print(&compilation->tokens);
-    }
+    printf("\n[IR (Original)]:\n\n");
+    sf_ir_print(&compilation->ir);
 
-    if (compilation->ast != NULL) {
-        printf("\n[AST]:\n\n");
-        sf_print_ast((sf_ast_node *)compilation->ast);
-    }
+    printf("\n[IR (Optimized)]:\n\n");
+    sf_ir_print(&compilation->ir_optimized);
 
-    if (compilation->ir.function_count > 0 && compilation->ir.extern_count > 0) {
-        printf("\n[IR]:\n\n");
-        sf_ir_print(&compilation->ir);
-    }
-
-    if (compilation->assembly != NULL) {
-        printf("\n[Assembly]:\n\n");
-        printf("%s", compilation->assembly);
-    }
-
-    printf("\n ---------------- \n");
+    printf("\n[Assembly]:\n\n");
+    printf("%s", compilation->assembly);
 }

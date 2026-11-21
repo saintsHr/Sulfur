@@ -9,6 +9,8 @@
 #include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/lexer/token.h"
+#include "sulfur/pipeline/frontend/semantic/semantic_const.h"
+#include "sulfur/pipeline/frontend/semantic/semantic_expr.h"
 #include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
 #include "sulfur/pipeline/frontend/semantic/symbol.h"
 #include "sulfur/shared/operation.h"
@@ -56,7 +58,7 @@ static bool check_argument_type(
     sf_span span, const char *filename
 );
 
-bool sf_semantic_expr(sf_semantic *s, sf_ast_node *node, sf_type_kind expected) {
+bool sf_semantic_run_expr(sf_semantic *s, sf_ast_node *node, sf_type_kind expected) {
     switch (node->type) {
         case SF_AST_NODE_TYPE_BINARY: {
             return analyze_binary(s, (sf_ast_node_binary *)node, expected);
@@ -87,9 +89,9 @@ static bool analyze_binary(
 ) {
     sf_type_kind operand_expected = expected;
 
-    if (sf_op_is_logical(bin->op)) {
+    if (sf_operation_is_logical(bin->op)) {
         operand_expected = SF_TYPE_KIND_BOOL;
-    } else if (sf_op_is_relational(bin->op)) {
+    } else if (sf_operation_is_relational(bin->op)) {
         operand_expected = SF_TYPE_KIND_UNRESOLVED;
     } else if (!sf_type_kind_is_integer(operand_expected)) {
         operand_expected = SF_TYPE_KIND_UNRESOLVED;
@@ -106,15 +108,15 @@ static bool analyze_binary(
         return false;
     }
 
-    if (sf_op_is_logical(bin->op)) {
+    if (sf_operation_is_logical(bin->op)) {
         return analyze_logical(s, bin, ltype, rtype);
     }
 
-    if (sf_op_is_shift(bin->op)) {
+    if (sf_operation_is_shift(bin->op)) {
         return analyze_shift(s, bin, ltype);
     }
 
-    if (sf_op_is_relational(bin->op)) {
+    if (sf_operation_is_relational(bin->op)) {
         return analyze_relational(s, bin, ltype, rtype);
     }
 
@@ -124,8 +126,8 @@ static bool analyze_binary(
 static bool analyze_binary_operands(
     sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind operand_expected
 ) {
-    bool is_relational = sf_op_is_relational(bin->op);
-    bool is_shift = sf_op_is_shift(bin->op);
+    bool is_relational = sf_operation_is_relational(bin->op);
+    bool is_shift = sf_operation_is_shift(bin->op);
 
     bool left_is_literal = bin->left->type == SF_AST_NODE_TYPE_LITERAL;
     bool right_is_literal = bin->right->type == SF_AST_NODE_TYPE_LITERAL;
@@ -133,7 +135,7 @@ static bool analyze_binary_operands(
     bool swap_order = is_relational && left_is_literal && !right_is_literal;
 
     if (swap_order) {
-        if (!sf_semantic_expr(s, bin->right, operand_expected)) {
+        if (!sf_semantic_run_expr(s, bin->right, operand_expected)) {
             return false;
         }
 
@@ -143,10 +145,10 @@ static bool analyze_binary_operands(
             left_expected = bin->right->resolved;
         }
 
-        return sf_semantic_expr(s, bin->left, left_expected);
+        return sf_semantic_run_expr(s, bin->left, left_expected);
     }
 
-    if (!sf_semantic_expr(s, bin->left, operand_expected)) {
+    if (!sf_semantic_run_expr(s, bin->left, operand_expected)) {
         return false;
     }
 
@@ -156,7 +158,7 @@ static bool analyze_binary_operands(
         right_expected = bin->left->resolved;
     }
 
-    return sf_semantic_expr(s, bin->right, right_expected);
+    return sf_semantic_run_expr(s, bin->right, right_expected);
 }
 
 static bool analyze_logical(
@@ -175,7 +177,9 @@ static bool analyze_logical(
 
     bin->base.resolved = SF_TYPE_KIND_BOOL;
 
-    sf_const_warn(s, &bin->base, "This logical expression always evaluates to '%s'.");
+    sf_semantic_const_warn(
+        s, &bin->base, "This logical expression always evaluates to '%s'."
+    );
 
     return true;
 }
@@ -186,7 +190,7 @@ static bool analyze_shift(sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind 
     int64_t width = sf_type_kind_width_bits(ltype);
     int64_t shift_amount;
 
-    if (!sf_const_eval_int(bin->right, &shift_amount)) {
+    if (!sf_semantic_const_eval_int(bin->right, &shift_amount)) {
         return true;
     }
 
@@ -233,7 +237,7 @@ static bool analyze_relational(
 
     bin->base.resolved = SF_TYPE_KIND_BOOL;
 
-    sf_const_warn(s, &bin->base, "This comparison always evaluates to '%s'.");
+    sf_semantic_const_warn(s, &bin->base, "This comparison always evaluates to '%s'.");
 
     return true;
 }
@@ -266,7 +270,9 @@ static bool analyze_arithmetic(
     bin->base.resolved = sf_type_kind_promote(ltype, rtype);
 
     if (bin->op == SF_OPERATION_TYPE_DIV &&
-        sf_const_is_zero(bin->right, sf_type_kind_is_signed(bin->base.resolved))) {
+        sf_semantic_const_is_zero(
+            bin->right, sf_type_kind_is_signed(bin->base.resolved)
+        )) {
         sf_log(
             "Division by Zero", "Constant expression divides by zero.",
             "Ensure the divisor is non-zero.", s->filename,
@@ -276,7 +282,7 @@ static bool analyze_arithmetic(
         return false;
     }
 
-    return sf_const_check_overflow(&bin->base, bin->base.resolved, s->filename);
+    return sf_semantic_const_check_overflow(&bin->base, bin->base.resolved, s->filename);
 }
 
 static bool analyze_unary(sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected) {
@@ -316,7 +322,7 @@ static bool analyze_negate(sf_semantic *s, sf_ast_node_unary *un, sf_type_kind e
         pass_down = SF_TYPE_KIND_I64;
     }
 
-    if (!sf_semantic_expr(s, operand, pass_down)) {
+    if (!sf_semantic_run_expr(s, operand, pass_down)) {
         return false;
     }
 
@@ -390,7 +396,7 @@ static bool analyze_negated_literal(
 static bool analyze_bitwise_not(
     sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected
 ) {
-    if (!sf_semantic_expr(s, un->operand, expected)) {
+    if (!sf_semantic_run_expr(s, un->operand, expected)) {
         return false;
     }
 
@@ -425,7 +431,7 @@ static bool analyze_increment(
         return false;
     }
 
-    if (!sf_semantic_expr(s, un->operand, expected)) {
+    if (!sf_semantic_run_expr(s, un->operand, expected)) {
         return false;
     }
 
@@ -445,7 +451,7 @@ static bool analyze_increment(
 
     sf_ast_node_identifier *id = (sf_ast_node_identifier *)un->operand;
 
-    if (id->symbol->qualifiers.is_mutable == false) {
+    if (id->sym->qualifiers.is_mutable == false) {
         sf_log(
             "Invalid Assign", "Cannot increment or decrement an immutable variable.",
             "Make the variable mutable or dont assign to it.", s->filename,
@@ -461,7 +467,7 @@ static bool analyze_increment(
 }
 
 static bool analyze_logical_not(sf_semantic *s, sf_ast_node_unary *un) {
-    if (!sf_semantic_expr(s, un->operand, SF_TYPE_KIND_BOOL)) {
+    if (!sf_semantic_run_expr(s, un->operand, SF_TYPE_KIND_BOOL)) {
         return false;
     }
 
@@ -476,7 +482,7 @@ static bool analyze_logical_not(sf_semantic *s, sf_ast_node_unary *un) {
         return false;
     }
 
-    sf_const_warn(s, &un->base, "This expression always evaluates to '%s'.");
+    sf_semantic_const_warn(s, &un->base, "This expression always evaluates to '%s'.");
 
     un->base.resolved = SF_TYPE_KIND_BOOL;
 
@@ -484,7 +490,7 @@ static bool analyze_logical_not(sf_semantic *s, sf_ast_node_unary *un) {
 }
 
 static bool analyze_cast(sf_semantic *s, sf_ast_node_cast *cast) {
-    if (!sf_semantic_expr(s, cast->operand, SF_TYPE_KIND_UNRESOLVED)) {
+    if (!sf_semantic_run_expr(s, cast->operand, SF_TYPE_KIND_UNRESOLVED)) {
         return false;
     }
 
@@ -576,7 +582,7 @@ static bool analyze_identifier(sf_semantic *s, sf_ast_node_identifier *id) {
         return false;
     }
 
-    sf_var_symbol *sym = scope_lookup(s->scope, name);
+    sf_symbol_var *sym = sf_scope_lookup(s->scope, name);
 
     if (sym == NULL) {
         sf_semantic_report_undeclared(s, name, id->base.span);
@@ -596,7 +602,7 @@ static bool analyze_identifier(sf_semantic *s, sf_ast_node_identifier *id) {
     id->base.resolved = sym->type;
     id->depth = sym->depth;
     id->id = sym->id;
-    id->symbol = sym;
+    id->sym = sym;
 
     return true;
 }
@@ -604,7 +610,7 @@ static bool analyze_identifier(sf_semantic *s, sf_ast_node_identifier *id) {
 static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
     sf_ast_node_identifier *callee = (sf_ast_node_identifier *)call->callee;
 
-    const sf_func_symbol *sym = sf_semantic_resolve_func(s, &callee->path);
+    const sf_symbol_func *sym = sf_semantic_resolve_func(s, &callee->path);
 
     if (sym == NULL) {
         char shown[SF_NS_QNAME_MAX];
@@ -634,7 +640,7 @@ static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
         }
 
         for (size_t i = 0; i < call->argument_count; i++) {
-            sf_semantic_expr(s, call->arguments[i], SF_TYPE_KIND_UNRESOLVED);
+            sf_semantic_run_expr(s, call->arguments[i], SF_TYPE_KIND_UNRESOLVED);
         }
 
         return false;
@@ -663,7 +669,7 @@ static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
 
         sf_ast_node *arg = call->arguments[i];
 
-        if (!sf_semantic_expr(s, arg, expected)) {
+        if (!sf_semantic_run_expr(s, arg, expected)) {
             ok = false;
             continue;
         }

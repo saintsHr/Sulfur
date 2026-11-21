@@ -6,7 +6,7 @@
 #include "sulfur/driver/main.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
 
-bool sf_analyze(
+bool sf_semantic_run(
     sf_arena *arena, sf_ast_node_program *program, const char *filename,
     const sf_compilation_options *options, sf_module_list *modules
 );

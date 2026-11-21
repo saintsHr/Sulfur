@@ -5,7 +5,7 @@
 
 #include "sulfur/module/module.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
-#include "sulfur/pipeline/frontend/lexer/lexer.h"
+#include "sulfur/pipeline/frontend/lexer/token.h"
 #include "sulfur/pipeline/midend/ir/ir.h"
 #include "sulfur/shared/arena.h"
 
@@ -17,6 +17,7 @@ typedef struct sf_compilation {
     sf_token_list tokens;
     sf_ast_node_program *ast;
     sf_ir_program ir;
+    sf_ir_program ir_optimized;
     char *assembly;
     sf_module_list modules;
 } sf_compilation;

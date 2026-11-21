@@ -12,7 +12,7 @@
 #include "sulfur/shared/span.h"
 #include "sulfur/shared/type.h"
 
-typedef struct sf_var_symbol sf_var_symbol;
+typedef struct sf_symbol_var sf_symbol_var;
 
 typedef enum sf_ast_node_type {
     SF_AST_NODE_TYPE_PROGRAM,
@@ -50,7 +50,7 @@ typedef struct sf_ast_node_identifier {
     sf_path path;
     size_t depth;
     size_t id;
-    sf_var_symbol *symbol;
+    sf_symbol_var *sym;
 } sf_ast_node_identifier;
 
 typedef struct sf_ast_node_binary {

@@ -23,7 +23,7 @@ typedef struct sf_module {
     const char *filename;
     const char *name;
     sf_module_analysis analysis;
-    sf_func_symbol_table funcs;
+    sf_symbol_func_table funcs;
 } sf_module;
 
 typedef struct sf_module_list {

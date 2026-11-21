@@ -43,7 +43,7 @@ static sf_ast_node *parse_postfix(sf_parser *p);
 static sf_ast_node *parse_call(sf_parser *p, sf_ast_node_identifier *callee);
 static sf_ast_node *parse_primary(sf_parser *p);
 
-sf_ast_node *sf_parse_expression(sf_parser *p) {
+sf_ast_node *sf_parser_parse_expression(sf_parser *p) {
     return parse_binary(p, 0);
 }
 
@@ -184,7 +184,7 @@ static sf_ast_node *parse_call(sf_parser *p, sf_ast_node_identifier *callee) {
 
     if (sf_parser_peek(p)->type != SF_TOKEN_TYPE_RPAREN) {
         while (true) {
-            sf_ast_node *arg = sf_parse_expression(p);
+            sf_ast_node *arg = sf_parser_parse_expression(p);
             if (arg == NULL) {
                 return NULL;
             }
@@ -207,7 +207,7 @@ static sf_ast_node *parse_call(sf_parser *p, sf_ast_node_identifier *callee) {
 
 static sf_ast_node *parse_primary(sf_parser *p) {
     if (sf_parser_match(p, SF_TOKEN_TYPE_LPAREN)) {
-        sf_ast_node *expr = sf_parse_expression(p);
+        sf_ast_node *expr = sf_parser_parse_expression(p);
 
         if (expr == NULL) {
             return NULL;

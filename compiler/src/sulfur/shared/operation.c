@@ -165,3 +165,21 @@ sf_ir_opcode sf_operation_to_opcode(sf_operation_type type) {
         }
     }
 }
+
+bool sf_operation_is_logical(sf_operation_type op) {
+    return op == SF_OPERATION_TYPE_LOGICAL_AND || op == SF_OPERATION_TYPE_LOGICAL_OR;
+}
+
+bool sf_operation_is_shift(sf_operation_type op) {
+    return op == SF_OPERATION_TYPE_BITWISE_LSHIFT ||
+           op == SF_OPERATION_TYPE_BITWISE_RSHIFT;
+}
+
+bool sf_operation_is_relational(sf_operation_type op) {
+    return op == SF_OPERATION_TYPE_RELATIONAL_EQUAL ||
+           op == SF_OPERATION_TYPE_RELATIONAL_NOT_EQUAL ||
+           op == SF_OPERATION_TYPE_RELATIONAL_LESS ||
+           op == SF_OPERATION_TYPE_RELATIONAL_LESS_EQUAL ||
+           op == SF_OPERATION_TYPE_RELATIONAL_GREATER ||
+           op == SF_OPERATION_TYPE_RELATIONAL_GREATER_EQUAL;
+}

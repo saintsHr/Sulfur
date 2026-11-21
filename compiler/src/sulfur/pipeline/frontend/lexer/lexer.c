@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "sulfur/io/log.h"
+#include "sulfur/pipeline/frontend/lexer/token.h"
 
 typedef struct {
     sf_token_type type;
@@ -128,6 +129,10 @@ static const char *find_spelling(
 );
 
 sf_token_list sf_lexer_run(const char *input, const char *filename) {
+    if (input == NULL) {
+        return (sf_token_list){0};
+    }
+
     sf_lexer lx = {
         .input = input,
         .filename = filename,

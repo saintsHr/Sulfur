@@ -9,7 +9,11 @@
 static void remove_carriage_return(char *str);
 static void remove_comments(char *str);
 
-char *sf_preprocess(const char *src, size_t src_size, const char *filename) {
+char *sf_preprocessor_run(const char *src, size_t src_size, const char *filename) {
+    if (src == NULL) {
+        return NULL;
+    }
+
     char *out = malloc(src_size + 1);
 
     if (out == NULL) {

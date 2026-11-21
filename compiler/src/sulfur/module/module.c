@@ -171,9 +171,9 @@ static void resolve_import(
     size_t input_size = 0;
 
     input = sf_file_read(filename, &input_size);
-    preprocessed = sf_preprocess(input, input_size, filename);
+    preprocessed = sf_preprocessor_run(input, input_size, filename);
     tokens = sf_lexer_run(preprocessed, filename);
-    ast = sf_parse(arena, tokens, filename);
+    ast = sf_parser_run(arena, tokens, filename);
     modules->modules[module_index].ast = ast;
 
     resolve_imports(

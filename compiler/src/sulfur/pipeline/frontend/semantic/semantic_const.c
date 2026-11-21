@@ -6,7 +6,8 @@
 #include "sulfur/io/log.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/lexer/token.h"
-#include "sulfur/pipeline/frontend/semantic/semantic_internal.h"
+#include "sulfur/pipeline/frontend/semantic/semantic_const.h"
+#include "sulfur/shared/operation.h"
 #include "sulfur/shared/type.h"
 
 static bool literal_magnitude(const sf_ast_node *node, uint64_t *out_value);
@@ -32,7 +33,7 @@ static bool check_unsigned_overflow(
     sf_ast_node *node, sf_type_kind resolved, const char *filename
 );
 
-bool sf_const_eval_uint(sf_ast_node *node, uint64_t *out_value) {
+bool sf_semantic_const_eval_uint(sf_ast_node *node, uint64_t *out_value) {
     if (node->type == SF_AST_NODE_TYPE_LITERAL) {
         return literal_magnitude(node, out_value);
     }
@@ -44,18 +45,18 @@ bool sf_const_eval_uint(sf_ast_node *node, uint64_t *out_value) {
     sf_ast_node_binary *bin = (sf_ast_node_binary *)node;
     uint64_t l, r;
 
-    if (!sf_const_eval_uint(bin->left, &l)) {
+    if (!sf_semantic_const_eval_uint(bin->left, &l)) {
         return false;
     }
 
-    if (!sf_const_eval_uint(bin->right, &r)) {
+    if (!sf_semantic_const_eval_uint(bin->right, &r)) {
         return false;
     }
 
     return eval_uint_binary(bin->op, l, r, out_value);
 }
 
-bool sf_const_eval_int(sf_ast_node *node, int64_t *out_value) {
+bool sf_semantic_const_eval_int(sf_ast_node *node, int64_t *out_value) {
     if (node->type == SF_AST_NODE_TYPE_LITERAL) {
         uint64_t magnitude;
 
@@ -82,18 +83,18 @@ bool sf_const_eval_int(sf_ast_node *node, int64_t *out_value) {
     sf_ast_node_binary *bin = (sf_ast_node_binary *)node;
     int64_t l, r;
 
-    if (!sf_const_eval_int(bin->left, &l)) {
+    if (!sf_semantic_const_eval_int(bin->left, &l)) {
         return false;
     }
 
-    if (!sf_const_eval_int(bin->right, &r)) {
+    if (!sf_semantic_const_eval_int(bin->right, &r)) {
         return false;
     }
 
     return eval_int_binary(bin->op, l, r, out_value);
 }
 
-bool sf_const_eval_bool(sf_ast_node *node, bool *out_value) {
+bool sf_semantic_const_eval_bool(sf_ast_node *node, bool *out_value) {
     if (node->type == SF_AST_NODE_TYPE_LITERAL) {
         sf_ast_node_literal *lit = (sf_ast_node_literal *)node;
 
@@ -119,7 +120,7 @@ bool sf_const_eval_bool(sf_ast_node *node, bool *out_value) {
 
         bool operand_value;
 
-        if (!sf_const_eval_bool(un->operand, &operand_value)) {
+        if (!sf_semantic_const_eval_bool(un->operand, &operand_value)) {
             return false;
         }
 
@@ -134,7 +135,7 @@ bool sf_const_eval_bool(sf_ast_node *node, bool *out_value) {
     return false;
 }
 
-bool sf_const_check_overflow(
+bool sf_semantic_const_check_overflow(
     sf_ast_node *node, sf_type_kind resolved, const char *filename
 ) {
     if (sf_type_kind_is_signed(resolved)) {
@@ -144,20 +145,20 @@ bool sf_const_check_overflow(
     }
 }
 
-bool sf_const_is_zero(sf_ast_node *node, bool is_signed) {
+bool sf_semantic_const_is_zero(sf_ast_node *node, bool is_signed) {
     if (is_signed) {
         int64_t value;
-        return sf_const_eval_int(node, &value) && value == 0;
+        return sf_semantic_const_eval_int(node, &value) && value == 0;
     }
 
     uint64_t value;
-    return sf_const_eval_uint(node, &value) && value == 0;
+    return sf_semantic_const_eval_uint(node, &value) && value == 0;
 }
 
-void sf_const_warn(sf_semantic *s, sf_ast_node *node, const char *desc) {
+void sf_semantic_const_warn(sf_semantic *s, sf_ast_node *node, const char *desc) {
     bool value;
 
-    if (!sf_const_eval_bool(node, &value)) {
+    if (!sf_semantic_const_eval_bool(node, &value)) {
         return;
     }
 
@@ -371,7 +372,7 @@ static bool eval_int_negate(const sf_ast_node_unary *un, int64_t *out_value) {
 
     int64_t child;
 
-    if (!sf_const_eval_int(un->operand, &child)) {
+    if (!sf_semantic_const_eval_int(un->operand, &child)) {
         return false;
     }
 
@@ -384,14 +385,14 @@ static bool eval_int_negate(const sf_ast_node_unary *un, int64_t *out_value) {
 }
 
 static bool eval_bool_binary(sf_ast_node_binary *bin, bool *out_value) {
-    if (sf_op_is_logical(bin->op)) {
+    if (sf_operation_is_logical(bin->op)) {
         bool l, r;
 
-        if (!sf_const_eval_bool(bin->left, &l)) {
+        if (!sf_semantic_const_eval_bool(bin->left, &l)) {
             return false;
         }
 
-        if (!sf_const_eval_bool(bin->right, &r)) {
+        if (!sf_semantic_const_eval_bool(bin->right, &r)) {
             return false;
         }
 
@@ -400,7 +401,7 @@ static bool eval_bool_binary(sf_ast_node_binary *bin, bool *out_value) {
         return true;
     }
 
-    if (sf_op_is_relational(bin->op)) {
+    if (sf_operation_is_relational(bin->op)) {
         return eval_relational(bin, out_value);
     }
 
@@ -418,11 +419,11 @@ static bool eval_relational(sf_ast_node_binary *bin, bool *out_value) {
 
         bool l, r;
 
-        if (!sf_const_eval_bool(bin->left, &l)) {
+        if (!sf_semantic_const_eval_bool(bin->left, &l)) {
             return false;
         }
 
-        if (!sf_const_eval_bool(bin->right, &r)) {
+        if (!sf_semantic_const_eval_bool(bin->right, &r)) {
             return false;
         }
 
@@ -435,11 +436,11 @@ static bool eval_relational(sf_ast_node_binary *bin, bool *out_value) {
     if (sf_type_kind_is_signed(type)) {
         int64_t l, r;
 
-        if (!sf_const_eval_int(bin->left, &l)) {
+        if (!sf_semantic_const_eval_int(bin->left, &l)) {
             return false;
         }
 
-        if (!sf_const_eval_int(bin->right, &r)) {
+        if (!sf_semantic_const_eval_int(bin->right, &r)) {
             return false;
         }
 
@@ -448,11 +449,11 @@ static bool eval_relational(sf_ast_node_binary *bin, bool *out_value) {
 
     uint64_t l, r;
 
-    if (!sf_const_eval_uint(bin->left, &l)) {
+    if (!sf_semantic_const_eval_uint(bin->left, &l)) {
         return false;
     }
 
-    if (!sf_const_eval_uint(bin->right, &r)) {
+    if (!sf_semantic_const_eval_uint(bin->right, &r)) {
         return false;
     }
 
@@ -545,7 +546,7 @@ static bool check_signed_overflow(
 ) {
     int64_t value;
 
-    if (!sf_const_eval_int(node, &value)) {
+    if (!sf_semantic_const_eval_int(node, &value)) {
         return true;
     }
 
@@ -571,7 +572,7 @@ static bool check_unsigned_overflow(
 ) {
     uint64_t value;
 
-    if (!sf_const_eval_uint(node, &value)) {
+    if (!sf_semantic_const_eval_uint(node, &value)) {
         if (node->type != SF_AST_NODE_TYPE_BINARY) {
             return true;
         }
@@ -584,8 +585,8 @@ static bool check_unsigned_overflow(
 
         uint64_t l, r;
 
-        if (sf_const_eval_uint(bin->left, &l) && sf_const_eval_uint(bin->right, &r) &&
-            l < r) {
+        if (sf_semantic_const_eval_uint(bin->left, &l) &&
+            sf_semantic_const_eval_uint(bin->right, &r) && l < r) {
             sf_log(
                 "Constant Expression Underflow",
                 "The constant expression '%llu - %llu' underflows for an "
