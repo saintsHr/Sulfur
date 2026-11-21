@@ -223,8 +223,8 @@ static sf_ast_node *parse_primary(sf_parser *p) {
 
     const sf_token *token = sf_parser_peek(p);
 
-    if (token->type == SF_TOKEN_TYPE_INTEGER || token->type == SF_TOKEN_TYPE_KW_TRUE ||
-        token->type == SF_TOKEN_TYPE_KW_FALSE) {
+    if (token->type == SF_TOKEN_TYPE_INTEGER || token->type == SF_TOKEN_TYPE_CHAR ||
+        token->type == SF_TOKEN_TYPE_KW_TRUE || token->type == SF_TOKEN_TYPE_KW_FALSE) {
         sf_parser_advance(p);
 
         return (sf_ast_node *)sf_new_literal_node(

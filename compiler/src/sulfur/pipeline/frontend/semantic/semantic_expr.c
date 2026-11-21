@@ -535,6 +535,11 @@ static bool analyze_literal(
         return true;
     }
 
+    if (lit->token_type == SF_TOKEN_TYPE_CHAR) {
+        lit->base.resolved = SF_TYPE_KIND_U8;
+        return true;
+    }
+
     if (lit->token_type != SF_TOKEN_TYPE_INTEGER) {
         return true;
     }

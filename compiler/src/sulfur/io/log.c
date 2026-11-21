@@ -34,6 +34,7 @@ static void format_message(char *buf, size_t size, const char *fmt, va_list *arg
 static const char *find_line(const char *content, size_t target_line, size_t *out_len);
 
 static void print_source_snippet(sf_span span, const char *content, const char *msg);
+static size_t utf8_display_width(const char *str, size_t len);
 static void print_highlighted_line(
     const char *line_num, const char *line, size_t line_len, size_t col_start,
     size_t col_end
@@ -192,29 +193,68 @@ static void print_source_snippet(sf_span span, const char *content, const char *
 
     size_t line_len = 0;
     const char *line = find_line(content, span.line, &line_len);
+
     if (line == NULL) {
         return;
     }
 
     char line_num[sizeof(size_t) * 3 + 1];
     snprintf(line_num, sizeof(line_num), "%zu", span.line);
+
     int gutter = (int)strlen(line_num);
 
-    size_t col_start = span.col > 0 ? span.col - 1 : 0;
-    size_t carets = span.len > 0 ? span.len : 1;
-    size_t col_end = col_start + carets;
+    size_t byte_start = span.col > 0 ? span.col - 1 : 0;
+    size_t byte_end = byte_start + span.len;
 
-    if (col_start > line_len) {
-        col_start = line_len;
+    if (byte_start > line_len) {
+        byte_start = line_len;
     }
-    if (col_end > line_len) {
-        col_end = line_len;
+
+    if (byte_end > line_len || byte_end < byte_start) {
+        byte_end = line_len;
+    }
+
+    size_t visual_start = utf8_display_width(line, byte_start);
+    size_t visual_len = utf8_display_width(line + byte_start, byte_end - byte_start);
+
+    if (visual_len == 0) {
+        visual_len = 1;
     }
 
     printf(SF_LOG_COLOR_BRIGHT_BLUE "%*s| \n" SF_LOG_COLOR_RESET, gutter + 1, "");
-    print_highlighted_line(line_num, line, line_len, col_start, col_end);
-    print_underline(gutter, line, line_len, span.col, carets, msg);
+
+    print_highlighted_line(line_num, line, line_len, byte_start, byte_end);
+
+    print_underline(gutter, line, line_len, visual_start + 1, visual_len, msg);
+
     printf(SF_LOG_COLOR_BRIGHT_BLUE "%*s |\n" SF_LOG_COLOR_RESET, gutter, "");
+}
+
+static size_t utf8_display_width(const char *str, size_t len) {
+    size_t width = 0;
+
+    for (size_t i = 0; i < len;) {
+        unsigned char c = (unsigned char)str[i];
+
+        if (c < 0x80) {
+            width++;
+            i++;
+        } else if ((c & 0xE0) == 0xC0 && i + 1 < len) {
+            width++;
+            i += 2;
+        } else if ((c & 0xF0) == 0xE0 && i + 2 < len) {
+            width++;
+            i += 3;
+        } else if ((c & 0xF8) == 0xF0 && i + 3 < len) {
+            width++;
+            i += 4;
+        } else {
+            width++;
+            i++;
+        }
+    }
+
+    return width;
 }
 
 static void print_highlighted_line(
