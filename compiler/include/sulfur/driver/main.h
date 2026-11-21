@@ -5,7 +5,7 @@
 
 #include "sulfur/module/module.h"
 #include "sulfur/pipeline/frontend/ast/ast.h"
-#include "sulfur/pipeline/frontend/lexer/lexer.h"
+#include "sulfur/pipeline/frontend/lexer/token.h"
 #include "sulfur/pipeline/midend/ir/ir.h"
 #include "sulfur/shared/arena.h"
 

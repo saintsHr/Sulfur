@@ -77,14 +77,14 @@ static bool compilation_run(
 
     sf_arena_init(&compilation->arena);
 
-    compilation->preprocessed = sf_preprocess(
+    compilation->preprocessed = sf_preprocessor_run(
         compilation->input_source, compilation->input_size, options->file_input
     );
 
     compilation->tokens = sf_lexer_run(compilation->preprocessed, options->file_input);
 
     compilation->ast =
-        sf_parse(&compilation->arena, compilation->tokens, options->file_input);
+        sf_parser_run(&compilation->arena, compilation->tokens, options->file_input);
 
     sf_module_resolve(
         compilation->ast->imports, compilation->ast->import_count, options->file_input,
@@ -92,7 +92,7 @@ static bool compilation_run(
         &compilation->arena
     );
 
-    sf_analyze(
+    sf_semantic_run(
         &compilation->arena, compilation->ast, options->file_input, options,
         &compilation->modules
     );

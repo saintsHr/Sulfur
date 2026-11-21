@@ -1,8 +1,14 @@
 #pragma once
 
-#include "sulfur/pipeline/frontend/ast/ast.h"
+#include "stddef.h"
 
-typedef struct sf_var_symbol {
+#include "sulfur/shared/attribute.h"
+#include "sulfur/shared/parameter.h"
+#include "sulfur/shared/qualifier.h"
+#include "sulfur/shared/span.h"
+#include "sulfur/shared/type.h"
+
+typedef struct sf_symbol_var {
     const char *name;
     sf_type_kind type;
     bool initialized;
@@ -11,15 +17,15 @@ typedef struct sf_var_symbol {
     sf_span span;
     sf_qualifiers qualifiers;
     sf_attributes attributes;
-} sf_var_symbol;
+} sf_symbol_var;
 
-typedef struct {
-    sf_var_symbol *symbols;
+typedef struct sf_symbol_var_table {
+    sf_symbol_var *symbols;
     size_t count;
     size_t capacity;
-} sf_var_symbol_table;
+} sf_symbol_var_table;
 
-typedef struct {
+typedef struct sf_symbol_func {
     char *name;
     const char *link_name;
     sf_type_kind return_type;
@@ -31,29 +37,29 @@ typedef struct {
     sf_qualifiers qualifiers;
     sf_attributes attributes;
     bool imported;
-} sf_func_symbol;
+} sf_symbol_func;
 
-typedef struct {
-    sf_func_symbol *functions;
+typedef struct sf_symbol_func_table {
+    sf_symbol_func *functions;
     size_t count;
     size_t capacity;
     size_t next_id;
-} sf_func_symbol_table;
+} sf_symbol_func_table;
 
-void sf_var_symbol_table_init(sf_var_symbol_table *table);
-sf_var_symbol *sf_var_symbol_table_lookup(sf_var_symbol_table *table, const char *name);
-void sf_var_symbol_table_free(sf_var_symbol_table *table);
-void sf_var_symbol_table_insert(sf_var_symbol_table *table, sf_var_symbol symbol);
+void sf_symbol_var_table_init(sf_symbol_var_table *table);
+sf_symbol_var *sf_symbol_var_table_lookup(sf_symbol_var_table *table, const char *name);
+void sf_symbol_var_table_free(sf_symbol_var_table *table);
+void sf_symbol_var_table_insert(sf_symbol_var_table *table, sf_symbol_var symbol);
 
-void sf_func_symbol_table_init(sf_func_symbol_table *table);
-sf_func_symbol *sf_func_symbol_table_lookup(
-    sf_func_symbol_table *table, const char *name
+void sf_symbol_func_table_init(sf_symbol_func_table *table);
+sf_symbol_func *sf_symbol_func_table_lookup(
+    sf_symbol_func_table *table, const char *name
 );
-void sf_func_symbol_table_free(sf_func_symbol_table *table);
-bool sf_func_symbol_table_insert(
-    sf_func_symbol_table *table, sf_func_symbol func, const char *filename
+void sf_symbol_func_table_free(sf_symbol_func_table *table);
+bool sf_symbol_func_table_insert(
+    sf_symbol_func_table *table, sf_symbol_func func, const char *filename
 );
 
-const char *sf_func_symbol_table_find_closest(
-    const sf_func_symbol_table *table, const char *name
+const char *sf_symbol_func_table_find_closest(
+    const sf_symbol_func_table *table, const char *name
 );

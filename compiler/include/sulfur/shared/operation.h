@@ -32,5 +32,8 @@ typedef enum sf_operation_type {
 } sf_operation_type;
 
 const char *sf_operation_name(sf_operation_type op);
-bool sf_operation_is_increment_or_decrement(sf_operation_type op);
 sf_ir_opcode sf_operation_to_opcode(sf_operation_type type);
+bool sf_operation_is_increment_or_decrement(sf_operation_type op);
+bool sf_operation_is_logical(sf_operation_type op);
+bool sf_operation_is_shift(sf_operation_type op);
+bool sf_operation_is_relational(sf_operation_type op);

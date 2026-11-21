@@ -66,7 +66,7 @@ bool sf_namespace_format(
     return true;
 }
 
-const sf_func_symbol *sf_semantic_resolve_func(sf_semantic *s, const sf_path *path) {
+const sf_symbol_func *sf_semantic_resolve_func(sf_semantic *s, const sf_path *path) {
     char buf[SF_NS_QNAME_MAX];
     size_t k = path->is_global ? 0 : s->ns.depth;
 
@@ -74,7 +74,7 @@ const sf_func_symbol *sf_semantic_resolve_func(sf_semantic *s, const sf_path *pa
         if (sf_namespace_format(
                 buf, sizeof buf, &s->ns, k, path->segments, path->segment_count
             )) {
-            const sf_func_symbol *sym = sf_func_symbol_table_lookup(s->funcs, buf);
+            const sf_symbol_func *sym = sf_symbol_func_table_lookup(s->funcs, buf);
 
             if (sym != NULL) {
                 return sym;
