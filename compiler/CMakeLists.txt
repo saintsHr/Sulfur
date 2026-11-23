@@ -34,6 +34,7 @@ set(SOURCES
 	src/sulfur/pipeline/frontend/semantic/mangle.c
 	src/sulfur/pipeline/midend/ir/ir.c
 	src/sulfur/pipeline/midend/optimization/optimization.c
+	src/sulfur/pipeline/midend/optimization/passes/constant_folding.c
 	src/sulfur/pipeline/backend/codegen/codegen.c
 	src/sulfur/pipeline/backend/codegen/stack.c
 	src/sulfur/module/module.c

@@ -101,8 +101,8 @@ static bool analyze_binary(
         return false;
     }
 
-    sf_type_kind ltype = bin->left->resolved;
-    sf_type_kind rtype = bin->right->resolved;
+    sf_type_kind ltype = bin->left->resolved->kind;
+    sf_type_kind rtype = bin->right->resolved->kind;
 
     if (ltype == SF_TYPE_KIND_UNRESOLVED || rtype == SF_TYPE_KIND_UNRESOLVED) {
         return false;
@@ -142,7 +142,7 @@ static bool analyze_binary_operands(
         sf_type_kind left_expected = operand_expected;
 
         if (bin->right->resolved != SF_TYPE_KIND_UNRESOLVED) {
-            left_expected = bin->right->resolved;
+            left_expected = bin->right->resolved->kind;
         }
 
         return sf_semantic_run_expr(s, bin->left, left_expected);
@@ -155,7 +155,7 @@ static bool analyze_binary_operands(
     sf_type_kind right_expected = operand_expected;
 
     if (!is_shift && bin->left->resolved != SF_TYPE_KIND_UNRESOLVED) {
-        right_expected = bin->left->resolved;
+        right_expected = bin->left->resolved->kind;
     }
 
     return sf_semantic_run_expr(s, bin->right, right_expected);
@@ -175,7 +175,7 @@ static bool analyze_logical(
         return false;
     }
 
-    bin->base.resolved = SF_TYPE_KIND_BOOL;
+    bin->base.resolved = sf_type_primitive(SF_TYPE_KIND_BOOL);
 
     sf_semantic_const_warn(
         s, &bin->base, "This logical expression always evaluates to '%s'."
@@ -185,7 +185,7 @@ static bool analyze_logical(
 }
 
 static bool analyze_shift(sf_semantic *s, sf_ast_node_binary *bin, sf_type_kind ltype) {
-    bin->base.resolved = ltype;
+    bin->base.resolved = sf_type_primitive(ltype);
 
     int64_t width = sf_type_kind_width_bits(ltype);
     int64_t shift_amount;
@@ -235,7 +235,7 @@ static bool analyze_relational(
         return false;
     }
 
-    bin->base.resolved = SF_TYPE_KIND_BOOL;
+    bin->base.resolved = sf_type_primitive(SF_TYPE_KIND_BOOL);
 
     sf_semantic_const_warn(s, &bin->base, "This comparison always evaluates to '%s'.");
 
@@ -267,11 +267,11 @@ static bool analyze_arithmetic(
         return false;
     }
 
-    bin->base.resolved = sf_type_kind_promote(ltype, rtype);
+    bin->base.resolved = sf_type_primitive(sf_type_kind_promote(ltype, rtype));
 
     if (bin->op == SF_OPERATION_TYPE_DIV &&
         sf_semantic_const_is_zero(
-            bin->right, sf_type_kind_is_signed(bin->base.resolved)
+            bin->right, sf_type_kind_is_signed(bin->base.resolved->kind)
         )) {
         sf_log(
             "Division by Zero", "Constant expression divides by zero.",
@@ -282,7 +282,9 @@ static bool analyze_arithmetic(
         return false;
     }
 
-    return sf_semantic_const_check_overflow(&bin->base, bin->base.resolved, s->filename);
+    return sf_semantic_const_check_overflow(
+        &bin->base, bin->base.resolved->kind, s->filename
+    );
 }
 
 static bool analyze_unary(sf_semantic *s, sf_ast_node_unary *un, sf_type_kind expected) {
@@ -326,7 +328,7 @@ static bool analyze_negate(sf_semantic *s, sf_ast_node_unary *un, sf_type_kind e
         return false;
     }
 
-    sf_type_kind child_type = operand->resolved;
+    sf_type_kind child_type = operand->resolved->kind;
 
     if (child_type == SF_TYPE_KIND_UNRESOLVED) {
         return false;
@@ -343,7 +345,7 @@ static bool analyze_negate(sf_semantic *s, sf_ast_node_unary *un, sf_type_kind e
         return false;
     }
 
-    un->base.resolved = child_type;
+    un->base.resolved = sf_type_primitive(child_type);
 
     return true;
 }
@@ -387,8 +389,8 @@ static bool analyze_negated_literal(
         return false;
     }
 
-    lit->base.resolved = target;
-    un->base.resolved = target;
+    lit->base.resolved = sf_type_primitive(target);
+    un->base.resolved = sf_type_primitive(target);
 
     return true;
 }
@@ -400,7 +402,7 @@ static bool analyze_bitwise_not(
         return false;
     }
 
-    sf_type_kind child_type = un->operand->resolved;
+    sf_type_kind child_type = un->operand->resolved->kind;
 
     if (!sf_type_kind_is_integer(child_type)) {
         sf_log(
@@ -413,7 +415,7 @@ static bool analyze_bitwise_not(
         return false;
     }
 
-    un->base.resolved = child_type;
+    un->base.resolved = sf_type_primitive(child_type);
 
     return true;
 }
@@ -435,7 +437,7 @@ static bool analyze_increment(
         return false;
     }
 
-    sf_type_kind child_type = un->operand->resolved;
+    sf_type_kind child_type = un->operand->resolved->kind;
 
     if (!sf_type_kind_is_integer(child_type)) {
         sf_log(
@@ -461,7 +463,7 @@ static bool analyze_increment(
         return false;
     }
 
-    un->base.resolved = child_type;
+    un->base.resolved = sf_type_primitive(child_type);
 
     return true;
 }
@@ -471,12 +473,12 @@ static bool analyze_logical_not(sf_semantic *s, sf_ast_node_unary *un) {
         return false;
     }
 
-    if (un->operand->resolved != SF_TYPE_KIND_BOOL) {
+    if (un->operand->resolved->kind != SF_TYPE_KIND_BOOL) {
         sf_log(
             "Invalid Operand", "Operator '!' requires a boolean operand, got '%s'.",
             "Use a boolean operand instead.", s->filename,
             SF_LOG_CODE_SEMANTIC_INVALID_OPERAND, un->base.span, SF_LOG_SEVERITY_ERROR,
-            sf_type_kind_name(un->operand->resolved)
+            sf_type_kind_name(un->operand->resolved->kind)
         );
 
         return false;
@@ -484,7 +486,7 @@ static bool analyze_logical_not(sf_semantic *s, sf_ast_node_unary *un) {
 
     sf_semantic_const_warn(s, &un->base, "This expression always evaluates to '%s'.");
 
-    un->base.resolved = SF_TYPE_KIND_BOOL;
+    un->base.resolved = sf_type_primitive(SF_TYPE_KIND_BOOL);
 
     return true;
 }
@@ -494,7 +496,7 @@ static bool analyze_cast(sf_semantic *s, sf_ast_node_cast *cast) {
         return false;
     }
 
-    sf_type_kind from_type = cast->operand->resolved;
+    sf_type_kind from_type = cast->operand->resolved->kind;
     sf_type_kind to_type = cast->target_type;
 
     if (from_type == SF_TYPE_KIND_UNRESOLVED) {
@@ -521,7 +523,7 @@ static bool analyze_cast(sf_semantic *s, sf_ast_node_cast *cast) {
         return false;
     }
 
-    cast->base.resolved = to_type;
+    cast->base.resolved = sf_type_primitive(to_type);
 
     return true;
 }
@@ -531,12 +533,12 @@ static bool analyze_literal(
 ) {
     if (lit->token_type == SF_TOKEN_TYPE_KW_TRUE ||
         lit->token_type == SF_TOKEN_TYPE_KW_FALSE) {
-        lit->base.resolved = SF_TYPE_KIND_BOOL;
+        lit->base.resolved = sf_type_primitive(SF_TYPE_KIND_BOOL);
         return true;
     }
 
     if (lit->token_type == SF_TOKEN_TYPE_CHAR) {
-        lit->base.resolved = SF_TYPE_KIND_U8;
+        lit->base.resolved = sf_type_primitive(SF_TYPE_KIND_U8);
         return true;
     }
 
@@ -575,7 +577,7 @@ static bool analyze_literal(
         return false;
     }
 
-    lit->base.resolved = target;
+    lit->base.resolved = sf_type_primitive(target);
 
     return true;
 }
@@ -604,7 +606,7 @@ static bool analyze_identifier(sf_semantic *s, sf_ast_node_identifier *id) {
         return false;
     }
 
-    id->base.resolved = sym->type;
+    id->base.resolved = sf_type_primitive(sym->type);
     id->depth = sym->depth;
     id->id = sym->id;
     id->sym = sym;
@@ -679,17 +681,18 @@ static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
             continue;
         }
 
-        if (has_param && !check_argument_type(
-                             arg->resolved, expected, sym->name, i, arg->span, s->filename
-                         )) {
+        if (has_param &&
+            !check_argument_type(
+                arg->resolved->kind, expected, sym->name, i, arg->span, s->filename
+            )) {
             ok = false;
         } else if (
             has_param && arg->resolved != SF_TYPE_KIND_UNRESOLVED &&
-            arg->resolved != expected
+            arg->resolved->kind != expected
         ) {
             sf_ast_node_cast *cast = sf_new_cast_node(s->arena, arg, expected, arg->span);
 
-            cast->base.resolved = expected;
+            cast->base.resolved = sf_type_primitive(expected);
             call->arguments[i] = (sf_ast_node *)cast;
         }
     }
@@ -707,7 +710,7 @@ static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
     }
 
     if (ok == true) {
-        call->base.resolved = sym->return_type;
+        call->base.resolved = sf_type_primitive(sym->return_type);
         call->link_name = sym->link_name;
     }
 

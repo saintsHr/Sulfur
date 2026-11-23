@@ -409,7 +409,7 @@ static bool eval_bool_binary(sf_ast_node_binary *bin, bool *out_value) {
 }
 
 static bool eval_relational(sf_ast_node_binary *bin, bool *out_value) {
-    sf_type_kind type = bin->left->resolved;
+    sf_type_kind type = bin->left->resolved->kind;
 
     if (type == SF_TYPE_KIND_BOOL) {
         if (bin->op != SF_OPERATION_TYPE_RELATIONAL_EQUAL &&

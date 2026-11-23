@@ -1,7 +1,20 @@
 #include "sulfur/shared/type.h"
+#include "sulfur/shared/arena.h"
+#include <string.h>
 
-#include "sulfur/pipeline/midend/ir/ir.h"
-#include "sulfur/shared/operation.h"
+static const sf_type k_types[] = {
+    [SF_TYPE_KIND_UNRESOLVED] = {.kind = SF_TYPE_KIND_UNRESOLVED, .pointee = NULL},
+    [SF_TYPE_KIND_I8] = {.kind = SF_TYPE_KIND_I8,         .pointee = NULL},
+    [SF_TYPE_KIND_I16] = {.kind = SF_TYPE_KIND_I16,        .pointee = NULL},
+    [SF_TYPE_KIND_I32] = {.kind = SF_TYPE_KIND_I32,        .pointee = NULL},
+    [SF_TYPE_KIND_I64] = {.kind = SF_TYPE_KIND_I64,        .pointee = NULL},
+    [SF_TYPE_KIND_U8] = {.kind = SF_TYPE_KIND_U8,         .pointee = NULL},
+    [SF_TYPE_KIND_U16] = {.kind = SF_TYPE_KIND_U16,        .pointee = NULL},
+    [SF_TYPE_KIND_U32] = {.kind = SF_TYPE_KIND_U32,        .pointee = NULL},
+    [SF_TYPE_KIND_U64] = {.kind = SF_TYPE_KIND_U64,        .pointee = NULL},
+    [SF_TYPE_KIND_BOOL] = {.kind = SF_TYPE_KIND_BOOL,       .pointee = NULL},
+    [SF_TYPE_KIND_VOID] = {.kind = SF_TYPE_KIND_VOID,       .pointee = NULL},
+};
 
 bool sf_type_kind_unsigned_literal_fits(sf_type_kind type, uint64_t value) {
     switch (type) {
@@ -157,6 +170,11 @@ bool sf_type_kind_is_castable(sf_type_kind from, sf_type_kind to) {
         castable = false;
     }
 
+    if ((from == SF_TYPE_KIND_POINTER && to != SF_TYPE_KIND_POINTER) ||
+        (to == SF_TYPE_KIND_POINTER && from != SF_TYPE_KIND_POINTER)) {
+        castable = false;
+    }
+
     return castable;
 }
 
@@ -164,21 +182,29 @@ uint8_t sf_type_kind_width_bits(sf_type_kind type) {
     switch (type) {
         case SF_TYPE_KIND_I8:
         case SF_TYPE_KIND_U8:
-        case SF_TYPE_KIND_BOOL:
+        case SF_TYPE_KIND_BOOL: {
             return 8;
+        }
         case SF_TYPE_KIND_I16:
-        case SF_TYPE_KIND_U16:
+        case SF_TYPE_KIND_U16: {
             return 16;
+        }
         case SF_TYPE_KIND_I32:
-        case SF_TYPE_KIND_U32:
+        case SF_TYPE_KIND_U32: {
             return 32;
+        }
         case SF_TYPE_KIND_I64:
         case SF_TYPE_KIND_U64:
+        case SF_TYPE_KIND_POINTER: {
             return 64;
-        case SF_TYPE_KIND_VOID:
+        }
+        case SF_TYPE_KIND_VOID: {
             return 0;
-        default:
+        }
+
+        default: {
             return 64;
+        }
     }
 }
 
@@ -188,4 +214,69 @@ uint8_t sf_type_kind_width_bytes(sf_type_kind type) {
 
 sf_type_kind sf_type_kind_promote(sf_type_kind a, sf_type_kind b) {
     return sf_type_kind_width_bits(a) >= sf_type_kind_width_bits(b) ? a : b;
+}
+
+const sf_type *sf_type_primitive(sf_type_kind kind) {
+    if (kind == SF_TYPE_KIND_POINTER) {
+        return NULL;
+    }
+
+    return &k_types[kind];
+}
+
+const sf_type *sf_type_pointer_to(sf_arena *arena, const sf_type *pointee) {
+    sf_type *type = sf_arena_alloc(arena, sizeof(sf_type));
+
+    if (type == NULL) {
+        return NULL;
+    }
+
+    type->kind = SF_TYPE_KIND_POINTER;
+    type->pointee = pointee;
+
+    return type;
+}
+
+bool sf_type_equals(const sf_type *a, const sf_type *b) {
+    if (a == b) {
+        return true;
+    }
+
+    if (a == NULL || b == NULL) {
+        return false;
+    }
+
+    if (a->kind != b->kind) {
+        return false;
+    }
+
+    if (a->kind == SF_TYPE_KIND_POINTER && b->kind == SF_TYPE_KIND_POINTER) {
+        return sf_type_equals(a->pointee, b->pointee);
+    }
+
+    return true;
+}
+
+const char *sf_type_name(sf_arena *arena, const sf_type *type) {
+    size_t stars = 0;
+
+    while (type != NULL && type->kind == SF_TYPE_KIND_POINTER) {
+        stars++;
+        type = type->pointee;
+    }
+
+    const char *base = type != NULL ? sf_type_kind_name(type->kind) : "?";
+    size_t base_len = strlen(base);
+
+    char *name = sf_arena_alloc(arena, base_len + stars + 1);
+
+    if (name == NULL) {
+        return NULL;
+    }
+
+    memcpy(name, base, base_len);
+    memset(name + base_len, '*', stars);
+    name[base_len + stars] = '\0';
+
+    return name;
 }

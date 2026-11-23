@@ -658,7 +658,7 @@ static void *new_node(sf_arena *arena, size_t size, sf_ast_node_type type, sf_sp
     memset(node, 0, size);
 
     node->type = type;
-    node->resolved = SF_TYPE_KIND_UNRESOLVED;
+    node->resolved = sf_type_primitive(SF_TYPE_KIND_UNRESOLVED);
     node->span = span;
 
     return node;

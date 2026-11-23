@@ -314,7 +314,8 @@ static void analyze_var_decl(sf_semantic *semantic, sf_ast_node_var_decl *var) {
         }
 
         if (!check_assignment_type(
-                var->value->resolved, var->var_type, var->base.span, semantic->filename
+                var->value->resolved->kind, var->var_type, var->base.span,
+                semantic->filename
             )) {
             return;
         }
@@ -350,7 +351,7 @@ static void analyze_var_assign(sf_semantic *semantic, sf_ast_node_var_assign *as
     }
 
     if (!check_assignment_type(
-            asg->value->resolved, sym->type, asg->base.span, semantic->filename
+            asg->value->resolved->kind, sym->type, asg->base.span, semantic->filename
         )) {
         return;
     }
@@ -365,7 +366,7 @@ static void analyze_var_assign(sf_semantic *semantic, sf_ast_node_var_assign *as
     }
 
     sym->initialized = true;
-    asg->base.resolved = sym->type;
+    asg->base.resolved = sf_type_primitive(sym->type);
 }
 
 static void analyze_block(sf_semantic *semantic, sf_ast_node_block *block) {
@@ -383,13 +384,13 @@ static void analyze_if(sf_semantic *semantic, sf_ast_node_if *if_stmt) {
         return;
     }
 
-    if (if_stmt->condition->resolved != SF_TYPE_KIND_BOOL) {
+    if (if_stmt->condition->resolved->kind != SF_TYPE_KIND_BOOL) {
         sf_log(
             "Type Mismatch",
             "'if' condition should always be a boolean expression, found '%s'.",
             "Check for typos and missing operands.", semantic->filename,
             SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, if_stmt->condition->span,
-            SF_LOG_SEVERITY_ERROR, sf_type_kind_name(if_stmt->condition->resolved)
+            SF_LOG_SEVERITY_ERROR, sf_type_kind_name(if_stmt->condition->resolved->kind)
         );
 
         return;
@@ -430,14 +431,15 @@ static void analyze_while(sf_semantic *semantic, sf_ast_node_while *while_stmt) 
         return;
     }
 
-    if (while_stmt->condition->resolved != SF_TYPE_KIND_BOOL) {
+    if (while_stmt->condition->resolved->kind != SF_TYPE_KIND_BOOL) {
         sf_log(
             "Type Mismatch",
             "While condition should always be a boolean expression, found "
             "'%s'.",
             "Check for typos and missing operands.", semantic->filename,
             SF_LOG_CODE_SEMANTIC_TYPE_MISMATCH, while_stmt->condition->span,
-            SF_LOG_SEVERITY_ERROR, sf_type_kind_name(while_stmt->condition->resolved)
+            SF_LOG_SEVERITY_ERROR,
+            sf_type_kind_name(while_stmt->condition->resolved->kind)
         );
 
         return;
@@ -615,7 +617,8 @@ static void analyze_return(sf_semantic *semantic, sf_ast_node_return *ret) {
             "Remove the returned value, or give the function a non-void "
             "return type.",
             semantic->filename, SF_LOG_CODE_SEMANTIC_VOID_RETURN_VALUE, ret->base.span,
-            SF_LOG_SEVERITY_ERROR, func->name, sf_type_kind_name(ret->value->resolved)
+            SF_LOG_SEVERITY_ERROR, func->name,
+            sf_type_kind_name(ret->value->resolved->kind)
         );
 
         return;
@@ -626,7 +629,7 @@ static void analyze_return(sf_semantic *semantic, sf_ast_node_return *ret) {
     }
 
     check_return_type(
-        ret->value->resolved, func->return_type, func->name, ret->base.span,
+        ret->value->resolved->kind, func->return_type, func->name, ret->base.span,
         semantic->filename
     );
 }

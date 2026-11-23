@@ -320,7 +320,7 @@ static void generate_var_assign(
 
     sf_ir_operand dst = {
         .type = SF_IR_OPERAND_TYPE_VARIABLE,
-        .value_type = as->base.resolved,
+        .value_type = as->base.resolved->kind,
         .variable_name = sf_mangle_variable(arena, name, as->id),
     };
 
@@ -504,7 +504,8 @@ static sf_ir_operand generate_binary(
 
     sf_ir_operand left = generate_expression(arena, context, ex->left);
     sf_ir_operand right = generate_expression(arena, context, ex->right);
-    sf_ir_operand dst = hint != NULL ? *hint : new_temporary(context, ex->base.resolved);
+    sf_ir_operand dst =
+        hint != NULL ? *hint : new_temporary(context, ex->base.resolved->kind);
 
     emit(arena, context, opcode, dst, left, right);
 
@@ -520,7 +521,8 @@ static sf_ir_operand generate_unary(
     sf_ir_opcode opcode = sf_operation_to_opcode(un->op);
 
     sf_ir_operand src = generate_expression(arena, context, un->operand);
-    sf_ir_operand dst = hint != NULL ? *hint : new_temporary(context, un->base.resolved);
+    sf_ir_operand dst =
+        hint != NULL ? *hint : new_temporary(context, un->base.resolved->kind);
 
     emit(arena, context, opcode, dst, src, k_no_operand);
 
@@ -531,8 +533,8 @@ static sf_ir_operand generate_increment(
     sf_arena *arena, sf_ir_context *context, sf_ast_node_unary *un
 ) {
     sf_ir_operand variable = generate_expression(arena, context, un->operand);
-    sf_ir_operand one = new_immediate(un->base.resolved, "1");
-    sf_ir_operand updated = new_temporary(context, un->base.resolved);
+    sf_ir_operand one = new_immediate(un->base.resolved->kind, "1");
+    sf_ir_operand updated = new_temporary(context, un->base.resolved->kind);
 
     bool is_increment = un->op == SF_OPERATION_TYPE_PREFIX_INCREMENT ||
                         un->op == SF_OPERATION_TYPE_POSTFIX_INCREMENT;
@@ -544,7 +546,7 @@ static sf_ir_operand generate_increment(
     sf_ir_operand result = updated;
 
     if (is_postfix) {
-        result = new_temporary(context, un->base.resolved);
+        result = new_temporary(context, un->base.resolved->kind);
         emit(arena, context, SF_IR_OPCODE_ASSIGN, result, variable, k_no_operand);
     }
 
@@ -559,7 +561,7 @@ static sf_ir_operand generate_cast(
 ) {
     sf_ir_operand src = generate_expression(arena, context, cast->operand);
     sf_ir_operand dst =
-        hint != NULL ? *hint : new_temporary(context, cast->base.resolved);
+        hint != NULL ? *hint : new_temporary(context, cast->base.resolved->kind);
 
     emit(arena, context, SF_IR_OPCODE_CAST, dst, src, k_no_operand);
 
@@ -575,7 +577,7 @@ static sf_ir_operand generate_literal(sf_ast_node_literal *lt) {
         value = "0";
     }
 
-    return new_immediate(lt->base.resolved, value);
+    return new_immediate(lt->base.resolved->kind, value);
 }
 
 static sf_ir_operand generate_identifier(sf_arena *arena, sf_ast_node_identifier *id) {
@@ -584,7 +586,7 @@ static sf_ir_operand generate_identifier(sf_arena *arena, sf_ast_node_identifier
 
     sf_ir_operand op = {0};
     op.type = SF_IR_OPERAND_TYPE_VARIABLE;
-    op.value_type = id->base.resolved;
+    op.value_type = id->base.resolved->kind;
     op.variable_name = sf_mangle_variable(arena, name, id->id);
 
     return op;
@@ -792,7 +794,7 @@ static sf_ir_operand generate_call(
     sf_ir_operand func_operand = {
         .type = SF_IR_OPERAND_TYPE_FUNCTION,
         .function_name = call->link_name,
-        .value_type = call->base.resolved
+        .value_type = call->base.resolved->kind
     };
 
     if (call->argument_count > 0) {
@@ -822,13 +824,13 @@ static sf_ir_operand generate_call(
 
     sf_ir_operand dst_operand;
 
-    if (call->base.resolved == SF_TYPE_KIND_VOID) {
+    if (call->base.resolved->kind == SF_TYPE_KIND_VOID) {
         dst_operand = k_no_operand;
     } else {
         if (hint != NULL) {
             dst_operand = *hint;
         } else {
-            dst_operand = new_temporary(context, call->base.resolved);
+            dst_operand = new_temporary(context, call->base.resolved->kind);
         }
     }
 

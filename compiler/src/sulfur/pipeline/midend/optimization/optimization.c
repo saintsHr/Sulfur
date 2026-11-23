@@ -12,8 +12,7 @@ static const bool k_opt_levels[SF_OPTIMIZATION_LEVEL_COUNT][SF_OPTIMIZATION_COUN
 };
 
 static const sf_optimization_pass k_opt_passes[SF_OPTIMIZATION_COUNT] = {
-    [SF_OPTIMIZATION_CONSTANT_FOLDING] =
-        sf_optimization_pass_constant_folding,
+    [SF_OPTIMIZATION_CONSTANT_FOLDING] = sf_optimization_pass_constant_folding,
 };
 
 static bool sf_optimization_is_enabled(

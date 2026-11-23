@@ -36,7 +36,7 @@ typedef enum sf_ast_node_type {
 typedef struct sf_ast_node {
     sf_ast_node_type type;
     sf_span span;
-    sf_type_kind resolved;
+    const sf_type *resolved;
 } sf_ast_node;
 
 typedef struct sf_ast_node_literal {
