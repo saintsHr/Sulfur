@@ -196,7 +196,7 @@ static void format_operand(
 ) {
     dst_str[0] = '\0';
 
-    uint8_t size = sf_type_kind_width_bytes(op.value_type);
+    uint8_t size = sf_type_kind_width_bytes(op.value_type->kind);
     const char *prefix = prefix_to_string(prefix_from_size(size));
 
     switch (op.type) {
@@ -345,7 +345,7 @@ static void emit_binary(
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type);
+    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type->kind);
 
     load_large_immediate(
         buff, len, capacity, op.operand3, size, src2_fmt, sizeof(src2_fmt)
@@ -376,11 +376,11 @@ static void emit_mult(
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type);
+    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type->kind);
 
     if (size == 1) {
         const char *mul_instr =
-            sf_type_kind_is_signed(op.operand1.value_type) ? "imul" : "mul";
+            sf_type_kind_is_signed(op.operand1.value_type->kind) ? "imul" : "mul";
 
         emitf(buff, len, capacity, "\tmov al, %s\n", src1_fmt);
 
@@ -416,8 +416,8 @@ static void emit_div(
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type);
-    bool is_signed = sf_type_kind_is_signed(op.operand1.value_type);
+    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type->kind);
+    bool is_signed = sf_type_kind_is_signed(op.operand1.value_type->kind);
     const char *div_instr = is_signed ? "idiv" : "div";
 
     const char *reg_str = register_to_string(register_from_size(size));
@@ -478,7 +478,7 @@ static void emit_neg(
         return;
     }
 
-    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type);
+    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type->kind);
     const char *reg_str = register_to_string(register_from_size(size));
 
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
@@ -500,7 +500,7 @@ static void emit_not(
         return;
     }
 
-    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type);
+    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type->kind);
     const char *reg_str = register_to_string(register_from_size(size));
 
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
@@ -528,7 +528,7 @@ static void emit_shift(
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type);
+    uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type->kind);
     const char *reg_str = register_to_string(register_from_size(size));
 
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, src1_fmt);
@@ -536,7 +536,7 @@ static void emit_shift(
     if (op.operand3.type == SF_IR_OPERAND_TYPE_IMMEDIATE) {
         emitf(buff, len, capacity, "\t%s %s, %s\n", mnemonic, reg_str, src2_fmt);
     } else {
-        uint8_t src2_size = sf_type_kind_width_bytes(op.operand3.value_type);
+        uint8_t src2_size = sf_type_kind_width_bytes(op.operand3.value_type->kind);
         const char *reg_cx = counter_register(src2_size);
 
         emitf(buff, len, capacity, "\tmov %s, %s\n", reg_cx, src2_fmt);
@@ -550,7 +550,8 @@ static void emit_rshift(
     char **buff, size_t *len, size_t *capacity, sf_ir_operation op,
     const sf_stack_map *map
 ) {
-    const char *mnemonic = sf_type_kind_is_signed(op.operand1.value_type) ? "sar" : "shr";
+    const char *mnemonic =
+        sf_type_kind_is_signed(op.operand1.value_type->kind) ? "sar" : "shr";
 
     emit_shift(buff, len, capacity, mnemonic, op, map);
 }
@@ -566,8 +567,8 @@ static void emit_convert(
     char **buff, size_t *len, size_t *capacity, sf_ir_operation op, const char *src_fmt,
     const char *dst_fmt
 ) {
-    uint8_t src_size = sf_type_kind_width_bytes(op.operand2.value_type);
-    uint8_t dst_size = sf_type_kind_width_bytes(op.operand1.value_type);
+    uint8_t src_size = sf_type_kind_width_bytes(op.operand2.value_type->kind);
+    uint8_t dst_size = sf_type_kind_width_bytes(op.operand1.value_type->kind);
 
     const char *dst_reg_str = register_to_string(register_from_size(dst_size));
 
@@ -578,7 +579,7 @@ static void emit_convert(
     }
 
     if (src_size < dst_size) {
-        bool is_signed = sf_type_kind_is_signed(op.operand2.value_type);
+        bool is_signed = sf_type_kind_is_signed(op.operand2.value_type->kind);
 
         if (is_signed && src_size == 4) {
             emitf(buff, len, capacity, "\tmovsxd %s, %s\n", dst_reg_str, src_fmt);
@@ -639,14 +640,14 @@ static void emit_relational(
     format_operand(src2_fmt, sizeof(src2_fmt), op.operand3, map);
     format_operand(dst_fmt, sizeof(dst_fmt), op.operand1, map);
 
-    uint8_t size = sf_type_kind_width_bytes(op.operand2.value_type);
+    uint8_t size = sf_type_kind_width_bytes(op.operand2.value_type->kind);
     const char *reg_str = register_to_string(register_from_size(size));
 
     load_large_immediate(
         buff, len, capacity, op.operand3, size, src2_fmt, sizeof(src2_fmt)
     );
 
-    bool is_signed = sf_type_kind_is_signed(op.operand2.value_type);
+    bool is_signed = sf_type_kind_is_signed(op.operand2.value_type->kind);
 
     const char *set_instr = NULL;
 
@@ -710,7 +711,7 @@ static void emit_jmp_cond(
 
     format_operand(cond_fmt, sizeof(cond_fmt), op.operand2, map);
 
-    uint8_t size = sf_type_kind_width_bytes(op.operand2.value_type);
+    uint8_t size = sf_type_kind_width_bytes(op.operand2.value_type->kind);
     const char *reg_str = register_to_string(register_from_size(size));
 
     emitf(buff, len, capacity, "\tmov %s, %s\n", reg_str, cond_fmt);
@@ -723,7 +724,7 @@ static void emit_return(
     const sf_stack_map *map
 ) {
     if (op.operand1.type != SF_IR_OPERAND_TYPE_NONE) {
-        uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type);
+        uint8_t size = sf_type_kind_width_bytes(op.operand1.value_type->kind);
         const char *reg = register_to_string(register_from_size(size));
 
         char fmt[FMT_SIZE];
@@ -766,7 +767,7 @@ static void emit_function(
 
         for (size_t i = 0; i < func->parameter_count; i++) {
             const char *name = func->parameters[i].name;
-            uint8_t size = sf_type_kind_width_bytes(func->parameters[i].type);
+            uint8_t size = sf_type_kind_width_bytes(func->parameters[i].type->kind);
 
             const char *prefix = prefix_to_string(prefix_from_size(size));
             sf_stack_offset_size offset = stack_offset(&map, name);
@@ -825,13 +826,13 @@ static void emit_call(
         char fmt[FMT_SIZE];
         format_operand(fmt, sizeof(fmt), param, map);
 
-        uint8_t size = sf_type_kind_width_bytes(param.value_type);
+        uint8_t size = sf_type_kind_width_bytes(param.value_type->kind);
         uint8_t reg_size = size <= 2 ? 4 : size;
         const char *reg = param_register((uint8_t)i, reg_size);
 
         if (size <= 2 && param.type != SF_IR_OPERAND_TYPE_IMMEDIATE) {
             const char *ext =
-                sf_type_kind_is_signed(param.value_type) ? "movsx" : "movzx";
+                sf_type_kind_is_signed(param.value_type->kind) ? "movsx" : "movzx";
             emitf(buff, len, capacity, "\t%s %s, %s\n", ext, reg, fmt);
         } else {
             emitf(buff, len, capacity, "\tmov %s, %s\n", reg, fmt);
@@ -848,7 +849,7 @@ static void emit_call(
         char fmt[FMT_SIZE];
         format_operand(fmt, sizeof(fmt), call.operand1, map);
 
-        uint8_t size = sf_type_kind_width_bytes(call.operand1.value_type);
+        uint8_t size = sf_type_kind_width_bytes(call.operand1.value_type->kind);
         const char *reg = register_to_string(register_from_size(size));
 
         emitf(buff, len, capacity, "\tmov %s, %s\n", fmt, reg);
@@ -1003,7 +1004,7 @@ static void emit_stack_arg(
     char fmt[FMT_SIZE];
     format_operand(fmt, sizeof(fmt), param, map);
 
-    uint8_t size = sf_type_kind_width_bytes(param.value_type);
+    uint8_t size = sf_type_kind_width_bytes(param.value_type->kind);
     bool is_imm = param.type == SF_IR_OPERAND_TYPE_IMMEDIATE;
 
     if (is_imm || size == 8) {
@@ -1011,7 +1012,8 @@ static void emit_stack_arg(
     } else if (size == 4) {
         emitf(buff, len, capacity, "\tmov eax, %s\n", fmt);
     } else {
-        const char *ext = sf_type_kind_is_signed(param.value_type) ? "movsx" : "movzx";
+        const char *ext =
+            sf_type_kind_is_signed(param.value_type->kind) ? "movsx" : "movzx";
         emitf(buff, len, capacity, "\t%s rax, %s\n", ext, fmt);
     }
 

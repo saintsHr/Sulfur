@@ -6,7 +6,7 @@
 #include <stddef.h>
 
 typedef struct sf_parameter {
-    sf_type_kind type;
+    const sf_type *type;
     const char *name;
     size_t id;
     sf_qualifiers qualifiers;

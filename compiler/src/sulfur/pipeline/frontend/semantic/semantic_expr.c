@@ -497,7 +497,7 @@ static bool analyze_cast(sf_semantic *s, sf_ast_node_cast *cast) {
     }
 
     sf_type_kind from_type = cast->operand->resolved->kind;
-    sf_type_kind to_type = cast->target_type;
+    sf_type_kind to_type = cast->target_type->kind;
 
     if (from_type == SF_TYPE_KIND_UNRESOLVED) {
         return false;
@@ -606,7 +606,7 @@ static bool analyze_identifier(sf_semantic *s, sf_ast_node_identifier *id) {
         return false;
     }
 
-    id->base.resolved = sf_type_primitive(sym->type);
+    id->base.resolved = sym->type;
     id->depth = sym->depth;
     id->id = sym->id;
     id->sym = sym;
@@ -671,7 +671,7 @@ static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
         bool has_param = i < sym->parameter_count;
 
         if (has_param) {
-            expected = sym->parameters[i].type;
+            expected = sym->parameters[i].type->kind;
         }
 
         sf_ast_node *arg = call->arguments[i];
@@ -690,7 +690,8 @@ static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
             has_param && arg->resolved != SF_TYPE_KIND_UNRESOLVED &&
             arg->resolved->kind != expected
         ) {
-            sf_ast_node_cast *cast = sf_new_cast_node(s->arena, arg, expected, arg->span);
+            sf_ast_node_cast *cast =
+                sf_new_cast_node(s->arena, arg, sf_type_primitive(expected), arg->span);
 
             cast->base.resolved = sf_type_primitive(expected);
             call->arguments[i] = (sf_ast_node *)cast;
@@ -710,7 +711,7 @@ static bool analyze_func_call(sf_semantic *s, sf_ast_node_func_call *call) {
     }
 
     if (ok == true) {
-        call->base.resolved = sf_type_primitive(sym->return_type);
+        call->base.resolved = sym->return_type;
         call->link_name = sym->link_name;
     }
 

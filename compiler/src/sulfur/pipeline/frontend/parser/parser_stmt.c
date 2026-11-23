@@ -10,6 +10,7 @@
 #include "sulfur/pipeline/frontend/ast/ast.h"
 #include "sulfur/pipeline/frontend/lexer/token.h"
 #include "sulfur/shared/string.h"
+#include "sulfur/shared/type.h"
 
 #define IMPORT_PATH_SIZE 512
 
@@ -241,7 +242,8 @@ static sf_ast_node *parse_var_decl(
     }
 
     return (sf_ast_node *)sf_new_var_decl_node(
-        p->arena, name_token->value, type, value, qualifiers, attr, name_token->span
+        p->arena, name_token->value, sf_type_primitive(type), value, qualifiers, attr,
+        name_token->span
     );
 }
 
@@ -368,8 +370,8 @@ static sf_ast_node *parse_func_decl(
     }
 
     sf_ast_node_func_decl *func = sf_new_func_decl_node(
-        p->arena, name_token->value, SF_TYPE_KIND_UNRESOLVED, qualifiers, attr,
-        fn_token->span
+        p->arena, name_token->value, sf_type_primitive(SF_TYPE_KIND_UNRESOLVED),
+        qualifiers, attr, fn_token->span
     );
 
     if (func == NULL) {
@@ -413,7 +415,7 @@ static sf_ast_node *parse_func_decl(
 
             sf_parameter param = {
                 .name = param_name,
-                .type = param_type,
+                .type = sf_type_primitive(param_type),
                 .qualifiers = param_qualifiers,
                 .id = 0
             };
@@ -434,13 +436,13 @@ static sf_ast_node *parse_func_decl(
     const sf_token *ret_token = sf_parser_peek(p);
 
     if (sf_token_is_type(*ret_token)) {
-        func->return_type = sf_token_to_type(*ret_token);
+        func->return_type = sf_type_primitive(sf_token_to_type(*ret_token));
         sf_parser_advance(p);
     } else if (
         ret_token->type == SF_TOKEN_TYPE_LBRACE ||
         ret_token->type == SF_TOKEN_TYPE_SEMICOLON
     ) {
-        func->return_type = SF_TYPE_KIND_VOID;
+        func->return_type = sf_type_primitive(SF_TYPE_KIND_VOID);
     } else {
         sf_parser_report_unexpected(
             p, ret_token, "'{', ';', or type name", "Follow the language syntax."

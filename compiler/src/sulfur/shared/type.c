@@ -2,6 +2,8 @@
 #include "sulfur/shared/arena.h"
 #include <string.h>
 
+#define SF_TYPE_NAME_INITIAL_BUFFER_SIZE 64
+
 static const sf_type k_types[] = {
     [SF_TYPE_KIND_UNRESOLVED] = {.kind = SF_TYPE_KIND_UNRESOLVED, .pointee = NULL},
     [SF_TYPE_KIND_I8] = {.kind = SF_TYPE_KIND_I8,         .pointee = NULL},
@@ -257,7 +259,9 @@ bool sf_type_equals(const sf_type *a, const sf_type *b) {
     return true;
 }
 
-const char *sf_type_name(sf_arena *arena, const sf_type *type) {
+const char *sf_type_name(const sf_type *type) {
+    static char buffer[SF_TYPE_NAME_INITIAL_BUFFER_SIZE];
+
     size_t stars = 0;
 
     while (type != NULL && type->kind == SF_TYPE_KIND_POINTER) {
@@ -268,15 +272,13 @@ const char *sf_type_name(sf_arena *arena, const sf_type *type) {
     const char *base = type != NULL ? sf_type_kind_name(type->kind) : "?";
     size_t base_len = strlen(base);
 
-    char *name = sf_arena_alloc(arena, base_len + stars + 1);
-
-    if (name == NULL) {
-        return NULL;
+    if (base_len + stars >= sizeof(buffer)) {
+        stars = sizeof(buffer) - 1 - base_len;
     }
 
-    memcpy(name, base, base_len);
-    memset(name + base_len, '*', stars);
-    name[base_len + stars] = '\0';
+    memcpy(buffer, base, base_len);
+    memset(buffer + base_len, '*', stars);
+    buffer[base_len + stars] = '\0';
 
-    return name;
+    return buffer;
 }

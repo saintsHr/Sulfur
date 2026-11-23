@@ -225,7 +225,7 @@ sf_ast_node_unary *sf_new_unary_node(
 }
 
 sf_ast_node_cast *sf_new_cast_node(
-    sf_arena *arena, sf_ast_node *operand, sf_type_kind target_type, sf_span span
+    sf_arena *arena, sf_ast_node *operand, const sf_type *target_type, sf_span span
 ) {
     sf_ast_node_cast *node =
         new_node(arena, sizeof(sf_ast_node_cast), SF_AST_NODE_TYPE_CAST, span);
@@ -241,7 +241,7 @@ sf_ast_node_cast *sf_new_cast_node(
 }
 
 sf_ast_node_var_decl *sf_new_var_decl_node(
-    sf_arena *arena, const char *name, sf_type_kind type, sf_ast_node *value,
+    sf_arena *arena, const char *name, const sf_type *type, sf_ast_node *value,
     sf_qualifiers qualifiers, sf_attributes attributes, sf_span span
 ) {
     sf_ast_node_var_decl *node =
@@ -311,8 +311,8 @@ sf_ast_node_while *sf_new_while_node(
 }
 
 sf_ast_node_func_decl *sf_new_func_decl_node(
-    sf_arena *arena, const char *name, sf_type_kind return_type, sf_qualifiers qualifiers,
-    sf_attributes attributes, sf_span span
+    sf_arena *arena, const char *name, const sf_type *return_type,
+    sf_qualifiers qualifiers, sf_attributes attributes, sf_span span
 ) {
     sf_ast_node_func_decl *node =
         new_node(arena, sizeof(sf_ast_node_func_decl), SF_AST_NODE_TYPE_FUNC_DECL, span);
@@ -501,7 +501,7 @@ static void print_block_node(const sf_ast_node_block *node, size_t indent) {
 
 static void print_var_decl_node(const sf_ast_node_var_decl *node, size_t indent) {
     print_indent(indent);
-    printf("VarDecl %s %s\n", sf_type_kind_name(node->var_type), node->name);
+    printf("VarDecl %s %s\n", sf_type_name(node->var_type), node->name);
 
     print_node(node->value, indent + 1);
 }
@@ -544,7 +544,7 @@ static void print_unary_node(const sf_ast_node_unary *node, size_t indent) {
 
 static void print_cast_node(const sf_ast_node_cast *node, size_t indent) {
     print_indent(indent);
-    printf("Cast %s\n", sf_type_kind_name(node->target_type));
+    printf("Cast %s\n", sf_type_name(node->target_type));
 
     print_node(node->operand, indent + 1);
 }
@@ -583,7 +583,7 @@ static void print_while_node(const sf_ast_node_while *node, size_t indent) {
 
 static void print_func_decl_node(const sf_ast_node_func_decl *node, size_t indent) {
     print_indent(indent);
-    printf("Function %s %s\n", node->name, sf_type_kind_name(node->return_type));
+    printf("Function %s %s\n", node->name, sf_type_name(node->return_type));
 
     print_indent(indent + 1);
     printf("Parameters\n");
@@ -591,8 +591,7 @@ static void print_func_decl_node(const sf_ast_node_func_decl *node, size_t inden
     for (size_t i = 0; i < node->parameter_count; i++) {
         print_indent(indent + 2);
         printf(
-            "%s %s\n", sf_type_kind_name(node->parameters[i].type),
-            node->parameters[i].name
+            "%s %s\n", sf_type_name(node->parameters[i].type), node->parameters[i].name
         );
     }
 

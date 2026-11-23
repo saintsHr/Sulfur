@@ -63,7 +63,7 @@ typedef enum {
 
 typedef struct {
     sf_ir_operand_type type;
-    sf_type_kind value_type;
+    const sf_type *value_type;
     union {
         size_t temporary_id;
         size_t label_id;
@@ -91,7 +91,7 @@ typedef struct {
     size_t operation_capacity;
     sf_parameter *parameters;
     size_t parameter_count;
-    sf_type_kind return_type;
+    const sf_type *return_type;
     sf_qualifiers qualifiers;
     const char *name;
     size_t next_temp;

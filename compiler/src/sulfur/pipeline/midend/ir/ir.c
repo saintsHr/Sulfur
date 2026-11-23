@@ -140,7 +140,7 @@ void sf_ir_print(const sf_ir_program *program) {
             }
         }
 
-        printf(") %s", sf_type_kind_name(func->return_type));
+        printf(") %s", sf_type_name(func->return_type));
         if (func->operation_count > 0) {
             printf(":");
         }
@@ -199,7 +199,7 @@ static sf_ir_context context_from_function(sf_ir_function *function) {
 static sf_ir_operand new_temporary(sf_ir_context *context, sf_type_kind type) {
     sf_ir_operand op = {0};
     op.type = SF_IR_OPERAND_TYPE_TEMPORARY;
-    op.value_type = type;
+    op.value_type = sf_type_primitive(type);
     op.temporary_id = (*context->next_temp)++;
 
     return op;
@@ -208,7 +208,7 @@ static sf_ir_operand new_temporary(sf_ir_context *context, sf_type_kind type) {
 static sf_ir_operand new_label(sf_ir_program *program) {
     sf_ir_operand op = {0};
     op.type = SF_IR_OPERAND_TYPE_LABEL;
-    op.value_type = SF_TYPE_KIND_UNRESOLVED;
+    op.value_type = sf_type_primitive(SF_TYPE_KIND_UNRESOLVED);
     op.label_id = program->next_label++;
 
     return op;
@@ -217,7 +217,7 @@ static sf_ir_operand new_label(sf_ir_program *program) {
 static sf_ir_operand new_immediate(sf_type_kind type, const char *value) {
     sf_ir_operand op = {0};
     op.type = SF_IR_OPERAND_TYPE_IMMEDIATE;
-    op.value_type = type;
+    op.value_type = sf_type_primitive(type);
     op.immediate_value = value;
 
     return op;
@@ -320,7 +320,7 @@ static void generate_var_assign(
 
     sf_ir_operand dst = {
         .type = SF_IR_OPERAND_TYPE_VARIABLE,
-        .value_type = as->base.resolved->kind,
+        .value_type = as->base.resolved,
         .variable_name = sf_mangle_variable(arena, name, as->id),
     };
 
@@ -436,7 +436,8 @@ static void generate_function(
 
         generate_statement(arena, &ctx, program, func->body);
 
-        if (func->return_type == SF_TYPE_KIND_VOID && !ends_with_return(&func_ir)) {
+        if (func->return_type == sf_type_primitive(SF_TYPE_KIND_VOID) &&
+            !ends_with_return(&func_ir)) {
             emit(
                 arena, &ctx, SF_IR_OPCODE_RETURN, k_no_operand, k_no_operand, k_no_operand
             );
@@ -586,7 +587,7 @@ static sf_ir_operand generate_identifier(sf_arena *arena, sf_ast_node_identifier
 
     sf_ir_operand op = {0};
     op.type = SF_IR_OPERAND_TYPE_VARIABLE;
-    op.value_type = id->base.resolved->kind;
+    op.value_type = id->base.resolved;
     op.variable_name = sf_mangle_variable(arena, name, id->id);
 
     return op;
@@ -598,15 +599,15 @@ static void print_operand(sf_ir_operand op) {
             break;
         }
         case SF_IR_OPERAND_TYPE_TEMPORARY: {
-            printf("t%zu:%s", op.temporary_id, sf_type_kind_name(op.value_type));
+            printf("t%zu:%s", op.temporary_id, sf_type_name(op.value_type));
             break;
         }
         case SF_IR_OPERAND_TYPE_VARIABLE: {
-            printf("%s:%s", op.variable_name, sf_type_kind_name(op.value_type));
+            printf("%s:%s", op.variable_name, sf_type_name(op.value_type));
             break;
         }
         case SF_IR_OPERAND_TYPE_IMMEDIATE: {
-            printf("%s:%s", op.immediate_value, sf_type_kind_name(op.value_type));
+            printf("%s:%s", op.immediate_value, sf_type_name(op.value_type));
             break;
         }
         case SF_IR_OPERAND_TYPE_LABEL: {
@@ -794,7 +795,7 @@ static sf_ir_operand generate_call(
     sf_ir_operand func_operand = {
         .type = SF_IR_OPERAND_TYPE_FUNCTION,
         .function_name = call->link_name,
-        .value_type = call->base.resolved->kind
+        .value_type = call->base.resolved
     };
 
     if (call->argument_count > 0) {

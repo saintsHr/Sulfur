@@ -10,7 +10,7 @@ typedef uint64_t sf_stack_map_size;
 typedef struct {
     char *name;
     sf_stack_offset_size offset;
-    sf_type_kind type;
+    const sf_type *type;
 } sf_stack_entry;
 
 typedef struct {

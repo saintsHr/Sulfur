@@ -118,7 +118,9 @@ static sf_ast_node *parse_cast(sf_parser *p) {
             return NULL;
         }
 
-        expr = (sf_ast_node *)sf_new_cast_node(p->arena, expr, target_type, as_span);
+        expr = (sf_ast_node *)sf_new_cast_node(
+            p->arena, expr, sf_type_primitive(target_type), as_span
+        );
 
         if (expr == NULL) {
             return NULL;

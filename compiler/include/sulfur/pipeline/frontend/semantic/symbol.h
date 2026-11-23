@@ -10,7 +10,7 @@
 
 typedef struct sf_symbol_var {
     const char *name;
-    sf_type_kind type;
+    const sf_type *type;
     bool initialized;
     size_t depth;
     size_t id;
@@ -28,7 +28,7 @@ typedef struct sf_symbol_var_table {
 typedef struct sf_symbol_func {
     char *name;
     const char *link_name;
-    sf_type_kind return_type;
+    const sf_type *return_type;
     sf_parameter *parameters;
     size_t parameter_count;
     bool defined;

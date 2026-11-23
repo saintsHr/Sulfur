@@ -39,4 +39,4 @@ sf_type_kind sf_type_kind_promote(sf_type_kind a, sf_type_kind b);
 const sf_type *sf_type_primitive(sf_type_kind kind);
 const sf_type *sf_type_pointer_to(sf_arena *arena, const sf_type *pointee);
 bool sf_type_equals(const sf_type *a, const sf_type *b);
-const char *sf_type_name(sf_arena *arena, const sf_type *type);
+const char *sf_type_name(const sf_type *type);

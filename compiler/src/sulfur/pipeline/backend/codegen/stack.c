@@ -18,7 +18,7 @@ enum {
 
 static bool ensure_capacity(sf_stack_map *map);
 static void add_entry(
-    sf_stack_map *map, const char *name, sf_type_kind type,
+    sf_stack_map *map, const char *name, const sf_type *type,
     sf_stack_offset_size *next_offset
 );
 static sf_stack_offset_size next_aligned_offset(
@@ -156,14 +156,14 @@ static bool ensure_capacity(sf_stack_map *map) {
 }
 
 static void add_entry(
-    sf_stack_map *map, const char *name, sf_type_kind type,
+    sf_stack_map *map, const char *name, const sf_type *type,
     sf_stack_offset_size *next_offset
 ) {
     if (map == NULL || name == NULL) {
         return;
     }
 
-    uint8_t size = sf_type_kind_width_bytes(type);
+    uint8_t size = sf_type_kind_width_bytes(type->kind);
 
     if (size == 0) {
         return;

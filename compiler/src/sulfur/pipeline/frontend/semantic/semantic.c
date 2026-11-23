@@ -279,7 +279,7 @@ static void analyze_var_decl(sf_semantic *semantic, sf_ast_node_var_decl *var) {
         .attributes = var->attributes,
     };
 
-    if (sym.type == SF_TYPE_KIND_VOID) {
+    if (sym.type->kind == SF_TYPE_KIND_VOID) {
         sf_log(
             "Invalid Type", "Variables cannot be 'void'.",
             "Give the variable '%s' a valid type.", semantic->filename,
@@ -309,12 +309,12 @@ static void analyze_var_decl(sf_semantic *semantic, sf_ast_node_var_decl *var) {
     }
 
     if (var->value != NULL) {
-        if (!sf_semantic_run_expr(semantic, var->value, var->var_type)) {
+        if (!sf_semantic_run_expr(semantic, var->value, var->var_type->kind)) {
             return;
         }
 
         if (!check_assignment_type(
-                var->value->resolved->kind, var->var_type, var->base.span,
+                var->value->resolved->kind, var->var_type->kind, var->base.span,
                 semantic->filename
             )) {
             return;
@@ -346,12 +346,13 @@ static void analyze_var_assign(sf_semantic *semantic, sf_ast_node_var_assign *as
 
     asg->id = sym->id;
 
-    if (!sf_semantic_run_expr(semantic, asg->value, sym->type)) {
+    if (!sf_semantic_run_expr(semantic, asg->value, sym->type->kind)) {
         return;
     }
 
     if (!check_assignment_type(
-            asg->value->resolved->kind, sym->type, asg->base.span, semantic->filename
+            asg->value->resolved->kind, sym->type->kind, asg->base.span,
+            semantic->filename
         )) {
         return;
     }
@@ -366,7 +367,7 @@ static void analyze_var_assign(sf_semantic *semantic, sf_ast_node_var_assign *as
     }
 
     sym->initialized = true;
-    asg->base.resolved = sf_type_primitive(sym->type);
+    asg->base.resolved = sf_type_primitive(sym->type->kind);
 }
 
 static void analyze_block(sf_semantic *semantic, sf_ast_node_block *block) {
@@ -500,7 +501,7 @@ static void analyze_func_decl(sf_semantic *semantic, sf_ast_node_func_decl *func
     for (size_t i = 0; i < func->parameter_count; i++) {
         sf_parameter param = func->parameters[i];
 
-        if (param.type == SF_TYPE_KIND_VOID) {
+        if (param.type == sf_type_primitive(SF_TYPE_KIND_VOID)) {
             sf_log(
                 "Invalid Type", "Parameters cannot be 'void'.",
                 "Give the parameter '%s' a valid type.", semantic->filename,
@@ -537,7 +538,7 @@ static void analyze_func_decl(sf_semantic *semantic, sf_ast_node_func_decl *func
     for (size_t i = 0; i < func->parameter_count; i++) {
         sf_parameter param = func->parameters[i];
 
-        if (param.type == SF_TYPE_KIND_VOID) {
+        if (param.type == sf_type_primitive(SF_TYPE_KIND_VOID)) {
             continue;
         }
 
@@ -562,13 +563,14 @@ static void analyze_func_decl(sf_semantic *semantic, sf_ast_node_func_decl *func
 
     semantic->current_func = previous;
 
-    if (func->return_type != SF_TYPE_KIND_VOID && !stmt_always_returns(func->body)) {
+    if (func->return_type != sf_type_primitive(SF_TYPE_KIND_VOID) &&
+        !stmt_always_returns(func->body)) {
         sf_log(
             "Missing Return",
             "Function '%s' does not return a value of type '%s' in all paths.",
             "Check all paths for missing returns.", semantic->filename,
             SF_LOG_CODE_SEMANTIC_MISSING_RETURN, func->base.span, SF_LOG_SEVERITY_ERROR,
-            func->name, sf_type_kind_name(func->return_type)
+            func->name, sf_type_name(func->return_type)
         );
     }
 
@@ -590,7 +592,7 @@ static void analyze_return(sf_semantic *semantic, sf_ast_node_return *ret) {
     }
 
     if (ret->value == NULL) {
-        if (func->return_type != SF_TYPE_KIND_VOID) {
+        if (func->return_type != sf_type_primitive(SF_TYPE_KIND_VOID)) {
             sf_log(
                 "Missing Return Value",
                 "Function '%s' expects a return value of type '%s', but this "
@@ -598,14 +600,14 @@ static void analyze_return(sf_semantic *semantic, sf_ast_node_return *ret) {
                 "Return a value of the expected type, or change the "
                 "function's return type to 'void'.",
                 semantic->filename, SF_LOG_CODE_SEMANTIC_NO_VALUE_RETURN, ret->base.span,
-                SF_LOG_SEVERITY_ERROR, func->name, sf_type_kind_name(func->return_type)
+                SF_LOG_SEVERITY_ERROR, func->name, sf_type_name(func->return_type)
             );
         }
 
         return;
     }
 
-    if (func->return_type == SF_TYPE_KIND_VOID) {
+    if (func->return_type == sf_type_primitive(SF_TYPE_KIND_VOID)) {
         if (!sf_semantic_run_expr(semantic, ret->value, SF_TYPE_KIND_UNRESOLVED)) {
             return;
         }
@@ -624,12 +626,12 @@ static void analyze_return(sf_semantic *semantic, sf_ast_node_return *ret) {
         return;
     }
 
-    if (!sf_semantic_run_expr(semantic, ret->value, func->return_type)) {
+    if (!sf_semantic_run_expr(semantic, ret->value, func->return_type->kind)) {
         return;
     }
 
     check_return_type(
-        ret->value->resolved->kind, func->return_type, func->name, ret->base.span,
+        ret->value->resolved->kind, func->return_type->kind, func->name, ret->base.span,
         semantic->filename
     );
 }
@@ -841,7 +843,7 @@ static void check_entry_parameters(sf_semantic *semantic, const sf_symbol_func *
 }
 
 static void check_entry_return(sf_semantic *semantic, const sf_symbol_func *entry) {
-    if (entry->return_type != SF_TYPE_KIND_I32) {
+    if (entry->return_type != sf_type_primitive(SF_TYPE_KIND_I32)) {
         sf_log(
             "Invalid Return Type", "The '%s' function must return '%s'.",
             "Change the funtion return type.", semantic->filename,
